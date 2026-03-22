@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Thuoc extends Model
 {
@@ -38,5 +39,10 @@ class Thuoc extends Model
     public function loThuocs()
     {
         return $this->hasMany(LoThuoc::class, 'id_thuoc', 'ma_thuoc');
+    }
+
+    public function khuyenMais(): HasMany
+    {
+        return $this->hasMany(KhuyenMai::class, 'ma_thuoc', 'ma_thuoc');
     }
 }

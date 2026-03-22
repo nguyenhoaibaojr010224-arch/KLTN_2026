@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\UpdateThuocPriceRequest;
 use App\Models\Thuoc;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -10,7 +11,10 @@ class ThuocController extends Controller
 {
     public function index()
     {
-        return response()->json(Thuoc::with(['loaiThuoc', 'nhaSanXuat'])->get());
+        return response()->json(
+            Thuoc::with(['loaiThuoc', 'nhaSanXuat', 'khuyenMais' => fn ($query) => $query->latest()])
+                ->get()
+        );
     }
 
     public function store(Request $request)
@@ -33,7 +37,7 @@ class ThuocController extends Controller
 
     public function show($id)
     {
-        $thuoc = Thuoc::with(['loaiThuoc', 'nhaSanXuat'])->find($id);
+        $thuoc = Thuoc::with(['loaiThuoc', 'nhaSanXuat', 'khuyenMais' => fn ($query) => $query->latest()])->find($id);
 
         if (!$thuoc) {
             return response()->json(['message' => 'Không tìm thấy thuốc'], 404);
@@ -81,7 +85,7 @@ class ThuocController extends Controller
     {
         $query = $request->get('q');
         
-        $thuocs = Thuoc::with(['loaiThuoc', 'nhaSanXuat'])
+        $thuocs = Thuoc::with(['loaiThuoc', 'nhaSanXuat', 'khuyenMais' => fn ($builder) => $builder->latest()])
             ->where('ten_thuoc', 'like', '%' . $query . '%')
             ->orWhere('ma_thuoc', 'like', '%' . $query . '%')
             ->get();
@@ -103,5 +107,23 @@ class ThuocController extends Controller
 
         $thuoc->update(['trang_thai' => $request->trang_thai]);
         return response()->json($thuoc);
+    }
+
+    public function updatePrice(UpdateThuocPriceRequest $request, string $id)
+    {
+        $thuoc = Thuoc::with(['khuyenMais' => fn ($query) => $query->latest()])->find($id);
+
+        if (! $thuoc) {
+            return response()->json(['message' => 'Khong tim thay thuoc'], 404);
+        }
+
+        $thuoc->update([
+            'gia_ban' => (int) $request->validated('gia_ban'),
+        ]);
+
+        return response()->json([
+            'message' => 'Cap nhat gia ban thanh cong.',
+            'data' => $thuoc->fresh(['loaiThuoc', 'nhaSanXuat', 'khuyenMais' => fn ($query) => $query->latest()]),
+        ]);
     }
 }

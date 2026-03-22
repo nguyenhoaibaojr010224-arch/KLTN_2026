@@ -31,7 +31,12 @@
           />
         </div>
 
-        <div class="d-flex align-items-center gap-2">
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <RouterLink to="/" class="btn btn-outline-primary">
+            <i class="bi bi-house-door me-2"></i>
+            Ve trang chu
+          </RouterLink>
+
           <button type="button" class="btn btn-light rounded-circle shadow-sm position-relative">
             <i class="bi bi-bell"></i>
             <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
@@ -39,15 +44,15 @@
             </span>
           </button>
 
-            <div class="d-flex align-items-center gap-2 px-2">
-              <div class="user-pill__avatar d-grid place-items-center bg-primary-subtle text-primary">
-                <i class="bi bi-person-circle fs-4"></i>
-              </div>
-              <div>
-                <div class="fw-bold">{{ currentUser?.ho_ten || "Chua dang nhap" }}</div>
-                <div class="small text-secondary">{{ roleLabel }}</div>
-              </div>
+          <div class="d-flex align-items-center gap-2 px-2">
+            <div class="user-pill__avatar d-grid place-items-center bg-primary-subtle text-primary">
+              <i class="bi bi-person-circle fs-4"></i>
             </div>
+            <div>
+              <div class="fw-bold">{{ currentUser?.ho_ten || currentUser?.ten_khach_hang || "Chua dang nhap" }}</div>
+              <div class="small text-secondary">{{ roleLabel }}</div>
+            </div>
+          </div>
 
           <button type="button" class="btn btn-outline-secondary" @click="handleLogout">
             Dang xuat
@@ -61,12 +66,12 @@
 <script setup>
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { clearAuthSession, getAuthType, getStoredUser } from "../../lib/authStorage";
+import { authState, clearAuthSession } from "../../lib/authStorage";
 
 const route = useRoute();
 const router = useRouter();
-const currentUser = getStoredUser();
-const authType = getAuthType();
+
+const currentUser = computed(() => authState.user);
 
 const pageTitle = computed(() => route.meta.title || "Pharmacity FE");
 const pageSubtitle = computed(
@@ -74,11 +79,19 @@ const pageSubtitle = computed(
 );
 
 const roleLabel = computed(() => {
-  if (currentUser?.vai_tro?.ten_vai_tro) {
-    return currentUser.vai_tro.ten_vai_tro;
+  if (currentUser.value?.vai_tro?.ten_vai_tro) {
+    return currentUser.value.vai_tro.ten_vai_tro;
   }
 
-  if (authType === "customer") {
+  if (authState.type === "admin") {
+    return "Admin";
+  }
+
+  if (["staff", "nhan_vien", "nhanvien"].includes(authState.type)) {
+    return "Nhan vien";
+  }
+
+  if (authState.type === "customer") {
     return "Khach hang";
   }
 

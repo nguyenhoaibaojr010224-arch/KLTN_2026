@@ -79,7 +79,7 @@
           <span class="soft-badge soft-badge--blue">{{ thuocRows.length }} thuoc</span>
         </div>
 
-        <div v-if="thuốcRows.length" class="table-responsive">
+        <div v-if="thuocRows.length" class="table-responsive">
           <table class="table table-master align-middle mb-0">
             <thead>
               <tr>
@@ -101,7 +101,7 @@
                   <div class="fw-semibold">{{ thuoc.ten_thuoc }}</div>
                   <div class="small text-secondary">{{ thuoc.ma_thuoc }}</div>
                 </td>
-                <td>{{ thuoc.loaiThuoc?.ten_loai_thuoc || "-" }}</td>
+                <td>{{ thuoc.loaiThuoc?.ten_loai || thuoc.loaiThuoc?.ten_loai_thuoc || "-" }}</td>
                 <td>{{ formatCurrency(thuoc.gia_ban) }}</td>
                 <td>{{ thuoc.tong_ton }}</td>
                 <td>{{ thuoc.so_lo_count }}</td>
@@ -254,7 +254,6 @@ const selectedThuocLots = computed(() => {
 });
 
 const metrics = computed(() => {
-  const totalLots = loThuocs.value.length;
   const totalTon = loThuocs.value.reduce((sum, lo) => sum + Number(lo.so_luong_con || 0), 0);
   const sapHetHan = loThuocs.value.filter((lo) => lotStatus(lo) === "Sap het han").length;
   const ganHetTon = thuocRows.value.filter((thuoc) => thuoc.tong_ton > 0 && thuoc.tong_ton <= 20).length;

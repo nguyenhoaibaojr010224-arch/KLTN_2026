@@ -8,6 +8,7 @@ use App\Http\Controllers\ChiTietPhieuNhapController;
 use App\Http\Controllers\EmailVerificationController;
 use App\Http\Controllers\HoaDonController;
 use App\Http\Controllers\KhachHangController;
+use App\Http\Controllers\KhuyenMaiController;
 use App\Http\Controllers\LichSuDonHangController;
 use App\Http\Controllers\LoaiThuocController;
 use App\Http\Controllers\LoThuocController;
@@ -221,10 +222,23 @@ Route::prefix('thanh-toans')
 Route::prefix('thuocs')
     ->middleware(['auth:sanctum', 'nhan_vien.role:admin,staff'])
     ->group(function () {
-        // Nhan vien/Admin - Thuoc (read only o nhom nay)
+        // Nhan vien/Admin - Thuoc va gia ban
         Route::get('/search', [ThuocController::class, 'search']);
         Route::get('/', [ThuocController::class, 'index']);
         Route::get('/{id}', [ThuocController::class, 'show']);
+        Route::put('/{id}/price', [ThuocController::class, 'updatePrice']);
+    });
+
+Route::prefix('khuyen-mais')
+    ->middleware(['auth:sanctum', 'nhan_vien.role:admin,staff'])
+    ->group(function () {
+        // Nhan vien/Admin - Khuyen mai
+        Route::get('/search', [KhuyenMaiController::class, 'search']);
+        Route::get('/', [KhuyenMaiController::class, 'index']);
+        Route::post('/', [KhuyenMaiController::class, 'store']);
+        Route::get('/{id}', [KhuyenMaiController::class, 'show']);
+        Route::put('/{id}', [KhuyenMaiController::class, 'update']);
+        Route::delete('/{id}', [KhuyenMaiController::class, 'destroy']);
     });
 
 Route::prefix('lo-thuocs')

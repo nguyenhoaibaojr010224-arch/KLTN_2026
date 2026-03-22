@@ -22,13 +22,13 @@
         <p class="sidebar-caption">{{ section.label }}</p>
 
         <div class="d-flex flex-column gap-1">
-          <RouterLink
+          <button
             v-for="item in section.items"
             :key="item.to"
-            :to="item.to"
+            type="button"
             class="sidebar-link"
-            :class="{ active: route.path === item.to }"
-            data-bs-dismiss="offcanvas"
+            :class="{ active: isActive(item.to) }"
+            @click="navigateTo(item.to)"
           >
             <span class="sidebar-link__icon">
               <i :class="item.icon"></i>
@@ -37,7 +37,7 @@
               <span class="d-block">{{ item.label }}</span>
               <small class="d-block opacity-75 fw-medium">{{ item.caption }}</small>
             </span>
-          </RouterLink>
+          </button>
         </div>
       </div>
 
@@ -56,7 +56,9 @@
 </template>
 
 <script setup>
-import { useRoute } from "vue-router";
+import { computed } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import { isAdminState } from "../../lib/authStorage";
 
 defineProps({
   mobile: {
@@ -66,11 +68,18 @@ defineProps({
 });
 
 const route = useRoute();
+const router = useRouter();
 
-const menuSections = [
+const menuSections = computed(() => [
   {
     label: "Dieu hanh",
     items: [
+      {
+        to: "/",
+        label: "Trang Chu Khach Hang",
+        caption: "Quay lai giao dien ban hang",
+        icon: "bi bi-house-door",
+      },
       {
         to: "/dashboard",
         label: "Dashboard",
@@ -90,11 +99,21 @@ const menuSections = [
         icon: "bi bi-box-seam",
       },
       {
-        to: "/nhan-viens",
-        label: "Nhan Vien",
-        caption: "Quan sat du lieu admin",
-        icon: "bi bi-people",
+        to: "/gia-khuyen-mai",
+        label: "Gia & Khuyen Mai",
+        caption: "Gia ban va uu dai",
+        icon: "bi bi-tags",
       },
+      ...(isAdminState.value
+        ? [
+            {
+              to: "/nhan-viens",
+              label: "Nhan Vien",
+              caption: "Quan sat du lieu admin",
+              icon: "bi bi-people",
+            },
+          ]
+        : []),
     ],
   },
   {
@@ -114,5 +133,17 @@ const menuSections = [
       },
     ],
   },
-];
+]);
+
+function isActive(path) {
+  return route.path === path;
+}
+
+function navigateTo(path) {
+  if (route.path === path) {
+    return;
+  }
+
+  router.push(path);
+}
 </script>

@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\BangCap;
 use App\Models\HoaDon;
 use App\Models\KhachHang;
+use App\Models\KhuyenMai;
 use App\Models\LoaiThuoc;
 use App\Models\LoThuoc;
 use App\Models\NhanVien;
@@ -35,7 +36,7 @@ class DatabaseSeeder extends Seeder
             BangCap::factory(5)->create();
         }
 
-        NhanVien::firstOrCreate(['ten_dang_nhap' => 'admin'], [
+        NhanVien::updateOrCreate(['ten_dang_nhap' => 'admin'], [
             'mat_khau' => Hash::make('password'),
             'ho_ten' => 'Admin User',
             'id_vai_tro' => $adminRole->id_vai_tro,
@@ -43,7 +44,7 @@ class DatabaseSeeder extends Seeder
             'trang_thai' => 'active',
         ]);
 
-        NhanVien::firstOrCreate(['ten_dang_nhap' => 'staff'], [
+        NhanVien::updateOrCreate(['ten_dang_nhap' => 'staff'], [
             'mat_khau' => Hash::make('password'),
             'ho_ten' => 'Staff User',
             'id_vai_tro' => $staffRole->id_vai_tro,
@@ -86,6 +87,20 @@ class DatabaseSeeder extends Seeder
 
         if (HoaDon::count() === 0) {
             HoaDon::factory(10)->create();
+        }
+
+        if (KhuyenMai::count() === 0) {
+            Thuoc::query()
+                ->inRandomOrder()
+                ->take(5)
+                ->get()
+                ->each(function (Thuoc $thuoc): void {
+                    KhuyenMai::factory()->create([
+                        'ma_thuoc' => $thuoc->ma_thuoc,
+                        'gia_tri' => fake()->numberBetween(5, 25),
+                        'id_nhan_vien' => NhanVien::query()->where('ten_dang_nhap', 'admin')->value('id_nhan_vien'),
+                    ]);
+                });
         }
     }
 }
