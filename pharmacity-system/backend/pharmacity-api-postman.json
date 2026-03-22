@@ -1,0 +1,1274 @@
+{
+	"info": {
+		"_postman_id": "fda2861c-dfa0-4eb6-82ae-9bc7c4c478a0",
+		"name": "Pharmacity API",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Auth",
+			"item": [
+				{
+					"name": "Login",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"admin@exampl.com\",\n    \"password\": \"secret\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/api/login",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"login"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Admin",
+			"item": [
+				{
+					"name": "Get All Thuocs",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/admin/thuocs",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"thuocs"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Thuoc",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"ma_thuoc\": \"TH10010010\",\n    \"ten_thuoc\": \"Aspirin\",\n    \"ham_luong\": \"100mg\",\n    \"don_vi_tinh\": \"viên\",\n    \"gia_ban\": 5000,\n    \"trang_thai\": \"còn bán\",\n    \"id_loai_thuoc\": 1,\n    \"id_nha_san_xuat\": 1\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/api/admin/thuocs",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"thuocs"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Single Thuoc",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/admin/thuocs/TH10010010",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"thuocs",
+								"TH10010010"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Thuoc",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"gia_ban\": 6000\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/api/admin/thuocs/TH10010010",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"thuocs",
+								"TH10010010"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Status Thuoc",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"trang_thai\": \"ngừng bán\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/api/admin/thuocs/TH10010010/status",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"thuocs",
+								"TH10010010",
+								"status"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Thuoc",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/admin/thuocs/TH10010010",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"thuocs",
+								"TH10010010"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Search Thuocs",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/admin/thuocs/search?q=Aspirin",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"thuocs",
+								"search"
+							],
+							"query": [
+								{
+									"key": "q",
+									"value": "Aspirin"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All LoThuocs",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/admin/lo-thuocs",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"lo-thuocs"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create LoThuoc",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"id_thuoc\": \"TH10010010\",\n    \"so_lo\": \"LO-A100\",\n    \"ngay_san_xuat\": \"2024-01-01\",\n    \"han_su_dung\": \"2026-01-01\",\n    \"so_luong_nhap\": 500,\n    \"gia_nhap\": 15000\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/api/admin/lo-thuocs",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"lo-thuocs"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Single LoThuoc",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/admin/lo-thuocs/1",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"lo-thuocs",
+								"1"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update LoThuoc",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"so_luong_con\": 450\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/api/admin/lo-thuocs/1",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"lo-thuocs",
+								"1"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete LoThuoc",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/admin/lo-thuocs/1",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"lo-thuocs",
+								"1"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Search LoThuocs",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/admin/lo-thuocs/search?q=LO-",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"lo-thuocs",
+								"search"
+							],
+							"query": [
+								{
+									"key": "q",
+									"value": "LO-"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Expiring LoThuocs",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/admin/lo-thuocs/expiring?days=30",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"lo-thuocs",
+								"expiring"
+							],
+							"query": [
+								{
+									"key": "days",
+									"value": "30"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All KhachHangs (Admin)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/admin/khach-hangs",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"khach-hangs"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Single KhachHang (Admin)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/admin/khach-hangs/1",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"khach-hangs",
+								"1"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update KhachHang (Admin)",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"diem_tich_luy\": 500\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/api/admin/khach-hangs/1",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"khach-hangs",
+								"1"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete KhachHang (Admin)",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/admin/khach-hangs/1",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"khach-hangs",
+								"1"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Search KhachHangs (Admin)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/admin/khach-hangs/search?q=09",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"khach-hangs",
+								"search"
+							],
+							"query": [
+								{
+									"key": "q",
+									"value": "09"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Admin - VaiTro",
+			"item": [
+				{
+					"name": "Get All VaiTros",
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Accept", "value": "application/json"}],
+						"url": {"raw": "{{BASE_URL}}/api/admin/vai-tros", "host": ["{{BASE_URL}}"], "path": ["api", "admin", "vai-tros"]}
+					},
+					"response": []
+				},
+				{
+					"name": "Create VaiTro",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Accept", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\n    \"ten_vai_tro\": \"quan_ly\",\n    \"mo_ta\": \"Quản lý kho\"\n}", "options": {"raw": {"language": "json"}}},
+						"url": {"raw": "{{BASE_URL}}/api/admin/vai-tros", "host": ["{{BASE_URL}}"], "path": ["api", "admin", "vai-tros"]}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Single VaiTro",
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Accept", "value": "application/json"}],
+						"url": {"raw": "{{BASE_URL}}/api/admin/vai-tros/1", "host": ["{{BASE_URL}}"], "path": ["api", "admin", "vai-tros", "1"]}
+					},
+					"response": []
+				},
+				{
+					"name": "Update VaiTro",
+					"request": {
+						"method": "PUT",
+						"header": [{"key": "Accept", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\n    \"mo_ta\": \"Mô tả mới\"\n}", "options": {"raw": {"language": "json"}}},
+						"url": {"raw": "{{BASE_URL}}/api/admin/vai-tros/1", "host": ["{{BASE_URL}}"], "path": ["api", "admin", "vai-tros", "1"]}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete VaiTro",
+					"request": {
+						"method": "DELETE",
+						"header": [{"key": "Accept", "value": "application/json"}],
+						"url": {"raw": "{{BASE_URL}}/api/admin/vai-tros/1", "host": ["{{BASE_URL}}"], "path": ["api", "admin", "vai-tros", "1"]}
+					},
+					"response": []
+				},
+				{
+					"name": "Search VaiTros",
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Accept", "value": "application/json"}],
+						"url": {"raw": "{{BASE_URL}}/api/admin/vai-tros/search?q=admin", "host": ["{{BASE_URL}}"], "path": ["api", "admin", "vai-tros", "search"], "query": [{"key": "q", "value": "admin"}]}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Staff - VaiTro",
+			"item": [
+				{
+					"name": "Get All VaiTros (Staff)",
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Accept", "value": "application/json"}],
+						"url": {"raw": "{{BASE_URL}}/api/vai-tros", "host": ["{{BASE_URL}}"], "path": ["api", "vai-tros"]}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Single VaiTro (Staff)",
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Accept", "value": "application/json"}],
+						"url": {"raw": "{{BASE_URL}}/api/vai-tros/1", "host": ["{{BASE_URL}}"], "path": ["api", "vai-tros", "1"]}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Admin - BangCap",
+			"item": [
+				{
+					"name": "Get All BangCaps",
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Accept", "value": "application/json"}],
+						"url": {"raw": "{{BASE_URL}}/api/admin/bang-caps", "host": ["{{BASE_URL}}"], "path": ["api", "admin", "bang-caps"]}
+					},
+					"response": []
+				},
+				{
+					"name": "Create BangCap",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Accept", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\n    \"ten_bang_cap\": \"Thạc sĩ Dược\",\n    \"mo_ta\": \"Bằng thạc sĩ ngành Dược học\"\n}", "options": {"raw": {"language": "json"}}},
+						"url": {"raw": "{{BASE_URL}}/api/admin/bang-caps", "host": ["{{BASE_URL}}"], "path": ["api", "admin", "bang-caps"]}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Single BangCap",
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Accept", "value": "application/json"}],
+						"url": {"raw": "{{BASE_URL}}/api/admin/bang-caps/1", "host": ["{{BASE_URL}}"], "path": ["api", "admin", "bang-caps", "1"]}
+					},
+					"response": []
+				},
+				{
+					"name": "Update BangCap",
+					"request": {
+						"method": "PUT",
+						"header": [{"key": "Accept", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\n    \"mo_ta\": \"Mô tả cập nhật\"\n}", "options": {"raw": {"language": "json"}}},
+						"url": {"raw": "{{BASE_URL}}/api/admin/bang-caps/1", "host": ["{{BASE_URL}}"], "path": ["api", "admin", "bang-caps", "1"]}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete BangCap",
+					"request": {
+						"method": "DELETE",
+						"header": [{"key": "Accept", "value": "application/json"}],
+						"url": {"raw": "{{BASE_URL}}/api/admin/bang-caps/1", "host": ["{{BASE_URL}}"], "path": ["api", "admin", "bang-caps", "1"]}
+					},
+					"response": []
+				},
+				{
+					"name": "Search BangCaps",
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Accept", "value": "application/json"}],
+						"url": {"raw": "{{BASE_URL}}/api/admin/bang-caps/search?q=thac", "host": ["{{BASE_URL}}"], "path": ["api", "admin", "bang-caps", "search"], "query": [{"key": "q", "value": "thac"}]}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Staff - BangCap",
+			"item": [
+				{
+					"name": "Get All BangCaps (Staff)",
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Accept", "value": "application/json"}],
+						"url": {"raw": "{{BASE_URL}}/api/bang-caps", "host": ["{{BASE_URL}}"], "path": ["api", "bang-caps"]}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Single BangCap (Staff)",
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Accept", "value": "application/json"}],
+						"url": {"raw": "{{BASE_URL}}/api/bang-caps/1", "host": ["{{BASE_URL}}"], "path": ["api", "bang-caps", "1"]}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Admin - NhaSanXuat",
+			"item": [
+				{
+					"name": "Get All NhaSanXuats",
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Accept", "value": "application/json"}],
+						"url": {"raw": "{{BASE_URL}}/api/admin/nha-san-xuats", "host": ["{{BASE_URL}}"], "path": ["api", "admin", "nha-san-xuats"]}
+					},
+					"response": []
+				},
+				{
+					"name": "Create NhaSanXuat",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Accept", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\n    \"ten_nha_san_xuat\": \"Công ty Dược Việt Nam\",\n    \"nuoc_san_xuat\": \"Việt Nam\",\n    \"dia_chi\": \"123 Đường Lê Lợi, TP. HCM\",\n    \"so_dien_thoai\": \"0281234567\"\n}", "options": {"raw": {"language": "json"}}},
+						"url": {"raw": "{{BASE_URL}}/api/admin/nha-san-xuats", "host": ["{{BASE_URL}}"], "path": ["api", "admin", "nha-san-xuats"]}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Single NhaSanXuat",
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Accept", "value": "application/json"}],
+						"url": {"raw": "{{BASE_URL}}/api/admin/nha-san-xuats/1", "host": ["{{BASE_URL}}"], "path": ["api", "admin", "nha-san-xuats", "1"]}
+					},
+					"response": []
+				},
+				{
+					"name": "Update NhaSanXuat",
+					"request": {
+						"method": "PUT",
+						"header": [{"key": "Accept", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\n    \"so_dien_thoai\": \"0289999999\"\n}", "options": {"raw": {"language": "json"}}},
+						"url": {"raw": "{{BASE_URL}}/api/admin/nha-san-xuats/1", "host": ["{{BASE_URL}}"], "path": ["api", "admin", "nha-san-xuats", "1"]}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete NhaSanXuat",
+					"request": {
+						"method": "DELETE",
+						"header": [{"key": "Accept", "value": "application/json"}],
+						"url": {"raw": "{{BASE_URL}}/api/admin/nha-san-xuats/1", "host": ["{{BASE_URL}}"], "path": ["api", "admin", "nha-san-xuats", "1"]}
+					},
+					"response": []
+				},
+				{
+					"name": "Search NhaSanXuats",
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Accept", "value": "application/json"}],
+						"url": {"raw": "{{BASE_URL}}/api/admin/nha-san-xuats/search?q=viet", "host": ["{{BASE_URL}}"], "path": ["api", "admin", "nha-san-xuats", "search"], "query": [{"key": "q", "value": "viet"}]}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Staff - NhaSanXuat",
+			"item": [
+				{
+					"name": "Get All NhaSanXuats (Staff)",
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Accept", "value": "application/json"}],
+						"url": {"raw": "{{BASE_URL}}/api/nha-san-xuats", "host": ["{{BASE_URL}}"], "path": ["api", "nha-san-xuats"]}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Single NhaSanXuat (Staff)",
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Accept", "value": "application/json"}],
+						"url": {"raw": "{{BASE_URL}}/api/nha-san-xuats/1", "host": ["{{BASE_URL}}"], "path": ["api", "nha-san-xuats", "1"]}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Admin - LoaiThuoc",
+			"item": [
+				{
+					"name": "Get All LoaiThuocs",
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Accept", "value": "application/json"}],
+						"url": {"raw": "{{BASE_URL}}/api/admin/loai-thuocs", "host": ["{{BASE_URL}}"], "path": ["api", "admin", "loai-thuocs"]}
+					},
+					"response": []
+				},
+				{
+					"name": "Create LoaiThuoc",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Accept", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\n    \"ten_loai\": \"Thuốc kháng sinh\",\n    \"mo_ta\": \"Nhóm thuốc dùng để điều trị nhiễm khuẩn\"\n}", "options": {"raw": {"language": "json"}}},
+						"url": {"raw": "{{BASE_URL}}/api/admin/loai-thuocs", "host": ["{{BASE_URL}}"], "path": ["api", "admin", "loai-thuocs"]}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Single LoaiThuoc",
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Accept", "value": "application/json"}],
+						"url": {"raw": "{{BASE_URL}}/api/admin/loai-thuocs/1", "host": ["{{BASE_URL}}"], "path": ["api", "admin", "loai-thuocs", "1"]}
+					},
+					"response": []
+				},
+				{
+					"name": "Update LoaiThuoc",
+					"request": {
+						"method": "PUT",
+						"header": [{"key": "Accept", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\n    \"mo_ta\": \"Mô tả cập nhật\"\n}", "options": {"raw": {"language": "json"}}},
+						"url": {"raw": "{{BASE_URL}}/api/admin/loai-thuocs/1", "host": ["{{BASE_URL}}"], "path": ["api", "admin", "loai-thuocs", "1"]}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete LoaiThuoc",
+					"request": {
+						"method": "DELETE",
+						"header": [{"key": "Accept", "value": "application/json"}],
+						"url": {"raw": "{{BASE_URL}}/api/admin/loai-thuocs/1", "host": ["{{BASE_URL}}"], "path": ["api", "admin", "loai-thuocs", "1"]}
+					},
+					"response": []
+				},
+				{
+					"name": "Search LoaiThuocs",
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Accept", "value": "application/json"}],
+						"url": {"raw": "{{BASE_URL}}/api/admin/loai-thuocs/search?q=khang", "host": ["{{BASE_URL}}"], "path": ["api", "admin", "loai-thuocs", "search"], "query": [{"key": "q", "value": "khang"}]}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Staff - LoaiThuoc",
+			"item": [
+				{
+					"name": "Get All LoaiThuocs (Staff)",
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Accept", "value": "application/json"}],
+						"url": {"raw": "{{BASE_URL}}/api/loai-thuocs", "host": ["{{BASE_URL}}"], "path": ["api", "loai-thuocs"]}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Single LoaiThuoc (Staff)",
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Accept", "value": "application/json"}],
+						"url": {"raw": "{{BASE_URL}}/api/loai-thuocs/1", "host": ["{{BASE_URL}}"], "path": ["api", "loai-thuocs", "1"]}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Staff",
+			"item": [
+				{
+					"name": "Get All Thuocs",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/thuocs",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"thuocs"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Single Thuoc",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/thuocs/TH10010010",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"thuocs",
+								"TH10010010"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Search Thuocs",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/thuocs/search?q=Aspirin",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"thuocs",
+								"search"
+							],
+							"query": [
+								{
+									"key": "q",
+									"value": "Aspirin"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All LoThuocs",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/lo-thuocs",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"lo-thuocs"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Single LoThuoc",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/lo-thuocs/1",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"lo-thuocs",
+								"1"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Search LoThuocs",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/lo-thuocs/search?q=LO-",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"lo-thuocs",
+								"search"
+							],
+							"query": [
+								{
+									"key": "q",
+									"value": "LO-"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Customer",
+			"item": [
+				{
+					"name": "Register",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"ten_khach_hang\": \"Nguyen Van A\",\n    \"so_dien_thoai\": \"0987654321\",\n    \"email\": \"khachhang@example.com\",\n    \"dia_chi\": \"123 Duong ABC, Quan 1, TP.HCM\",\n    \"mat_khau\": \"secret\",\n    \"mat_khau_confirmation\": \"secret\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/api/register",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"register"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Verify Email",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/email/verify/TOKEN_VALUE_HERE",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"email",
+								"verify",
+								"TOKEN_VALUE_HERE"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Profile",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_URL}}/api/profile",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"profile"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Profile",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"dia_chi\": \"456 Duong XYZ, Quan 2, TP.HCM\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/api/profile",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"profile"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Change Password",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"current_password\": \"secret\",\n    \"new_password\": \"secret123\",\n    \"new_password_confirmation\": \"secret123\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/api/profile/change-password",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"profile",
+								"change-password"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "BASE_URL",
+			"value": "http://localhost:8000",
+			"type": "string"
+		}
+	]
+}
