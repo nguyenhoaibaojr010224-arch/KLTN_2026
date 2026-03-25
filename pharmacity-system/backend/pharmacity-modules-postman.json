@@ -1,0 +1,330 @@
+{
+  "info": {
+    "_postman_id": "8cc5b7ab-5f6d-4f86-9a37-pharmacity-modules",
+    "name": "Pharmacity Extended Modules",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://127.0.0.1:8000" },
+    { "key": "admin_token", "value": "" },
+    { "key": "staff_token", "value": "" },
+    { "key": "phieu_nhap_id", "value": "" },
+    { "key": "hoa_don_id", "value": "" },
+    { "key": "customer_email", "value": "" },
+    { "key": "email_token", "value": "" },
+    { "key": "password_reset_token", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth - Login Admin",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+              "const data = pm.response.json();",
+              "pm.collectionVariables.set('admin_token', data.token);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Accept", "value": "application/json" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"ten_dang_nhap\": \"admin\",\n  \"password\": \"password\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{base_url}}/api/login"
+      }
+    },
+    {
+      "name": "Auth - Login Staff",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+              "const data = pm.response.json();",
+              "pm.collectionVariables.set('staff_token', data.token);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Accept", "value": "application/json" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"ten_dang_nhap\": \"staff\",\n  \"password\": \"password\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{base_url}}/api/login"
+      }
+    },
+    {
+      "name": "Admin - Create Thong Tin Nhan Vien",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Accept", "value": "application/json" },
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{admin_token}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id_nhan_vien\": 2,\n  \"so_dien_thoai\": \"0912345678\",\n  \"email\": \"staff.profile@example.com\",\n  \"dia_chi\": \"123 Duong ABC, Quan 1\",\n  \"ngay_sinh\": \"1995-03-18\",\n  \"ngay_vao_lam\": \"2023-03-18\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{base_url}}/api/admin/thong-tin-nhan-viens"
+      }
+    },
+    {
+      "name": "Staff - Create Phieu Nhap",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const data = pm.response.json();",
+              "pm.collectionVariables.set('phieu_nhap_id', data.data.id_phieu_nhap);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Accept", "value": "application/json" },
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{staff_token}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id_nha_san_xuat\": 1,\n  \"ngay_nhap\": \"2026-03-18 08:30:00\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{base_url}}/api/phieu-nhaps"
+      }
+    },
+    {
+      "name": "Staff - Add Chi Tiet Phieu Nhap",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Accept", "value": "application/json" },
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{staff_token}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id_lo\": 1,\n  \"so_luong\": 20,\n  \"gia_nhap\": 25000\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{base_url}}/api/phieu-nhaps/{{phieu_nhap_id}}/chi-tiets"
+      }
+    },
+    {
+      "name": "Staff - Create Hoa Don",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const data = pm.response.json();",
+              "pm.collectionVariables.set('hoa_don_id', data.data.id_hoa_don);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Accept", "value": "application/json" },
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{staff_token}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id_khach_hang\": 1,\n  \"tong_tien\": 0,\n  \"giam_gia\": 0\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{base_url}}/api/hoa-dons"
+      }
+    },
+    {
+      "name": "Staff - Add Chi Tiet Hoa Don",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Accept", "value": "application/json" },
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{staff_token}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id_lo\": 1,\n  \"so_luong\": 2\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{base_url}}/api/hoa-dons/{{hoa_don_id}}/chi-tiets"
+      }
+    },
+    {
+      "name": "Staff - Create Thanh Toan",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Accept", "value": "application/json" },
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{staff_token}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id_hoa_don\": {{hoa_don_id}},\n  \"phuong_thuc\": \"tien_mat\",\n  \"so_tien\": 100000\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{base_url}}/api/thanh-toans"
+      }
+    },
+    {
+      "name": "Staff - Add Lich Su Don Hang",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Accept", "value": "application/json" },
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{staff_token}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"trang_thai\": \"dang_xu_ly\",\n  \"ghi_chu\": \"Da xac nhan giao dich\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{base_url}}/api/hoa-dons/{{hoa_don_id}}/lich-su"
+      }
+    },
+    {
+      "name": "Public - Register Customer",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const data = JSON.parse(pm.request.body.raw);",
+              "pm.collectionVariables.set('customer_email', data.email);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Accept", "value": "application/json" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"ten_khach_hang\": \"Khach Hang Test\",\n  \"so_dien_thoai\": \"0911122233\",\n  \"email\": \"khach.test@example.com\",\n  \"dia_chi\": \"123 Duong Test, Quan 1\",\n  \"mat_khau\": \"password\",\n  \"mat_khau_confirmation\": \"password\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{base_url}}/api/register"
+      }
+    },
+    {
+      "name": "Public - Request Email Verification",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const data = pm.response.json();",
+              "pm.collectionVariables.set('email_token', data.data.token);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Accept", "value": "application/json" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{customer_email}}\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{base_url}}/api/email-verifications/request"
+      }
+    },
+    {
+      "name": "Public - Verify Email",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Accept", "value": "application/json" }
+        ],
+        "url": "{{base_url}}/api/email-verifications/verify/{{email_token}}"
+      }
+    },
+    {
+      "name": "Public - Request Password Reset",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const data = pm.response.json();",
+              "pm.collectionVariables.set('password_reset_token', data.data.token);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Accept", "value": "application/json" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{customer_email}}\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{base_url}}/api/password-resets/request"
+      }
+    },
+    {
+      "name": "Public - Reset Password",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Accept", "value": "application/json" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{customer_email}}\",\n  \"token\": \"{{password_reset_token}}\",\n  \"password\": \"newpassword\",\n  \"password_confirmation\": \"newpassword\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{base_url}}/api/password-resets/reset"
+      }
+    }
+  ]
+}
