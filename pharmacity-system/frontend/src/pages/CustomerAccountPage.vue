@@ -5,7 +5,10 @@
         <div class="col-xl-3">
           <aside class="pc-account-sidebar">
             <div class="pc-account-profile">
-              <div class="pc-account-profile__avatar">KH</div>
+              <div class="pc-account-profile__avatar">
+                <img v-if="state.profile.avatarUrl" :src="state.profile.avatarUrl" alt="Avatar khách hàng" />
+                <span v-else>KH</span>
+              </div>
               <div>
                 <h3>{{ state.profile.hoTen }}</h3>
                 <div class="pc-account-profile__points">{{ state.profile.pxu.toLocaleString("vi-VN") }} P-Xu</div>
@@ -30,7 +33,16 @@
         <div class="col-xl-9">
           <section v-if="section === 'thong-tin'" class="pc-account-panel">
             <h1>Thông tin cá nhân</h1>
-            <div class="pc-account-form__avatar">KH</div>
+            <div class="pc-account-form__avatar-wrap">
+              <div class="pc-account-form__avatar">
+                <img v-if="avatarPreviewUrl" :src="avatarPreviewUrl" alt="Avatar khách hàng" />
+                <span v-else>KH</span>
+              </div>
+              <label class="btn btn-outline-primary rounded-pill px-3 mt-3">
+                <input hidden type="file" accept="image/png,image/jpeg,image/jpg,image/webp" @change="handleAvatarChange" />
+                Chọn ảnh đại diện
+              </label>
+            </div>
 
             <div class="pc-account-form">
               <div class="pc-form-field">
@@ -241,16 +253,18 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref, watch } from "vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import { useCustomerStore } from "../lib/customerStore";
 
 const route = useRoute();
-const { state, saveAddress, updateProfile } = useCustomerStore();
+const { state, saveAddress, updateProfile, refreshProfileFromApi } = useCustomerStore();
 const section = computed(() => route.params.section || "thong-tin");
 const showAddressModal = ref(false);
 const showPasswordHint = ref(false);
 const activeTab = ref("Đơn hàng");
+const avatarFile = ref(null);
+const avatarPreviewUrl = ref(state.profile.avatarUrl || "");
 const notificationTabs = ["Đơn hàng", "Thương hiệu", "Ưu đãi", "Sức khỏe", "Tin tức", "Hệ thống"];
 
 const menuItems = [
@@ -299,6 +313,16 @@ watch(
   { deep: true }
 );
 
+watch(
+  () => state.profile.avatarUrl,
+  (value) => {
+    if (!avatarFile.value) {
+      avatarPreviewUrl.value = value || "";
+    }
+  },
+  { immediate: true }
+);
+
 function formatCurrency(value) {
   return new Intl.NumberFormat("vi-VN", {
     style: "currency",
@@ -307,8 +331,25 @@ function formatCurrency(value) {
   }).format(Number(value || 0));
 }
 
-function saveProfile() {
-  updateProfile({ ...profileDraft });
+function handleAvatarChange(event) {
+  const file = event.target.files?.[0] || null;
+  avatarFile.value = file;
+  avatarPreviewUrl.value = file ? URL.createObjectURL(file) : state.profile.avatarUrl || "";
+}
+
+async function saveProfile() {
+  const payload = new FormData();
+  payload.append("ten_khach_hang", profileDraft.hoTen);
+  payload.append("so_dien_thoai", profileDraft.soDienThoai);
+  payload.append("dia_chi", state.addresses[0]?.soNha || "Chưa cập nhật địa chỉ");
+
+  if (avatarFile.value) {
+    payload.append("avatar", avatarFile.value);
+  }
+
+  await updateProfile(payload);
+  avatarFile.value = null;
+  avatarPreviewUrl.value = state.profile.avatarUrl || avatarPreviewUrl.value;
   window.alert("Đã cập nhật thông tin cá nhân.");
 }
 
@@ -321,4 +362,37 @@ function submitAddress() {
   showAddressModal.value = false;
   window.alert("Đã lưu địa chỉ nhận hàng.");
 }
+
+onMounted(() => {
+  void refreshProfileFromApi();
+});
 </script>
+
+<style scoped>
+.pc-account-profile__avatar,
+.pc-account-form__avatar {
+  overflow: hidden;
+}
+
+.pc-account-profile__avatar img,
+.pc-account-form__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.pc-account-profile__avatar span,
+.pc-account-form__avatar span {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+}
+
+.pc-account-form__avatar-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0 auto 22px;
+}
+</style>

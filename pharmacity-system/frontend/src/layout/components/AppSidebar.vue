@@ -99,6 +99,12 @@ const menuSections = computed(() => [
         icon: "bi bi-box-seam",
       },
       {
+        to: "/thuocs",
+        label: "Thuoc",
+        caption: "Danh sach va them thuoc",
+        icon: "bi bi-capsule-pill",
+      },
+      {
         to: "/gia-khuyen-mai",
         label: "Gia & Khuyen Mai",
         caption: "Gia ban va uu dai",

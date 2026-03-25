@@ -71,8 +71,13 @@
             <div class="pc-order-card__sectiontitle">Phương thức thanh toán</div>
             <label v-for="method in paymentMethods" :key="method.id" class="pc-payment-method">
               <input v-model="state.paymentMethod" type="radio" :value="method.id" name="payment-method" />
-              <span class="pc-payment-method__logo">{{ method.short }}</span>
-              <span>{{ method.label }}</span>
+              <span class="pc-payment-method__logo" :class="`pc-payment-method__logo--${method.id}`">
+                <img v-if="method.logo" :src="method.logo" :alt="method.label" class="pc-payment-method__logo-image" />
+                <span v-else-if="method.id === 'cod'" class="pc-payment-method__logo-text">COD</span>
+                <span v-else-if="method.id === 'atm'" class="pc-payment-method__logo-text">ATM</span>
+                <i v-else class="bi bi-credit-card-2-front"></i>
+              </span>
+              <span class="pc-payment-method__label">{{ method.label }}</span>
             </label>
           </section>
         </div>
@@ -92,8 +97,8 @@
 
             <div class="pc-summary-card">
               <div class="pc-summary-card__line">
-                <span>Hoá đơn VAT</span>
-                <button type="button">Yêu cầu xuất hoá đơn</button>
+                <span>Hóa đơn VAT</span>
+                <button type="button">Yêu cầu xuất hóa đơn</button>
               </div>
             </div>
 
@@ -104,7 +109,7 @@
                   <input v-model="state.hideProductInfo" class="form-check-input" type="checkbox" role="switch" />
                 </label>
               </div>
-              <p>Thông tin sản phẩm sẽ được ẩn trên Phiếu gửi hàng.</p>
+              <p>Thông tin sản phẩm sẽ được ẩn trên phiếu gửi hàng.</p>
             </div>
 
             <div class="pc-summary-card">
@@ -133,7 +138,10 @@
 
               <label class="pc-summary-card__agree">
                 <input v-model="acceptedTerms" type="checkbox" />
-                <span>Bằng cách tích vào ô chọn, bạn đã đồng ý với Điều khoản Pharmacity và xác nhận đã đọc kỹ thông tin sản phẩm</span>
+                <span>
+                  Bằng cách tích vào ô chọn, bạn đã đồng ý với Điều khoản Pharmacity và xác nhận đã đọc kỹ thông tin
+                  sản phẩm.
+                </span>
               </label>
 
               <button class="btn btn-primary btn-lg w-100 rounded-4" type="button" :disabled="!acceptedTerms" @click="submitOrder">
@@ -151,6 +159,8 @@
 import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { useCustomerStore } from "../lib/customerStore";
+import momoLogo from "../assets/payment/momo-logo.jpg";
+import zaloPayLogo from "../assets/payment/zalopay.webp";
 
 const router = useRouter();
 const { state, selectedItems, subtotal, productDiscount, orderTotal, defaultAddress, giftItems, placeOrder } =
@@ -158,10 +168,11 @@ const { state, selectedItems, subtotal, productDiscount, orderTotal, defaultAddr
 const acceptedTerms = ref(true);
 
 const paymentMethods = [
-  { id: "cod", label: "Tiền mặt", short: "COD" },
-  { id: "momo", label: "MoMo", short: "MoMo" },
-  { id: "zalopay", label: "ZaloPay", short: "Zalo" },
-  { id: "atm", label: "Thẻ ATM", short: "ATM" },
+  { id: "cod", label: "Tiền mặt" },
+  { id: "momo", label: "MoMo", logo: momoLogo },
+  { id: "zalopay", label: "ZaloPay", logo: zaloPayLogo },
+  { id: "atm", label: "Thẻ ATM" },
+  { id: "international", label: "Thẻ quốc tế" },
 ];
 
 function formatCurrency(value) {
@@ -182,3 +193,76 @@ function submitOrder() {
   router.push("/tai-khoan/lich-su-don-hang");
 }
 </script>
+
+<style scoped>
+.pc-page__title h1,
+.pc-order-card__sectiontitle,
+.pc-summary-card h2,
+.pc-summary-card__total strong,
+.pc-checkout-item__content h3,
+.pc-gift-item__content h3 {
+  color: #132b53;
+}
+
+.pc-checkout-item__content p,
+.pc-gift-item__content p,
+.pc-summary-card p,
+.pc-summary-card__line span,
+.pc-checkout-note label,
+.pc-address-preview p {
+  color: #314a73;
+}
+
+.pc-payment-method {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 92px;
+  padding: 18px 2px;
+  border-top: 1px solid rgba(22, 82, 197, 0.08);
+  color: #203451;
+}
+
+.pc-payment-method__logo {
+  width: 60px;
+  height: 60px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border: 1px solid rgba(22, 82, 197, 0.1);
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 8px 18px rgba(15, 31, 79, 0.06);
+}
+
+.pc-payment-method__logo-image {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+}
+
+.pc-payment-method__logo-text {
+  font-size: 0.95rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.pc-payment-method__logo--cod .pc-payment-method__logo-text {
+  color: #1c5db6;
+}
+
+.pc-payment-method__logo--atm .pc-payment-method__logo-text {
+  color: #1474b8;
+}
+
+.pc-payment-method__logo--international {
+  color: #1a5fb5;
+  font-size: 1.35rem;
+}
+
+.pc-payment-method__label {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #17345f;
+}
+</style>

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\HasApiTokens;
 
 class KhachHang extends Authenticatable
@@ -19,10 +20,15 @@ class KhachHang extends Authenticatable
         'so_dien_thoai',
         'email',
         'dia_chi',
+        'avatar',
         'diem_tich_luy',
         'mat_khau',
         'email_verified',
         'email_verified_at'
+    ];
+
+    protected $appends = [
+        'avatar_url',
     ];
 
     protected $hidden = [
@@ -41,5 +47,14 @@ class KhachHang extends Authenticatable
     public function hoaDons(): HasMany
     {
         return $this->hasMany(HoaDon::class, 'id_khach_hang', 'id_khach_hang');
+    }
+
+    public function getAvatarUrlAttribute(): ?string
+    {
+        if (! $this->avatar) {
+            return null;
+        }
+
+        return Storage::disk('public')->url($this->avatar);
     }
 }

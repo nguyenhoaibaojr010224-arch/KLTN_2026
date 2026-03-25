@@ -57,9 +57,7 @@ class DatabaseSeeder extends Seeder
             NhanVien::factory($missingNhanVien)->create();
         }
 
-        if (LoaiThuoc::count() === 0) {
-            LoaiThuoc::factory(10)->create();
-        }
+        $this->call(LoaiThuocSeeder::class);
 
         if (NhaSanXuat::count() === 0) {
             NhaSanXuat::factory(10)->create();

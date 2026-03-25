@@ -1,5 +1,6 @@
 import { computed, reactive } from "vue";
-import { getAuthType, getStoredUser } from "./authStorage";
+import { authState, getAuthType, getStoredUser, setAuthSession } from "./authStorage";
+import { getProfile, updateProfileApi } from "../api/profileApi";
 
 const CART_KEY = "pharmacity_customer_cart";
 const PROFILE_KEY = "pharmacity_customer_profile";
@@ -24,9 +25,10 @@ function buildProfile() {
   const user = getStoredUser();
 
   return {
-    hoTen: user?.ten_khach_hang || user?.ho_ten || "Khách Hàng",
+    hoTen: user?.ten_khach_hang || user?.ho_ten || "Khách hàng",
     soDienThoai: user?.so_dien_thoai || "**** *** 128",
     email: user?.email || "",
+    avatarUrl: user?.avatar_url || "",
     ngaySinh: "",
     gioiTinh: "",
     rankName: authType === "customer" ? "Hạng Vàng" : "Thành viên",
@@ -37,7 +39,7 @@ function buildProfile() {
 const defaultAddresses = [
   {
     id: 1,
-    hoTen: "Khách Hàng",
+    hoTen: "Khách hàng",
     soDienThoai: "0909 111 128",
     tinhThanh: "TP. Hồ Chí Minh",
     quanHuyen: "Quận 3",
@@ -86,6 +88,7 @@ function syncProfileFromAuth() {
     hoTen: nextProfile.hoTen,
     soDienThoai: nextProfile.soDienThoai,
     email: state.profile.email || nextProfile.email,
+    avatarUrl: state.profile.avatarUrl || nextProfile.avatarUrl,
     rankName: nextProfile.rankName,
     pxu: state.profile.pxu || nextProfile.pxu,
   };
@@ -193,9 +196,56 @@ function saveAddress(payload) {
   persistAddresses();
 }
 
-function updateProfile(payload) {
+async function refreshProfileFromApi() {
+  try {
+    const user = await getProfile();
+
+    state.profile = {
+      ...state.profile,
+      hoTen: user?.ten_khach_hang || state.profile.hoTen,
+      soDienThoai: user?.so_dien_thoai || state.profile.soDienThoai,
+      email: user?.email || state.profile.email,
+      avatarUrl: user?.avatar_url || "",
+    };
+
+    setAuthSession({
+      token: authState.token,
+      user,
+      type: authState.type,
+    });
+
+    persistProfile();
+  } catch {
+    // Keep local state if API is temporarily unavailable.
+  }
+}
+
+async function updateProfile(payload) {
+  if (getAuthType() === "customer") {
+    const response = await updateProfileApi(payload);
+    const user = response?.user;
+
+    state.profile = {
+      ...state.profile,
+      hoTen: user?.ten_khach_hang || state.profile.hoTen,
+      soDienThoai: user?.so_dien_thoai || state.profile.soDienThoai,
+      email: user?.email || state.profile.email,
+      avatarUrl: user?.avatar_url || state.profile.avatarUrl || "",
+    };
+
+    setAuthSession({
+      token: authState.token,
+      user: user || authState.user,
+      type: authState.type,
+    });
+
+    persistProfile();
+    return response;
+  }
+
   state.profile = { ...state.profile, ...payload };
   persistProfile();
+  return { user: state.profile };
 }
 
 function placeOrder() {
@@ -272,6 +322,7 @@ export function useCustomerStore() {
     clearCart,
     saveAddress,
     updateProfile,
+    refreshProfileFromApi,
     placeOrder,
     syncProfileFromAuth,
   };

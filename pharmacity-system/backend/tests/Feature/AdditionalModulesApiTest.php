@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\BangCap;
 use App\Models\KhachHang;
+use App\Models\KhuyenMai;
 use App\Models\LoaiThuoc;
 use App\Models\LoThuoc;
 use App\Models\NhanVien;
@@ -189,6 +190,17 @@ class AdditionalModulesApiTest extends TestCase
             'gia_nhap' => 80000,
         ]);
 
+        $staff = $this->createNhanVien('staff_pricing', 'nhan_vien');
+
+        KhuyenMai::factory()->create([
+            'ma_thuoc' => $thuoc->ma_thuoc,
+            'ten_khuyen_mai' => 'Deal vitamin',
+            'nhan_hien_thi' => 'Giam 20%',
+            'loai_ap_dung' => 'phan_tram',
+            'gia_tri' => 20,
+            'id_nhan_vien' => $staff->id_nhan_vien,
+        ]);
+
         $registerResponse = $this->postJson('/api/register', [
             'ten_khach_hang' => 'Khach Hang Test',
             'so_dien_thoai' => '0987654321',
@@ -208,7 +220,52 @@ class AdditionalModulesApiTest extends TestCase
         $catalogResponse
             ->assertOk()
             ->assertJsonPath('data.0.ma_thuoc', $thuoc->ma_thuoc)
-            ->assertJsonPath('data.0.so_luong_ton', 18);
+            ->assertJsonPath('data.0.so_luong_ton', 18)
+            ->assertJsonPath('data.0.gia_niem_yet', 120000)
+            ->assertJsonPath('data.0.gia_ban', 96000)
+            ->assertJsonPath('data.0.co_khuyen_mai', true);
+    }
+
+    public function test_staff_can_update_price_and_manage_promotions(): void
+    {
+        $staff = $this->createNhanVien('staff_price_admin', 'nhan_vien');
+        $thuoc = Thuoc::factory()->create([
+            'gia_ban' => 100000,
+        ]);
+
+        Sanctum::actingAs($staff, ['staff']);
+
+        $priceResponse = $this->putJson("/api/thuocs/{$thuoc->ma_thuoc}/price", [
+            'gia_ban' => 145000,
+        ]);
+
+        $priceResponse
+            ->assertOk()
+            ->assertJsonPath('data.gia_ban', 145000);
+
+        $promoResponse = $this->postJson('/api/khuyen-mais', [
+            'ma_thuoc' => $thuoc->ma_thuoc,
+            'ten_khuyen_mai' => 'Flash sale',
+            'mo_ta' => 'Giam gia theo dot',
+            'loai_ap_dung' => 'phan_tram',
+            'gia_tri' => 10,
+            'nhan_hien_thi' => 'Giam 10%',
+            'ngay_bat_dau' => now()->subHour()->toDateTimeString(),
+            'ngay_ket_thuc' => now()->addDays(2)->toDateTimeString(),
+            'trang_thai' => 'active',
+        ]);
+
+        $promoResponse
+            ->assertCreated()
+            ->assertJsonPath('data.ma_thuoc', $thuoc->ma_thuoc);
+
+        $catalogResponse = $this->getJson('/api/catalog/thuocs?q=' . $thuoc->ma_thuoc);
+
+        $catalogResponse
+            ->assertOk()
+            ->assertJsonPath('data.0.gia_niem_yet', 145000)
+            ->assertJsonPath('data.0.gia_ban', 130500)
+            ->assertJsonPath('data.0.khuyen_mai.nhan_hien_thi', 'Giam 10%');
     }
 
     private function createNhanVien(string $username, string $roleName): NhanVien

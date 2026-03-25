@@ -7,6 +7,7 @@ use App\Models\KhachHang;
 use App\Models\NhanVien;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -143,7 +144,17 @@ class AuthController extends Controller
                 'ten_khach_hang' => 'sometimes|required|string|min:5|max:100',
                 'so_dien_thoai' => 'sometimes|required|string|size:10|unique:khach_hangs,so_dien_thoai,' . $user->id_khach_hang . ',id_khach_hang',
                 'dia_chi' => 'sometimes|required|string|min:5|max:100',
+                'avatar' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
             ]);
+
+            if ($request->hasFile('avatar')) {
+                if ($user->avatar) {
+                    Storage::disk('public')->delete($user->avatar);
+                }
+
+                $validated['avatar'] = $request->file('avatar')->store('avatars', 'public');
+            }
+
             $user->update($validated);
         } elseif ($user instanceof NhanVien) {
             $validated = $request->validate([
@@ -152,7 +163,7 @@ class AuthController extends Controller
             $user->update($validated);
         }
 
-        return response()->json(['message' => 'Cap nhat ho so thanh cong.', 'user' => $user]);
+        return response()->json(['message' => 'Cap nhat ho so thanh cong.', 'user' => $user->fresh()]);
     }
 
     public function changePassword(Request $request)

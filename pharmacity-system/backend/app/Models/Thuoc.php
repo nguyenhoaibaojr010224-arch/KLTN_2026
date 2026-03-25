@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Storage;
 
 class Thuoc extends Model
 {
@@ -22,8 +23,13 @@ class Thuoc extends Model
         'don_vi_tinh',
         'gia_ban',
         'trang_thai',
+        'hinh_anh',
         'id_loai_thuoc',
         'id_nha_san_xuat',
+    ];
+
+    protected $appends = [
+        'hinh_anh_url',
     ];
 
     public function loaiThuoc()
@@ -44,5 +50,14 @@ class Thuoc extends Model
     public function khuyenMais(): HasMany
     {
         return $this->hasMany(KhuyenMai::class, 'ma_thuoc', 'ma_thuoc');
+    }
+
+    public function getHinhAnhUrlAttribute(): ?string
+    {
+        if (! $this->hinh_anh) {
+            return null;
+        }
+
+        return Storage::disk('public')->url($this->hinh_anh);
     }
 }

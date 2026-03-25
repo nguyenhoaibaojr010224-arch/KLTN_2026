@@ -107,6 +107,7 @@ Route::prefix('admin')
 
         // Admin - Thuoc
         Route::get('/thuocs/search', [ThuocController::class, 'search']);
+        Route::get('/thuocs/next-code', [ThuocController::class, 'nextCode']);
         Route::put('/thuocs/{id}/status', [ThuocController::class, 'updateStatus']);
         Route::get('/thuocs', [ThuocController::class, 'index']);
         Route::post('/thuocs', [ThuocController::class, 'store']);

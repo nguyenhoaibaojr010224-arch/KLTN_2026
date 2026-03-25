@@ -23,6 +23,26 @@ const routes = [
     },
   },
   {
+    path: "/tim-kiem",
+    name: "tim-kiem",
+    component: () => import("../pages/SearchResultsPage.vue"),
+    meta: {
+      layout: "customer",
+      title: "Tim Kiem Thuoc",
+      subtitle: "Khach hang tim thuoc theo ten, loai va trieu chung.",
+    },
+  },
+  {
+    path: "/danh-muc/:sectionSlug/:categorySlug?",
+    name: "danh-muc",
+    component: () => import("../pages/DanhMucPage.vue"),
+    meta: {
+      layout: "customer",
+      title: "Danh Mục Thuốc",
+      subtitle: "Khách hàng xem thuốc theo từng mục trong danh mục.",
+    },
+  },
+  {
     path: "/thanh-toan",
     name: "thanh-toan",
     component: () => import("../pages/CustomerCheckoutPage.vue"),
@@ -136,6 +156,18 @@ const routes = [
       layout: "default",
       title: "Ton Kho Va Lo Thuoc",
       subtitle: "Nhan vien xem ton kho, lo thuoc va han su dung tu database hien tai.",
+      requiresAuth: true,
+      requiresSystem: true,
+    },
+  },
+  {
+    path: "/thuocs",
+    name: "thuocs",
+    component: () => import("../pages/ThuocManagementPage.vue"),
+    meta: {
+      layout: "default",
+      title: "Quan Ly Thuoc",
+      subtitle: "Xem danh sach, tim kiem va them thuoc moi theo database hien tai.",
       requiresAuth: true,
       requiresSystem: true,
     },

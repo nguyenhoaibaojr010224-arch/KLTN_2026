@@ -1,35 +1,19 @@
-<template>
+﻿<template>
   <header class="pc-site-header">
-    <div class="pc-topline">
-      <div class="container-fluid pc-container">
-        <div class="pc-topline__inner">
-          <div class="pc-topline__promo">Mien phi van chuyen cho moi don hang tu 0d</div>
-          <div class="pc-topline__links">
-            <a href="#">Tai ung dung</a>
-            <a href="#">Hotline 1800 6821</a>
-            <a href="#">Doanh nghiep</a>
-            <a href="#">Deal hot thang 03</a>
-            <a href="#">Tra cuu don hang</a>
-            <a href="#">Goc suc khoe</a>
-            <a href="#">He thong nha thuoc</a>
-          </div>
-        </div>
-      </div>
-    </div>
 
     <div class="pc-mainbar">
       <div class="container-fluid pc-container">
         <div class="pc-mainbar__inner">
           <RouterLink to="/" class="pc-logo">
-            <span class="pc-logo__brand">NHA THUOC</span>
-            <span class="pc-logo__name">Pharmacity</span>
+            <span class="pc-logo__brand">NHÀ THUỐC</span>
+            <span class="pc-logo__name">PharmaGo</span>
           </RouterLink>
 
           <div class="pc-mainbar__search">
             <div class="pc-category">
               <button class="pc-category__button" type="button" @click="toggleMegaMenu">
                 <i class="bi bi-grid"></i>
-                <span>Danh muc</span>
+                <span>Danh Mục</span>
                 <i class="bi bi-chevron-down"></i>
               </button>
 
@@ -51,7 +35,7 @@
                 <div class="pc-mega-menu__content">
                   <div class="row g-3">
                     <div class="col-sm-6 col-lg-4" v-for="item in activeMegaItems" :key="item.label">
-                      <button type="button" class="pc-mega-menu__card" @click="closeMegaMenu">
+                      <button type="button" class="pc-mega-menu__card" @click="openCatalog(item.slug)">
                         <span class="pc-mega-menu__thumb" :class="item.tone">
                           <i :class="item.icon"></i>
                         </span>
@@ -63,14 +47,55 @@
               </div>
             </div>
 
-            <div class="pc-searchbar">
-              <i class="bi bi-search"></i>
-              <input
-                v-model.trim="searchQuery"
-                type="text"
-                placeholder="Khach hang dang tim gi hom nay..."
-                @keyup.enter="submitSearch"
-              />
+            <div ref="searchContainerRef" class="pc-searchbar-wrap">
+              <div class="pc-searchbar">
+                <i class="bi bi-search"></i>
+                <span
+                  v-if="showAnimatedPlaceholder"
+                  class="pc-searchbar__animated-placeholder"
+                >
+                  {{ animatedPlaceholder }}
+                  <span class="pc-searchbar__caret"></span>
+                </span>
+                <input
+                  v-model.trim="searchQuery"
+                  type="text"
+                  placeholder=""
+                  @focus="openSearchDropdown"
+                  @keyup.enter="submitSearch()"
+                />
+              </div>
+
+              <div v-if="showSearchDropdown" class="pc-search-dropdown">
+                <div class="pc-search-dropdown__head">
+                  <span>Tìm kiếm gần đây</span>
+                  <button
+                    v-if="recentSearches.length"
+                    type="button"
+                    class="pc-search-dropdown__clear"
+                    @click="clearRecentSearchHistory"
+                  >
+                    Xóa tất cả
+                  </button>
+                </div>
+
+                <div v-if="recentSearches.length" class="pc-search-dropdown__list">
+                  <button
+                    v-for="item in recentSearches"
+                    :key="item"
+                    type="button"
+                    class="pc-search-dropdown__item"
+                    @click="selectRecentSearch(item)"
+                  >
+                    <i class="bi bi-clock-history"></i>
+                    <span>{{ item }}</span>
+                  </button>
+                </div>
+
+                <p v-else class="pc-search-dropdown__empty">
+                  Chưa có tìm kiếm gần đây.
+                </p>
+              </div>
             </div>
           </div>
 
@@ -92,34 +117,37 @@
                   data-bs-toggle="dropdown"
                   aria-expanded="false"
                 >
-                  <span class="pc-auth-link__avatar">{{ avatarInitials }}</span>
-                  <span>
-                    <small>Xin chao</small>
+                  <span v-if="avatarUrl" class="pc-auth-link__avatar pc-auth-link__avatar--image">
+                    <img :src="avatarUrl" alt="Avatar khách hàng" />
+                  </span>
+                  <span v-else class="pc-auth-link__avatar">{{ avatarInitials }}</span>
+                  <span class="pc-auth-link__meta">
+                    <small>Xin Chào</small>
                     <strong>{{ displayName }}</strong>
                   </span>
                 </button>
 
                 <ul class="dropdown-menu dropdown-menu-end pc-user-menu">
-                  <li><RouterLink class="dropdown-item" to="/tai-khoan/thong-tin">Thong tin ca nhan</RouterLink></li>
-                  <li><RouterLink class="dropdown-item" to="/tai-khoan/dia-chi">So dia chi nhan hang</RouterLink></li>
-                  <li><RouterLink class="dropdown-item" to="/tai-khoan/lich-su-don-hang">Lich su don hang</RouterLink></li>
-                  <li><RouterLink class="dropdown-item" to="/tai-khoan/thong-bao">Thong bao cua toi</RouterLink></li>
+                  <li><RouterLink class="dropdown-item" to="/tai-khoan/thong-tin">Thông tin cá nhân</RouterLink></li>
+                  <li><RouterLink class="dropdown-item" to="/tai-khoan/dia-chi">Số địa chỉ nhận hàng</RouterLink></li>
+                  <li><RouterLink class="dropdown-item" to="/tai-khoan/lich-su-don-hang">Lịch sử đơn hàng</RouterLink></li>
+                  <li><RouterLink class="dropdown-item" to="/tai-khoan/thong-bao">Thông báo của tôi</RouterLink></li>
                   <li v-if="isSystemAccount"><hr class="dropdown-divider" /></li>
-                  <li v-if="isSystemAccount"><RouterLink class="dropdown-item" to="/dashboard">Quan ly he thong</RouterLink></li>
-                  <li v-if="isAdminAccount"><RouterLink class="dropdown-item" to="/nhan-viens">Quan ly nhan vien</RouterLink></li>
-                  <li v-if="isSystemAccount"><RouterLink class="dropdown-item" to="/ton-kho">Ton kho va lo thuoc</RouterLink></li>
-                  <li v-if="isSystemAccount"><RouterLink class="dropdown-item" to="/gia-khuyen-mai">Gia va khuyen mai</RouterLink></li>
+                  <li v-if="isSystemAccount"><RouterLink class="dropdown-item" to="/dashboard">Quản lý hệ thống</RouterLink></li>
+                  <li v-if="isAdminAccount"><RouterLink class="dropdown-item" to="/nhan-viens">Quản lý nhân viên</RouterLink></li>
+                  <li v-if="isSystemAccount"><RouterLink class="dropdown-item" to="/ton-kho">Tồn kho và lô thuốc</RouterLink></li>
+                  <li v-if="isSystemAccount"><RouterLink class="dropdown-item" to="/gia-khuyen-mai">Giá và khuyến mãi</RouterLink></li>
                   <li><hr class="dropdown-divider" /></li>
-                  <li><button class="dropdown-item text-danger" type="button" @click="handleLogout">Dang xuat</button></li>
+                  <li><button class="dropdown-item text-danger" type="button" @click="handleLogout">Đăng Xuất</button></li>
                 </ul>
               </div>
             </template>
 
             <RouterLink v-else to="/login" class="pc-auth-link">
               <span class="pc-auth-link__icon"><i class="bi bi-person-circle"></i></span>
-              <span>
-                <small>Xin chao</small>
-                <strong>Dang nhap</strong>
+              <span class="pc-auth-link__meta">
+                <small>Xin Chào</small>
+                <strong>Đăng nhập</strong>
               </span>
             </RouterLink>
           </div>
@@ -130,75 +158,49 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import { catalogSections } from "../../data/catalogSections";
 import { authState, clearAuthSession, isAdminState, isAuthenticatedState, isSystemUserState } from "../../lib/authStorage";
 import { useCustomerStore } from "../../lib/customerStore";
+import { clearRecentSearches, getRecentSearches, saveRecentSearch } from "../../lib/recentSearches";
 
 const route = useRoute();
 const router = useRouter();
 const { cartCount } = useCustomerStore();
 const searchQuery = ref(route.query.q || "");
+const searchContainerRef = ref(null);
+const searchDropdownOpen = ref(false);
+const recentSearches = ref(getRecentSearches());
 const showMegaMenu = ref(false);
 const activeCategory = ref("thuoc");
+const animatedPlaceholder = ref("");
 
-const categories = [
-  {
-    id: "thuoc",
-    label: "Thuoc",
-    items: [
-      { label: "Thuoc khong ke don", icon: "bi bi-capsule-pill", tone: "tone-blue" },
-      { label: "Thuoc ke don", icon: "bi bi-journal-medical", tone: "tone-green" },
-      { label: "Thuoc khac", icon: "bi bi-capsule", tone: "tone-purple" },
-      { label: "Vitamin va thuc pham chuc nang", icon: "bi bi-stars", tone: "tone-yellow" },
-      { label: "Xem tat ca", icon: "bi bi-arrow-right", tone: "tone-soft" },
-    ],
-  },
-  {
-    id: "tra-cuu",
-    label: "Tra cuu benh",
-    items: [
-      { label: "Tai Mui Hong", icon: "bi bi-earbuds", tone: "tone-blue" },
-      { label: "Da Toc Mong", icon: "bi bi-droplet-half", tone: "tone-green" },
-      { label: "Co Xuong Khop", icon: "bi bi-person-standing", tone: "tone-purple" },
-      { label: "Di ung", icon: "bi bi-shield-plus", tone: "tone-yellow" },
-      { label: "Xem tat ca", icon: "bi bi-arrow-right", tone: "tone-soft" },
-    ],
-  },
-  {
-    id: "me-be",
-    label: "Me va Be",
-    items: [
-      { label: "Sua va dinh duong", icon: "bi bi-heart-pulse", tone: "tone-blue" },
-      { label: "Ta bim", icon: "bi bi-bag-heart", tone: "tone-green" },
-      { label: "Cham soc be", icon: "bi bi-balloon-heart", tone: "tone-purple" },
-      { label: "Cham soc me", icon: "bi bi-flower1", tone: "tone-yellow" },
-      { label: "Xem tat ca", icon: "bi bi-arrow-right", tone: "tone-soft" },
-    ],
-  },
-  {
-    id: "lam-dep",
-    label: "Cham soc sac dep",
-    items: [
-      { label: "Cham soc da", icon: "bi bi-magic", tone: "tone-blue" },
-      { label: "Cham soc toc", icon: "bi bi-brush", tone: "tone-green" },
-      { label: "Chong nang", icon: "bi bi-sun", tone: "tone-yellow" },
-      { label: "Trang diem", icon: "bi bi-stars", tone: "tone-purple" },
-      { label: "Xem tat ca", icon: "bi bi-arrow-right", tone: "tone-soft" },
-    ],
-  },
+const categories = catalogSections;
+const placeholderPhrases = [
+  "Bạn đang tìm gì cho sức khỏe hôm nay?",
+  "Tìm thuốc ho, đau họng, vitamin...",
+  "Gõ triệu chứng để tìm thuốc phù hợp",
+  "Tìm nhanh theo tên thuốc hoặc loại thuốc",
 ];
+let placeholderTimer = null;
+let currentPhraseIndex = 0;
+let currentCharIndex = 0;
+let isDeletingPlaceholder = false;
 
 const loggedIn = isAuthenticatedState;
 const isSystemAccount = isSystemUserState;
 const isAdminAccount = isAdminState;
-const displayName = computed(() => authState.user?.ten_khach_hang || authState.user?.ho_ten || "Khach hang");
+const displayName = computed(() => authState.user?.ten_khach_hang || authState.user?.ho_ten || "Khách hàng");
+const avatarUrl = computed(() => authState.user?.avatar_url || "");
 const avatarInitials = computed(() => {
   const name = displayName.value.trim();
   return name ? name.slice(0, 2).toUpperCase() : "KH";
 });
+const showSearchDropdown = computed(() => searchDropdownOpen.value);
+const showAnimatedPlaceholder = computed(() => !searchQuery.value);
 const activeMegaItems = computed(
-  () => categories.find((item) => item.id === activeCategory.value)?.items || categories[0].items
+  () => categories.find((item) => item.id === activeCategory.value)?.cards || categories[0].cards
 );
 
 watch(
@@ -206,8 +208,19 @@ watch(
   () => {
     showMegaMenu.value = false;
     searchQuery.value = route.query.q || "";
+    searchDropdownOpen.value = false;
   }
 );
+
+onMounted(() => {
+  document.addEventListener("click", handleDocumentClick);
+  runPlaceholderAnimation();
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener("click", handleDocumentClick);
+  stopPlaceholderAnimation();
+});
 
 function toggleMegaMenu() {
   showMegaMenu.value = !showMegaMenu.value;
@@ -217,15 +230,581 @@ function closeMegaMenu() {
   showMegaMenu.value = false;
 }
 
-function submitSearch() {
+function openSearchDropdown() {
+  recentSearches.value = getRecentSearches();
+  searchDropdownOpen.value = true;
+}
+
+function handleDocumentClick(event) {
+  if (!searchContainerRef.value?.contains(event.target)) {
+    searchDropdownOpen.value = false;
+  }
+}
+
+function openCatalog(cardSlug) {
+  closeMegaMenu();
+
+  if (!cardSlug || cardSlug === "tat-ca") {
+    router.push(`/danh-muc/${activeCategory.value}`);
+    return;
+  }
+
+  router.push(`/danh-muc/${activeCategory.value}/${cardSlug}`);
+}
+
+function submitSearch(nextKeyword = searchQuery.value) {
+  const normalizedKeyword = String(nextKeyword || "")
+    .trim()
+    .replace(/\s+/g, " ");
+
+  if (!normalizedKeyword) {
+    searchDropdownOpen.value = false;
+    return;
+  }
+
+  searchQuery.value = normalizedKeyword;
+  recentSearches.value = saveRecentSearch(normalizedKeyword);
+  searchDropdownOpen.value = false;
+
   router.push({
-    path: "/",
-    query: searchQuery.value ? { q: searchQuery.value } : {},
+    path: "/tim-kiem",
+    query: { q: normalizedKeyword },
   });
 }
+
+function selectRecentSearch(keyword) {
+  submitSearch(keyword);
+}
+
+function clearRecentSearchHistory() {
+  recentSearches.value = clearRecentSearches();
+}
+
+function stopPlaceholderAnimation() {
+  if (placeholderTimer) {
+    clearTimeout(placeholderTimer);
+    placeholderTimer = null;
+  }
+}
+
+function runPlaceholderAnimation() {
+  stopPlaceholderAnimation();
+
+  const currentPhrase = placeholderPhrases[currentPhraseIndex];
+
+  if (!searchQuery.value) {
+    if (!isDeletingPlaceholder) {
+      currentCharIndex = Math.min(currentCharIndex + 1, currentPhrase.length);
+      animatedPlaceholder.value = currentPhrase.slice(0, currentCharIndex);
+
+      if (currentCharIndex === currentPhrase.length) {
+        placeholderTimer = window.setTimeout(() => {
+          isDeletingPlaceholder = true;
+          runPlaceholderAnimation();
+        }, 1500);
+        return;
+      }
+    } else {
+      currentCharIndex = Math.max(currentCharIndex - 1, 0);
+      animatedPlaceholder.value = currentPhrase.slice(0, currentCharIndex);
+
+      if (currentCharIndex === 0) {
+        isDeletingPlaceholder = false;
+        currentPhraseIndex = (currentPhraseIndex + 1) % placeholderPhrases.length;
+      }
+    }
+  }
+
+  const delay = isDeletingPlaceholder ? 35 : 70;
+  placeholderTimer = window.setTimeout(runPlaceholderAnimation, delay);
+}
+
+watch(
+  () => searchQuery.value,
+  (value) => {
+    if (value) {
+      stopPlaceholderAnimation();
+      animatedPlaceholder.value = "";
+      return;
+    }
+
+    if (!placeholderTimer) {
+      runPlaceholderAnimation();
+    }
+  }
+);
 
 function handleLogout() {
   clearAuthSession();
   router.push("/");
 }
 </script>
+
+<style scoped>
+.pc-site-header {
+  position: sticky;
+  top: 0;
+  z-index: 1050;
+}
+
+.pc-topline {
+  background: #fff;
+  border-bottom: 1px solid rgba(22, 82, 197, 0.08);
+}
+
+.pc-topline__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  min-height: 46px;
+}
+
+.pc-topline__promo {
+  white-space: nowrap;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--pc-primary);
+}
+
+.pc-topline__links {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 22px;
+  flex-wrap: wrap;
+  font-size: 0.95rem;
+}
+
+.pc-topline__links a {
+  color: #243b5d;
+}
+
+.pc-mainbar {
+  background: linear-gradient(180deg, #1652c5 0%, #134aa8 100%);
+  box-shadow: 0 10px 20px rgba(22, 82, 197, 0.14);
+}
+
+.pc-mainbar__inner {
+  position: relative;
+  display: grid;
+  grid-template-columns: 210px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  min-height: 74px;
+}
+
+.pc-logo {
+  display: inline-flex;
+  flex-direction: column;
+  line-height: 1;
+  color: #fff;
+  text-decoration: none !important;
+}
+
+.pc-logo__brand {
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.pc-logo__name {
+  margin-top: 2px;
+  color: #9be14a;
+  font-size: 2.05rem;
+  font-weight: 800;
+}
+
+.pc-mainbar__search {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+}
+
+.pc-category {
+  position: relative;
+}
+
+.pc-category__button {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 50px;
+  padding: 0 18px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 0.98rem;
+  font-weight: 700;
+}
+
+.pc-searchbar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 50px;
+  padding: 0 18px;
+  border-radius: 18px;
+  background: #fff;
+}
+
+.pc-searchbar i {
+  color: #6b7a90;
+}
+
+.pc-searchbar input {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  outline: 0;
+  color: #243b5d;
+  font-size: 0.98rem;
+  position: relative;
+  z-index: 1;
+}
+
+.pc-searchbar__animated-placeholder {
+  position: absolute;
+  left: 48px;
+  right: 18px;
+  overflow: hidden;
+  color: #6b7a90;
+  font-size: 0.98rem;
+  white-space: nowrap;
+  pointer-events: none;
+  background: linear-gradient(90deg, #6b7a90 0%, #8fb9ff 45%, #6b7a90 100%);
+  background-size: 220% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: pc-placeholder-flow 2.6s linear infinite;
+}
+
+.pc-searchbar__caret {
+  display: inline-block;
+  width: 1px;
+  height: 1.1em;
+  margin-left: 4px;
+  vertical-align: -0.16em;
+  background: #7a9ef0;
+  animation: pc-placeholder-caret 0.9s steps(1) infinite;
+}
+
+.pc-searchbar-wrap {
+  position: relative;
+}
+
+.pc-search-dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  right: 0;
+  padding: 14px;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 24px 54px rgba(15, 31, 79, 0.2);
+}
+
+.pc-search-dropdown__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  color: #243b5d;
+  font-size: 0.92rem;
+  font-weight: 800;
+}
+
+.pc-search-dropdown__clear {
+  border: 0;
+  background: transparent;
+  color: #1652c5;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.pc-search-dropdown__list {
+  display: grid;
+  gap: 8px;
+}
+
+.pc-search-dropdown__item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 12px;
+  background: #f5f8ff;
+  color: #243b5d;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-align: left;
+}
+
+.pc-search-dropdown__item i {
+  color: #1652c5;
+}
+
+.pc-search-dropdown__empty {
+  margin: 0;
+  color: #60738d;
+  font-size: 0.92rem;
+}
+
+@keyframes pc-placeholder-flow {
+  from {
+    background-position: 200% 50%;
+  }
+
+  to {
+    background-position: -40% 50%;
+  }
+}
+
+@keyframes pc-placeholder-caret {
+  50% {
+    opacity: 0;
+  }
+}
+
+.pc-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.pc-actions > * {
+  display: flex;
+  align-items: center;
+}
+
+.pc-action-icon {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: transparent;
+  color: #fff;
+  font-size: 1.45rem;
+}
+
+.pc-action-icon__badge {
+  position: absolute;
+  top: -2px;
+  right: -1px;
+  min-width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  padding: 0 4px;
+  border: 2px solid #1652c5;
+  border-radius: 999px;
+  background: #ff6b35;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.pc-auth-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 210px;
+  min-height: 42px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #fff;
+  text-decoration: none !important;
+}
+
+.pc-logo *,
+.pc-auth-link * {
+  text-decoration: none !important;
+}
+
+.pc-auth-link small,
+.pc-auth-link strong {
+  display: block;
+  line-height: 1.1;
+}
+
+.pc-auth-link__meta {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+}
+
+.pc-auth-link small {
+  font-size: 0.82rem;
+  opacity: 0.96;
+}
+
+.pc-auth-link strong {
+  font-size: 0.92rem;
+  font-weight: 800;
+}
+
+.pc-auth-link small,
+.pc-auth-link strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pc-auth-link__icon,
+.pc-auth-link__avatar {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+}
+
+.pc-auth-link__avatar {
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.pc-auth-link__avatar--image {
+  overflow: hidden;
+}
+
+.pc-auth-link__avatar--image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.pc-auth-link--dropdown::after {
+  margin-left: 4px;
+  font-size: 0.75rem;
+}
+
+.pc-user-menu {
+  min-width: 220px;
+  padding: 6px;
+  border: 0;
+  border-radius: 14px;
+  box-shadow: 0 20px 40px rgba(15, 31, 79, 0.18);
+}
+
+.pc-mega-menu {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  width: min(820px, calc(100vw - 40px));
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr);
+  overflow: hidden;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 24px 54px rgba(15, 31, 79, 0.2);
+}
+
+.pc-mega-menu__aside {
+  max-height: 420px;
+  overflow: auto;
+  padding: 12px;
+  border-right: 1px solid rgba(22, 82, 197, 0.08);
+  background: #fff;
+}
+
+.pc-mega-menu__content {
+  padding: 16px;
+}
+
+.pc-mega-menu__category {
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: #243b5d;
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-align: left;
+}
+
+.pc-mega-menu__category.active {
+  background: #edf2ff;
+  color: var(--pc-primary);
+}
+
+.pc-mega-menu__card {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(22, 82, 197, 0.08);
+  border-radius: 14px;
+  background: #fff;
+  color: #243b5d;
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-align: left;
+}
+
+.pc-mega-menu__thumb {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  font-size: 1.15rem;
+}
+
+@media (max-width: 1199.98px) {
+  .pc-mainbar__inner,
+  .pc-mainbar__search {
+    grid-template-columns: 1fr;
+  }
+
+  .pc-actions {
+    justify-content: flex-end;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .pc-topline__inner,
+  .pc-topline__links,
+  .pc-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .pc-topline__links {
+    gap: 10px;
+    justify-content: flex-start;
+  }
+
+  .pc-topline__promo {
+    white-space: normal;
+  }
+
+  .pc-mainbar__inner {
+    gap: 14px;
+    padding: 14px 0;
+  }
+
+  .pc-mainbar__search {
+    gap: 12px;
+  }
+}
+</style>
