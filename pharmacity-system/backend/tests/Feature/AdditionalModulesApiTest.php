@@ -24,7 +24,7 @@ class AdditionalModulesApiTest extends TestCase
     public function test_admin_can_create_and_search_thong_tin_nhan_vien(): void
     {
         $admin = $this->createNhanVien('admin_profile', 'admin');
-        $staff = $this->createNhanVien('staff_profile', 'nhan_vien');
+        $staff = $this->createNhanVien('staff_profile', 'nhan_vien', false);
 
         Sanctum::actingAs($admin, ['admin']);
 
@@ -206,8 +206,8 @@ class AdditionalModulesApiTest extends TestCase
             'so_dien_thoai' => '0987654321',
             'email' => 'customer.login@example.com',
             'dia_chi' => '456 Duong DEF, Quan 3',
-            'mat_khau' => 'password',
-            'mat_khau_confirmation' => 'password',
+            'mat_khau' => 'Password@1',
+            'mat_khau_confirmation' => 'Password@1',
         ]);
 
         $registerResponse
@@ -268,17 +268,24 @@ class AdditionalModulesApiTest extends TestCase
             ->assertJsonPath('data.0.khuyen_mai.nhan_hien_thi', 'Giam 10%');
     }
 
-    private function createNhanVien(string $username, string $roleName): NhanVien
+    private function createNhanVien(string $username, string $roleName, bool $withProfile = true): NhanVien
     {
         $role = VaiTro::firstOrCreate(['ten_vai_tro' => $roleName], ['mo_ta' => $roleName]);
         $bangCap = BangCap::factory()->create();
-
-        return NhanVien::factory()->create([
+        $nhanVien = NhanVien::factory()->create([
             'ten_dang_nhap' => $username,
             'mat_khau' => 'password',
             'id_vai_tro' => $role->id_vai_tro,
             'id_bang_cap' => $bangCap->id_bang_cap,
             'trang_thai' => 'active',
         ]);
+
+        if ($withProfile) {
+            ThongTinNhanVien::factory()->create([
+                'id_nhan_vien' => $nhanVien->id_nhan_vien,
+            ]);
+        }
+
+        return $nhanVien->load('thongTinNhanVien');
     }
 }

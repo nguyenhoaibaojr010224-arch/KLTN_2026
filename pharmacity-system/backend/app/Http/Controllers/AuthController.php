@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\LoginRequest;
+use App\Http\Requests\RegisterKhachHangRequest;
 use App\Models\KhachHang;
 use App\Models\NhanVien;
 use Illuminate\Http\Request;
@@ -13,17 +14,9 @@ use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
-    public function register(Request $request)
+    public function register(RegisterKhachHangRequest $request)
     {
-        $validated = $request->validate([
-            'ten_khach_hang' => 'required|string|min:5|max:100',
-            'so_dien_thoai' => 'required|string|size:10|unique:khach_hangs,so_dien_thoai',
-            'email' => 'required|email|unique:khach_hangs,email',
-            'dia_chi' => 'required|string|min:5|max:100',
-            'mat_khau' => 'required|string|min:6|confirmed',
-        ]);
-
-        $validated['mat_khau'] = Hash::make($request->mat_khau);
+        $validated = $request->validated();
 
         $khachHang = KhachHang::create($validated);
         $token = base64_encode($khachHang->email . '|' . time());
@@ -42,18 +35,13 @@ class AuthController extends Controller
     public function login(LoginRequest $request)
     {
         $password = (string) $request->string('password');
+        $soDienThoai = (string) $request->string('so_dien_thoai');
 
-        if ($request->filled('ten_dang_nhap')) {
-            $nhanVien = NhanVien::with('vaiTro')
-                ->where('ten_dang_nhap', (string) $request->string('ten_dang_nhap'))
-                ->first();
+        $nhanVien = NhanVien::with(['vaiTro', 'thongTinNhanVien'])
+            ->whereHas('thongTinNhanVien', fn ($query) => $query->where('so_dien_thoai', $soDienThoai))
+            ->first();
 
-            if (! $nhanVien || ! Hash::check($password, $nhanVien->mat_khau)) {
-                throw ValidationException::withMessages([
-                    'tai_khoan' => ['Thong tin dang nhap khong chinh xac.'],
-                ]);
-            }
-
+        if ($nhanVien && Hash::check($password, $nhanVien->mat_khau)) {
             if ($nhanVien->trang_thai !== 'active') {
                 return response()->json(['message' => 'Tai khoan da bi khoa.'], 403);
             }
@@ -62,7 +50,7 @@ class AuthController extends Controller
 
             if (! in_array($role, ['admin', 'staff'], true)) {
                 return response()->json([
-                    'message' => 'Chi admin va nhan vien moi duoc dang nhap bang ten dang nhap he thong.',
+                    'message' => 'Chi admin va nhan vien moi duoc dang nhap bang so dien thoai he thong.',
                 ], 403);
             }
 
@@ -77,13 +65,12 @@ class AuthController extends Controller
         }
 
         $khachHang = KhachHang::query()
-            ->when($request->filled('email'), fn ($query) => $query->where('email', (string) $request->string('email')))
-            ->when($request->filled('so_dien_thoai'), fn ($query) => $query->where('so_dien_thoai', (string) $request->string('so_dien_thoai')))
+            ->where('so_dien_thoai', $soDienThoai)
             ->first();
 
         if (! $khachHang || ! Hash::check($password, $khachHang->mat_khau)) {
             throw ValidationException::withMessages([
-                'tai_khoan' => ['Thong tin dang nhap khong chinh xac.'],
+                'so_dien_thoai' => ['Thong tin dang nhap khong chinh xac.'],
             ]);
         }
 

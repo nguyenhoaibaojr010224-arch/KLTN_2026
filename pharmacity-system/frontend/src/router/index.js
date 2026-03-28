@@ -5,7 +5,7 @@ const routes = [
   {
     path: "/",
     name: "home",
-    component: () => import("../pages/CustomerHomePage.vue"),
+    component: () => import("../components/Client/TrangChu/index.vue"),
     meta: {
       layout: "customer",
       title: "Trang Chu",
@@ -15,7 +15,7 @@ const routes = [
   {
     path: "/gio-hang",
     name: "gio-hang",
-    component: () => import("../pages/CustomerCartPage.vue"),
+    component: () => import("../components/Client/GioHang/index.vue"),
     meta: {
       layout: "customer",
       title: "Gio Hang",
@@ -25,7 +25,7 @@ const routes = [
   {
     path: "/tim-kiem",
     name: "tim-kiem",
-    component: () => import("../pages/SearchResultsPage.vue"),
+    component: () => import("../components/Client/TimKiem/index.vue"),
     meta: {
       layout: "customer",
       title: "Tim Kiem Thuoc",
@@ -35,7 +35,7 @@ const routes = [
   {
     path: "/danh-muc/:sectionSlug/:categorySlug?",
     name: "danh-muc",
-    component: () => import("../pages/DanhMucPage.vue"),
+    component: () => import("../components/Client/DanhMuc/index.vue"),
     meta: {
       layout: "customer",
       title: "Danh Mục Thuốc",
@@ -45,7 +45,7 @@ const routes = [
   {
     path: "/thanh-toan",
     name: "thanh-toan",
-    component: () => import("../pages/CustomerCheckoutPage.vue"),
+    component: () => import("../components/Client/ThanhToan/index.vue"),
     meta: {
       layout: "customer",
       title: "Thanh Toan",
@@ -57,7 +57,7 @@ const routes = [
   {
     path: "/tai-khoan/:section?",
     name: "tai-khoan",
-    component: () => import("../pages/CustomerAccountPage.vue"),
+    component: () => import("../components/Client/Profile/index.vue"),
     meta: {
       layout: "customer",
       title: "Tai Khoan",
@@ -68,7 +68,7 @@ const routes = [
   {
     path: "/login",
     name: "login",
-    component: () => import("../pages/LoginPage.vue"),
+    component: () => import("../components/Client/DangNhap/index.vue"),
     meta: {
       layout: "empty",
       title: "Dang Nhap",
@@ -79,7 +79,7 @@ const routes = [
   {
     path: "/register",
     name: "register",
-    component: () => import("../pages/RegisterPage.vue"),
+    component: () => import("../components/Client/DangKy/index.vue"),
     meta: {
       layout: "empty",
       title: "Dang Ky",
@@ -90,7 +90,7 @@ const routes = [
   {
     path: "/dashboard",
     name: "dashboard",
-    component: () => import("../pages/DashboardPage.vue"),
+    component: () => import("../components/Admin/Dashboard/index.vue"),
     meta: {
       layout: "default",
       title: "Dashboard Dieu Phoi",
@@ -102,7 +102,7 @@ const routes = [
   {
     path: "/sample",
     name: "sample",
-    component: () => import("../pages/SamplePage.vue"),
+    component: () => import("../components/Admin/TrangMau/index.vue"),
     meta: {
       layout: "default",
       title: "Trang Mau Ke Thua",
@@ -114,7 +114,7 @@ const routes = [
   {
     path: "/api-playground",
     name: "api-playground",
-    component: () => import("../pages/ApiPlaygroundPage.vue"),
+    component: () => import("../components/Admin/KetNoiApi/index.vue"),
     meta: {
       layout: "default",
       title: "Ket Noi API",
@@ -126,7 +126,7 @@ const routes = [
   {
     path: "/nhan-viens",
     name: "nhan-viens",
-    component: () => import("../pages/NhanVienListPage.vue"),
+    component: () => import("../components/Admin/NhanVien/index.vue"),
     meta: {
       layout: "default",
       title: "Quan Ly Nhan Vien",
@@ -139,7 +139,7 @@ const routes = [
   {
     path: "/hoa-dons",
     name: "hoa-dons",
-    component: () => import("../pages/HoaDonListPage.vue"),
+    component: () => import("../components/Admin/HoaDon/index.vue"),
     meta: {
       layout: "default",
       title: "Danh Sach Hoa Don",
@@ -151,7 +151,7 @@ const routes = [
   {
     path: "/ton-kho",
     name: "ton-kho",
-    component: () => import("../pages/TonKhoPage.vue"),
+    component: () => import("../components/Admin/TonKho/index.vue"),
     meta: {
       layout: "default",
       title: "Ton Kho Va Lo Thuoc",
@@ -163,7 +163,7 @@ const routes = [
   {
     path: "/thuocs",
     name: "thuocs",
-    component: () => import("../pages/ThuocManagementPage.vue"),
+    component: () => import("../components/Admin/Thuoc/index.vue"),
     meta: {
       layout: "default",
       title: "Quan Ly Thuoc",
@@ -175,7 +175,7 @@ const routes = [
   {
     path: "/gia-khuyen-mai",
     name: "gia-khuyen-mai",
-    component: () => import("../pages/PricingManagementPage.vue"),
+    component: () => import("../components/Admin/GiaKhuyenMai/index.vue"),
     meta: {
       layout: "default",
       title: "Gia Va Khuyen Mai",

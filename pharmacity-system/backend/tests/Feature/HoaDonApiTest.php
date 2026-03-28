@@ -6,6 +6,7 @@ use App\Models\BangCap;
 use App\Models\HoaDon;
 use App\Models\KhachHang;
 use App\Models\NhanVien;
+use App\Models\ThongTinNhanVien;
 use App\Models\VaiTro;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -21,7 +22,7 @@ class HoaDonApiTest extends TestCase
         $customer = KhachHang::factory()->create();
 
         $adminResponse = $this->postJson('/api/login', [
-            'ten_dang_nhap' => $admin->ten_dang_nhap,
+            'so_dien_thoai' => $admin->thongTinNhanVien->so_dien_thoai,
             'password' => 'password',
         ]);
 
@@ -30,7 +31,7 @@ class HoaDonApiTest extends TestCase
             ->assertJsonPath('type', 'admin');
 
         $customerResponse = $this->postJson('/api/login', [
-            'email' => $customer->email,
+            'so_dien_thoai' => $customer->so_dien_thoai,
             'password' => 'password',
         ]);
 
@@ -115,13 +116,18 @@ class HoaDonApiTest extends TestCase
     {
         $role = VaiTro::firstOrCreate(['ten_vai_tro' => $roleName], ['mo_ta' => $roleName]);
         $bangCap = BangCap::factory()->create();
-
-        return NhanVien::factory()->create([
+        $nhanVien = NhanVien::factory()->create([
             'ten_dang_nhap' => $username,
             'mat_khau' => 'password',
             'id_vai_tro' => $role->id_vai_tro,
             'id_bang_cap' => $bangCap->id_bang_cap,
             'trang_thai' => 'active',
         ]);
+
+        ThongTinNhanVien::factory()->create([
+            'id_nhan_vien' => $nhanVien->id_nhan_vien,
+        ]);
+
+        return $nhanVien->load('thongTinNhanVien');
     }
 }

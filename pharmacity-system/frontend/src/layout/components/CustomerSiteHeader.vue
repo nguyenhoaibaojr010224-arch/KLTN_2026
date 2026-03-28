@@ -2,7 +2,7 @@
   <header class="pc-site-header">
 
     <div class="pc-mainbar">
-      <div class="container-fluid pc-container">
+      <div class="pc-container">
         <div class="pc-mainbar__inner">
           <RouterLink to="/" class="pc-logo">
             <span class="pc-logo__brand">NHÀ THUỐC</span>

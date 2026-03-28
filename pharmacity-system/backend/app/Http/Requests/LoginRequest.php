@@ -19,27 +19,29 @@ class LoginRequest extends FormRequest
             ]);
         }
 
-        if ($this->filled('tai_khoan') && ! $this->filled('ten_dang_nhap') && ! $this->filled('email') && ! $this->filled('so_dien_thoai')) {
-            $taiKhoan = (string) $this->input('tai_khoan');
-
-            if (filter_var($taiKhoan, FILTER_VALIDATE_EMAIL)) {
-                $this->merge(['email' => $taiKhoan]);
-            } elseif (preg_match('/^\d{10}$/', $taiKhoan) === 1) {
-                $this->merge(['so_dien_thoai' => $taiKhoan]);
-            } else {
-                $this->merge(['ten_dang_nhap' => $taiKhoan]);
-            }
+        if ($this->filled('tai_khoan') && ! $this->filled('so_dien_thoai')) {
+            $this->merge([
+                'so_dien_thoai' => $this->input('tai_khoan'),
+            ]);
         }
     }
 
     public function rules(): array
     {
         return [
-            'tai_khoan' => ['nullable', 'string', 'max:100'],
-            'ten_dang_nhap' => ['nullable', 'required_without_all:email,so_dien_thoai', 'string', 'min:3', 'max:50'],
-            'email' => ['nullable', 'required_without_all:ten_dang_nhap,so_dien_thoai', 'email', 'max:100'],
-            'so_dien_thoai' => ['nullable', 'required_without_all:ten_dang_nhap,email', 'string', 'size:10'],
+            'tai_khoan' => ['nullable', 'string', 'max:20'],
+            'so_dien_thoai' => ['required_without:tai_khoan', 'string', 'size:10'],
             'password' => ['required', 'string', 'min:6'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'so_dien_thoai.required_without' => 'Vui lòng nhập số điện thoại.',
+            'so_dien_thoai.size' => 'Số điện thoại phải gồm đúng 10 chữ số.',
+            'password.required' => 'Vui lòng nhập mật khẩu.',
+            'password.min' => 'Mật khẩu phải có ít nhất 6 ký tự.',
         ];
     }
 }

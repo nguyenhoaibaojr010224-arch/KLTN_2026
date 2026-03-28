@@ -10,6 +10,7 @@ use App\Models\LoaiThuoc;
 use App\Models\LoThuoc;
 use App\Models\NhanVien;
 use App\Models\NhaSanXuat;
+use App\Models\ThongTinNhanVien;
 use App\Models\Thuoc;
 use App\Models\VaiTro;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
@@ -36,7 +37,7 @@ class DatabaseSeeder extends Seeder
             BangCap::factory(5)->create();
         }
 
-        NhanVien::updateOrCreate(['ten_dang_nhap' => 'admin'], [
+        $admin = NhanVien::updateOrCreate(['ten_dang_nhap' => 'admin'], [
             'mat_khau' => Hash::make('password'),
             'ho_ten' => 'Admin User',
             'id_vai_tro' => $adminRole->id_vai_tro,
@@ -44,13 +45,35 @@ class DatabaseSeeder extends Seeder
             'trang_thai' => 'active',
         ]);
 
-        NhanVien::updateOrCreate(['ten_dang_nhap' => 'staff'], [
+        $staff = NhanVien::updateOrCreate(['ten_dang_nhap' => 'staff'], [
             'mat_khau' => Hash::make('password'),
             'ho_ten' => 'Staff User',
             'id_vai_tro' => $staffRole->id_vai_tro,
             'id_bang_cap' => BangCap::query()->inRandomOrder()->value('id_bang_cap'),
             'trang_thai' => 'active',
         ]);
+
+        ThongTinNhanVien::updateOrCreate(
+            ['id_nhan_vien' => $admin->id_nhan_vien],
+            [
+                'so_dien_thoai' => '0900000128',
+                'email' => 'admin@pharmago.com',
+                'dia_chi' => 'Tru so Pharmago, Quan 1',
+                'ngay_sinh' => now()->subYears(30)->format('Y-m-d'),
+                'ngay_vao_lam' => now()->subYears(4)->format('Y-m-d'),
+            ]
+        );
+
+        ThongTinNhanVien::updateOrCreate(
+            ['id_nhan_vien' => $staff->id_nhan_vien],
+            [
+                'so_dien_thoai' => '0900000129',
+                'email' => 'staff@pharmago.com',
+                'dia_chi' => 'Chi nhanh Pharmago, Quan 3',
+                'ngay_sinh' => now()->subYears(27)->format('Y-m-d'),
+                'ngay_vao_lam' => now()->subYears(2)->format('Y-m-d'),
+            ]
+        );
 
         $missingNhanVien = max(0, 40 - NhanVien::count());
         if ($missingNhanVien > 0) {
