@@ -116,7 +116,7 @@ class AuthController extends Controller
         $user = $request->user();
 
         if ($user instanceof NhanVien) {
-            $user->load('vaiTro', 'bangCap');
+            $user->load('vaiTro', 'bangCap', 'thongTinNhanVien');
         }
 
         return response()->json($user);
@@ -130,7 +130,10 @@ class AuthController extends Controller
             $validated = $request->validate([
                 'ten_khach_hang' => 'sometimes|required|string|min:5|max:100',
                 'so_dien_thoai' => 'sometimes|required|string|size:10|unique:khach_hangs,so_dien_thoai,' . $user->id_khach_hang . ',id_khach_hang',
-                'dia_chi' => 'sometimes|required|string|min:5|max:100',
+                'email' => 'sometimes|required|email|max:100|unique:khach_hangs,email,' . $user->id_khach_hang . ',id_khach_hang',
+                'dia_chi' => 'sometimes|nullable|string|min:5|max:100',
+                'ngay_sinh' => 'sometimes|nullable|date',
+                'gioi_tinh' => 'sometimes|nullable|string|in:Nam,Nữ,Khác',
                 'avatar' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
             ]);
 
@@ -146,11 +149,56 @@ class AuthController extends Controller
         } elseif ($user instanceof NhanVien) {
             $validated = $request->validate([
                 'ho_ten' => 'sometimes|required|string|min:5|max:100',
+                'so_dien_thoai' => 'sometimes|required|string|size:10|unique:thong_tin_nhan_viens,so_dien_thoai,' . $user->id_nhan_vien . ',id_nhan_vien',
+                'email' => 'sometimes|required|email|max:100|unique:thong_tin_nhan_viens,email,' . $user->id_nhan_vien . ',id_nhan_vien',
+                'dia_chi' => 'sometimes|nullable|string|min:5|max:100',
+                'ngay_sinh' => 'sometimes|nullable|date',
+                'gioi_tinh' => 'sometimes|nullable|string|in:Nam,Nữ,Khác',
+                'avatar' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
             ]);
-            $user->update($validated);
+
+            if (array_key_exists('ho_ten', $validated)) {
+                $user->update([
+                    'ho_ten' => $validated['ho_ten'],
+                ]);
+            }
+
+            $thongTinNhanVien = $user->thongTinNhanVien()->firstOrCreate(
+                ['id_nhan_vien' => $user->id_nhan_vien],
+                [
+                    'so_dien_thoai' => $user->thongTinNhanVien?->so_dien_thoai ?? '',
+                    'email' => $user->thongTinNhanVien?->email ?? ('nhanvien' . $user->id_nhan_vien . '@example.com'),
+                    'dia_chi' => $user->thongTinNhanVien?->dia_chi ?? 'Chưa cập nhật địa chỉ',
+                    'ngay_sinh' => $user->thongTinNhanVien?->ngay_sinh ?? now()->subYears(20)->toDateString(),
+                    'gioi_tinh' => $user->thongTinNhanVien?->gioi_tinh ?? null,
+                    'ngay_vao_lam' => $user->thongTinNhanVien?->ngay_vao_lam ?? now()->toDateString(),
+                ]
+            );
+
+            $thongTinPayload = collect($validated)
+                ->only(['so_dien_thoai', 'email', 'dia_chi', 'ngay_sinh', 'gioi_tinh'])
+                ->toArray();
+
+            if ($request->hasFile('avatar')) {
+                if ($thongTinNhanVien->avatar) {
+                    Storage::disk('public')->delete($thongTinNhanVien->avatar);
+                }
+
+                $thongTinPayload['avatar'] = $request->file('avatar')->store('avatars', 'public');
+            }
+
+            if (! empty($thongTinPayload)) {
+                $thongTinNhanVien->update($thongTinPayload);
+            }
         }
 
-        return response()->json(['message' => 'Cap nhat ho so thanh cong.', 'user' => $user->fresh()]);
+        if ($user instanceof NhanVien) {
+            $user = $user->fresh()->load('vaiTro', 'bangCap', 'thongTinNhanVien');
+        } else {
+            $user = $user->fresh();
+        }
+
+        return response()->json(['message' => 'Cap nhat ho so thanh cong.', 'user' => $user]);
     }
 
     public function changePassword(Request $request)

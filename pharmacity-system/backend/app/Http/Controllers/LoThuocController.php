@@ -57,8 +57,15 @@ class LoThuocController extends Controller
             'han_su_dung' => 'sometimes|required|date|after:ngay_san_xuat',
             'so_luong_nhap' => 'sometimes|required|integer|min:1',
             'so_luong_con' => 'sometimes|required|integer|min:0|lte:so_luong_nhap',
+            'so_luong_nhap_them' => 'sometimes|required|integer|min:1',
             'gia_nhap' => 'sometimes|required|numeric|min:1',
         ]);
+
+        if (isset($validated['so_luong_nhap_them'])) {
+            $loThuoc->so_luong_nhap += $validated['so_luong_nhap_them'];
+            $loThuoc->so_luong_con += $validated['so_luong_nhap_them'];
+            unset($validated['so_luong_nhap_them'], $validated['so_luong_nhap'], $validated['so_luong_con']);
+        }
 
         $loThuoc->update($validated);
         return response()->json($loThuoc);

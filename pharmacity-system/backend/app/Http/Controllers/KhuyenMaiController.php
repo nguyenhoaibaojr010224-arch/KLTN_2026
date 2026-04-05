@@ -8,6 +8,8 @@ use App\Http\Requests\UpdateKhuyenMaiRequest;
 use App\Models\KhuyenMai;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 
 class KhuyenMaiController extends Controller
 {
@@ -22,6 +24,7 @@ class KhuyenMaiController extends Controller
                     $innerQuery
                         ->where('ten_khuyen_mai', 'like', '%' . $keyword . '%')
                         ->orWhere('ma_thuoc', 'like', '%' . $keyword . '%')
+                        ->orWhere('ma_khuyen_mai', 'like', '%' . $keyword . '%')
                         ->orWhere('nhan_hien_thi', 'like', '%' . $keyword . '%')
                         ->orWhereHas('thuoc', fn ($thuocQuery) => $thuocQuery->where('ten_thuoc', 'like', '%' . $keyword . '%'));
                 });
@@ -37,8 +40,11 @@ class KhuyenMaiController extends Controller
 
     public function store(StoreKhuyenMaiRequest $request): JsonResponse
     {
+        $payload = $this->normalizeDatePayload($request->validated());
+
         $khuyenMai = KhuyenMai::create([
-            ...$request->validated(),
+            ...$payload,
+            'ma_khuyen_mai' => $this->normalizePromotionCode($payload['ma_khuyen_mai'] ?? null),
             'id_nhan_vien' => $request->user()?->id_nhan_vien,
         ]);
 
@@ -72,11 +78,15 @@ class KhuyenMaiController extends Controller
             return response()->json(['message' => 'Khong tim thay khuyen mai.'], 404);
         }
 
-        $khuyenMai->update([
-            ...$request->validated(),
-            'id_nhan_vien' => $request->user()?->id_nhan_vien,
-        ]);
+        $payload = $this->normalizeDatePayload($request->validated());
 
+        if (array_key_exists('ma_khuyen_mai', $payload)) {
+            $payload['ma_khuyen_mai'] = $this->normalizePromotionCode($payload['ma_khuyen_mai']);
+        }
+
+        $payload['id_nhan_vien'] = $request->user()?->id_nhan_vien;
+
+        $khuyenMai->update($payload);
         $khuyenMai->load(['thuoc', 'nhanVien']);
 
         return response()->json([
@@ -111,6 +121,7 @@ class KhuyenMaiController extends Controller
         return [
             'id' => $khuyenMai->id,
             'ma_thuoc' => $khuyenMai->ma_thuoc,
+            'ma_khuyen_mai' => $khuyenMai->ma_khuyen_mai,
             'ten_thuoc' => $khuyenMai->thuoc?->ten_thuoc,
             'ten_khuyen_mai' => $khuyenMai->ten_khuyen_mai,
             'mo_ta' => $khuyenMai->mo_ta,
@@ -124,5 +135,31 @@ class KhuyenMaiController extends Controller
             'gia_sau_giam' => $giaSauGiam,
             'nhan_vien_cap_nhat' => $khuyenMai->nhanVien?->ho_ten,
         ];
+    }
+
+    private function normalizePromotionCode(?string $value): ?string
+    {
+        if ($value === null || trim($value) === '') {
+            return null;
+        }
+
+        return Str::upper(trim($value));
+    }
+
+    private function normalizeDatePayload(array $payload): array
+    {
+        foreach (['ngay_bat_dau', 'ngay_ket_thuc'] as $field) {
+            if (! filled($payload[$field] ?? null)) {
+                $payload[$field] = null;
+                continue;
+            }
+
+            $payload[$field] = Carbon::parse(
+                (string) $payload[$field],
+                'Asia/Ho_Chi_Minh'
+            )->setTimezone(config('app.timezone'));
+        }
+
+        return $payload;
     }
 }

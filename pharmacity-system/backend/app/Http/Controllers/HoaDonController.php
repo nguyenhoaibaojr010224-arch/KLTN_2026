@@ -6,8 +6,11 @@ use App\Http\Requests\HoaDonStatisticsRequest;
 use App\Http\Requests\SearchHoaDonRequest;
 use App\Http\Requests\StoreHoaDonRequest;
 use App\Models\HoaDon;
+use App\Models\LichSuDonHang;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class HoaDonController extends Controller
 {
@@ -84,10 +87,45 @@ class HoaDonController extends Controller
         ]);
     }
 
+    public function pendingNotifications(): JsonResponse
+    {
+        $pendingQuery = $this->baseQuery()
+            ->whereHas('latestLichSuDonHang', function (Builder $query): void {
+                $query->where('trang_thai', 'Chờ xác nhận');
+            });
+
+        $tongThongBao = (clone $pendingQuery)->count();
+        $hoaDons = (clone $pendingQuery)
+            ->limit(8)
+            ->get()
+            ->map(function (HoaDon $hoaDon): array {
+                return [
+                    'id_hoa_don' => $hoaDon->id_hoa_don,
+                    'ma_hoa_don' => $hoaDon->ma_hoa_don,
+                    'ngay_ban' => optional($hoaDon->ngay_ban)?->toIso8601String(),
+                    'tong_tien' => (float) $hoaDon->tien_thanh_toan,
+                    'khach_hang' => [
+                        'ten_khach_hang' => $hoaDon->khachHang?->ten_khach_hang,
+                        'so_dien_thoai' => $hoaDon->khachHang?->so_dien_thoai,
+                    ],
+                    'trang_thai' => $hoaDon->latestLichSuDonHang?->trang_thai ?: 'Chờ xác nhận',
+                    'ghi_chu' => $hoaDon->latestLichSuDonHang?->ghi_chu,
+                    'thoi_gian_cap_nhat' => optional($hoaDon->latestLichSuDonHang?->thoi_gian)?->toIso8601String(),
+                ];
+            })
+            ->values();
+
+        return response()->json([
+            'message' => 'Lay thong bao hoa don cho xac nhan thanh cong.',
+            'data' => $hoaDons,
+            'tong_thong_bao' => $tongThongBao,
+        ]);
+    }
+
     public function statistics(HoaDonStatisticsRequest $request): JsonResponse
     {
         $filters = $request->validated();
-        $query = HoaDon::query();
+        $query = HoaDon::query()->whereHas('chiTiets');
 
         if (! empty($filters['from'])) {
             $query->whereDate('ngay_ban', '>=', $filters['from']);
@@ -135,13 +173,51 @@ class HoaDonController extends Controller
         ]);
     }
 
+    public function confirm(Request $request, int $id): JsonResponse
+    {
+        $hoaDon = $this->baseQuery()->find($id);
+
+        if (! $hoaDon) {
+            return response()->json([
+                'message' => 'Khong tim thay hoa don.',
+            ], 404);
+        }
+
+        $trangThaiHienTai = trim((string) $hoaDon->latestLichSuDonHang?->trang_thai);
+
+        if ($trangThaiHienTai === 'Thành công') {
+            return response()->json([
+                'message' => 'Hoa don nay da duoc xac nhan truoc do.',
+            ], 422);
+        }
+
+        DB::transaction(function () use ($request, $hoaDon): void {
+            LichSuDonHang::create([
+                'id_hoa_don' => $hoaDon->id_hoa_don,
+                'trang_thai' => 'Thành công',
+                'ghi_chu' => 'Đơn hàng đã được nhân viên xác nhận.',
+                'thoi_gian' => now(),
+                'id_nhan_vien' => $request->user()->id_nhan_vien,
+            ]);
+        });
+
+        $hoaDon = $this->baseQuery()->find($id);
+
+        return response()->json([
+            'message' => 'Xac nhan hoa don thanh cong.',
+            'data' => $hoaDon,
+        ]);
+    }
+
     private function baseQuery(): Builder
     {
         return HoaDon::query()
+            ->whereHas('chiTiets')
             ->with([
                 'khachHang:id_khach_hang,ten_khach_hang,so_dien_thoai,email',
                 'nhanVien:id_nhan_vien,ten_dang_nhap,ho_ten,id_vai_tro',
                 'nhanVien.vaiTro:id_vai_tro,ten_vai_tro',
+                'latestLichSuDonHang',
             ])
             ->orderByDesc('ngay_ban')
             ->orderByDesc('id_hoa_don');

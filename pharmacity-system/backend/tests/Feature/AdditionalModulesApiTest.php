@@ -266,6 +266,96 @@ class AdditionalModulesApiTest extends TestCase
             ->assertJsonPath('data.0.gia_niem_yet', 145000)
             ->assertJsonPath('data.0.gia_ban', 130500)
             ->assertJsonPath('data.0.khuyen_mai.nhan_hien_thi', 'Giam 10%');
+
+        $couponResponse = $this->postJson('/api/ma-giam-gias', [
+            'ma_giam_gia' => 'FLASH-10',
+            'ten_ma' => 'Flash sale don hang',
+            'mo_ta' => 'Giam gia tren tong don',
+            'loai_ap_dung' => 'phan_tram',
+            'gia_tri' => 10,
+            'gia_tri_don_toi_thieu' => 300000,
+            'gioi_han_moi_khach' => 1,
+            'ngay_bat_dau' => now()->subHour()->toDateTimeString(),
+            'ngay_ket_thuc' => now()->addDays(2)->toDateTimeString(),
+            'trang_thai' => 'active',
+        ]);
+
+        $couponResponse
+            ->assertCreated()
+            ->assertJsonPath('data.ma_giam_gia', 'FLASH-10');
+
+        $khachHang = KhachHang::factory()->create();
+        Sanctum::actingAs($khachHang);
+
+        $validateCodeResponse = $this->postJson('/api/ma-giam-gias/validate-code', [
+            'ma_giam_gia' => 'flash-10',
+            'tong_tam_tinh' => 500000,
+        ]);
+
+        $validateCodeResponse
+            ->assertOk()
+            ->assertJsonPath('data.ma_giam_gia', 'FLASH-10')
+            ->assertJsonPath('data.gia_tri_don_toi_thieu', 300000)
+            ->assertJsonPath('data.gioi_han_moi_khach', 1)
+            ->assertJsonPath('data.giam_gia_don_hang', 50000)
+            ->assertJsonPath('data.tong_sau_giam', 450000);
+
+        $redeemResponse = $this->postJson('/api/ma-giam-gias/redeem-code', [
+            'ma_giam_gia' => 'FLASH-10',
+            'tong_tam_tinh' => 500000,
+        ]);
+
+        $redeemResponse
+            ->assertOk()
+            ->assertJsonPath('data.so_lan_da_dung', 1);
+
+        $this->assertDatabaseHas('ma_giam_gia_luot_dungs', [
+            'ma_giam_gia_id' => $couponResponse->json('data.id'),
+            'id_khach_hang' => $khachHang->id_khach_hang,
+            'so_lan_su_dung' => 1,
+        ]);
+
+        $limitResponse = $this->postJson('/api/ma-giam-gias/validate-code', [
+            'ma_giam_gia' => 'FLASH-10',
+            'tong_tam_tinh' => 500000,
+        ]);
+
+        $limitResponse
+            ->assertStatus(422)
+            ->assertJsonPath('data.so_lan_da_dung', 1);
+    }
+
+    public function test_promotion_code_checks_minimum_order_value(): void
+    {
+        $staff = $this->createNhanVien('staff_min_promo', 'nhan_vien');
+        $thuoc = Thuoc::factory()->create();
+        $khachHang = KhachHang::factory()->create();
+
+        Sanctum::actingAs($staff, ['staff']);
+
+        $this->postJson('/api/ma-giam-gias', [
+            'ma_giam_gia' => 'MIN-500',
+            'ten_ma' => 'Ma toi thieu 500k',
+            'mo_ta' => 'Giam gia theo don',
+            'loai_ap_dung' => 'so_tien',
+            'gia_tri' => 50000,
+            'gia_tri_don_toi_thieu' => 500000,
+            'gioi_han_moi_khach' => 2,
+            'ngay_bat_dau' => now()->subHour()->toDateTimeString(),
+            'ngay_ket_thuc' => now()->addDays(7)->toDateTimeString(),
+            'trang_thai' => 'active',
+        ])->assertCreated();
+
+        Sanctum::actingAs($khachHang);
+
+        $response = $this->postJson('/api/ma-giam-gias/validate-code', [
+            'ma_giam_gia' => 'MIN-500',
+            'tong_tam_tinh' => 200000,
+        ]);
+
+        $response
+            ->assertStatus(422)
+            ->assertJsonPath('data.gia_tri_don_toi_thieu', 500000);
     }
 
     private function createNhanVien(string $username, string $roleName, bool $withProfile = true): NhanVien

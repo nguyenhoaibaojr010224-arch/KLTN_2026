@@ -16,7 +16,6 @@
         <div class="row g-4 align-items-stretch">
           <div class="col-xl-8 d-flex">
             <section class="pc-order-card pc-order-card--main">
-              <div class="pc-order-card__banner">Miễn phí vận chuyển cho mọi đơn hàng từ 0đ</div>
               <div class="pc-order-card__tablehead">
                 <div class="pc-order-card__producthead">
                   <button type="button" class="pc-check-button" @click="toggleAll">
@@ -31,7 +30,12 @@
 
               <article v-for="item in state.cart" :key="item.id" class="pc-cart-item">
                 <div class="pc-cart-item__main">
-                  <button type="button" class="pc-check-button" @click="toggleCartSelection(item.id)">
+                  <button
+                    type="button"
+                    class="pc-check-button"
+                    :disabled="isOutOfStock(item)"
+                    @click="toggleCartSelection(item.id)"
+                  >
                     <i class="bi" :class="item.selected ? 'bi-check-square-fill' : 'bi-square'"></i>
                   </button>
 
@@ -40,7 +44,10 @@
                   <div class="pc-cart-item__content">
                     <h3>{{ item.ten }}</h3>
                     <p>Phân loại: {{ item.donVi }}</p>
-                    <div v-if="item.promoTags && item.promoTags.length" class="pc-cart-item__tags">
+                    <div v-if="isOutOfStock(item)" class="pc-cart-item__tags">
+                      <span class="pc-cart-item__tag pc-cart-item__tag--danger">Hết hàng</span>
+                    </div>
+                    <div v-else-if="item.promoTags && item.promoTags.length" class="pc-cart-item__tags">
                       <span v-for="tag in item.promoTags" :key="tag">{{ tag }}</span>
                     </div>
                   </div>
@@ -52,9 +59,21 @@
                 </div>
 
                 <div class="pc-cart-item__quantity">
-                  <button type="button" @click="updateCartQuantity(item.id, item.soLuong - 1)">-</button>
+                  <button
+                    type="button"
+                    :disabled="isOutOfStock(item)"
+                    @click="updateCartQuantity(item.id, item.soLuong - 1)"
+                  >
+                    -
+                  </button>
                   <span>{{ item.soLuong }}</span>
-                  <button type="button" @click="updateCartQuantity(item.id, item.soLuong + 1)">+</button>
+                  <button
+                    type="button"
+                    :disabled="isOutOfStock(item)"
+                    @click="updateCartQuantity(item.id, item.soLuong + 1)"
+                  >
+                    +
+                  </button>
                   <button type="button" class="pc-cart-item__remove" @click="removeCartItem(item.id)">
                     <i class="bi bi-trash3"></i>
                   </button>
@@ -65,19 +84,24 @@
 
           <div class="col-xl-4 d-flex">
             <aside class="pc-summary-card pc-summary-card--cart">
-              <h2>PharmaGo khuyến mãi</h2>
+              <h2>Đơn hàng</h2>
               <div class="pc-summary-card__voucher">
                 <span><i class="bi bi-ticket-perforated"></i> Khuyến mãi</span>
-                <button type="button">Chọn mã</button>
+                <RouterLink v-if="canUsePromotionCode" to="/thanh-toan" class="pc-link-button">Chọn mã</RouterLink>
+                <RouterLink v-else to="/login" class="pc-link-button">Đăng nhập để dùng mã</RouterLink>
               </div>
+
+              <p v-if="!canUsePromotionCode" class="pc-summary-card__hint">
+                Bạn cần đăng nhập trước khi sử dụng mã giảm giá cho tổng hóa đơn.
+              </p>
 
               <div class="pc-summary-card__line">
                 <span>Tạm tính</span>
                 <strong>{{ formatCurrency(subtotal) }}</strong>
               </div>
-              <div class="pc-summary-card__line">
-                <span>Giảm giá sản phẩm</span>
-                <strong class="text-success">-{{ formatCurrency(productDiscount) }}</strong>
+              <div class="pc-summary-card__line" v-if="orderPromotionDiscount > 0">
+                <span>Giảm giá mã</span>
+                <strong class="text-success">-{{ formatCurrency(orderPromotionDiscount) }}</strong>
               </div>
               <div class="pc-summary-card__total">
                 <span>Tổng tiền</span>
@@ -113,10 +137,10 @@
 </template>
 
 <script>
-import { useCustomerStore } from '../../../lib/customerStore';
+import { useCustomerStore } from "../../../lib/customerStore";
 
 export default {
-  name: 'GioHangClient',
+  name: "GioHangClient",
 
   data() {
     return {
@@ -124,35 +148,35 @@ export default {
     };
   },
 
+  async mounted() {
+    await this.customerStore.syncCartPricesWithCatalog?.();
+  },
+
   computed: {
     state() {
       return this.customerStore.state;
     },
-
     cartCount() {
       return this.customerStore.cartCount;
     },
-
     selectedCount() {
       return this.customerStore.selectedCount;
     },
-
     subtotal() {
       return this.customerStore.subtotal;
     },
-
-    productDiscount() {
-      return this.customerStore.productDiscount;
+    orderPromotionDiscount() {
+      return this.customerStore.orderPromotionDiscount;
     },
-
     orderTotal() {
       return this.customerStore.orderTotal;
     },
-
+    canUsePromotionCode() {
+      return this.customerStore.canUsePromotionCode;
+    },
     giftItems() {
       return this.customerStore.giftItems;
     },
-
     allSelected() {
       return this.state.cart.length > 0 && this.state.cart.every((item) => item.selected);
     },
@@ -160,35 +184,33 @@ export default {
 
   methods: {
     formatCurrency(value) {
-      return new Intl.NumberFormat('vi-VN', {
-        style: 'currency',
-        currency: 'VND',
+      return new Intl.NumberFormat("vi-VN", {
+        style: "currency",
+        currency: "VND",
         maximumFractionDigits: 0,
       }).format(Number(value || 0));
     },
-
     updateCartQuantity(itemId, nextValue) {
       this.customerStore.updateCartQuantity(itemId, nextValue);
     },
-
     toggleCartSelection(itemId) {
       this.customerStore.toggleCartSelection(itemId);
     },
-
     removeCartItem(itemId) {
       this.customerStore.removeCartItem(itemId);
     },
-
     clearCart() {
       this.customerStore.clearCart();
     },
-
+    isOutOfStock(item) {
+      return Number(item?.tonKho || 0) <= 0;
+    },
     toggleAll() {
       const next = !this.allSelected;
       this.state.cart.forEach((item) => {
-        item.selected = next;
+        item.selected = this.isOutOfStock(item) ? false : next;
       });
-      localStorage.setItem('pharmacity_customer_cart', JSON.stringify(this.state.cart));
+      localStorage.setItem("pharmacity_customer_cart", JSON.stringify(this.state.cart));
     },
   },
 };
@@ -209,7 +231,29 @@ export default {
   margin-top: auto;
 }
 
+.pc-summary-card__hint {
+  margin: 0 0 14px;
+  color: #5e6f91;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
 .pc-order-card--gifts {
   margin-top: 4px;
+}
+
+.pc-check-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.pc-cart-item__tag--danger {
+  background: rgba(220, 53, 69, 0.12);
+  color: #c93045;
+}
+
+.pc-cart-item__quantity button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 </style>

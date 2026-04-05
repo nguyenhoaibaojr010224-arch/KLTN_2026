@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\HasApiTokens;
 
 class NhanVien extends Authenticatable
@@ -26,6 +27,15 @@ class NhanVien extends Authenticatable
 
     protected $hidden = [
         'mat_khau',
+    ];
+
+    protected $appends = [
+        'so_dien_thoai',
+        'email',
+        'dia_chi',
+        'ngay_sinh',
+        'gioi_tinh',
+        'avatar_url',
     ];
 
     protected function casts(): array
@@ -63,5 +73,37 @@ class NhanVien extends Authenticatable
     public function lichSuDonHangs(): HasMany
     {
         return $this->hasMany(LichSuDonHang::class, 'id_nhan_vien', 'id_nhan_vien');
+    }
+
+    public function getSoDienThoaiAttribute(): ?string
+    {
+        return $this->thongTinNhanVien?->so_dien_thoai;
+    }
+
+    public function getEmailAttribute(): ?string
+    {
+        return $this->thongTinNhanVien?->email;
+    }
+
+    public function getDiaChiAttribute(): ?string
+    {
+        return $this->thongTinNhanVien?->dia_chi;
+    }
+
+    public function getAvatarUrlAttribute(): ?string
+    {
+        $avatar = $this->thongTinNhanVien?->avatar;
+
+        return $avatar ? Storage::disk('public')->url($avatar) : null;
+    }
+
+    public function getNgaySinhAttribute(): ?string
+    {
+        return $this->thongTinNhanVien?->ngay_sinh?->toDateString();
+    }
+
+    public function getGioiTinhAttribute(): ?string
+    {
+        return $this->thongTinNhanVien?->gioi_tinh;
     }
 }

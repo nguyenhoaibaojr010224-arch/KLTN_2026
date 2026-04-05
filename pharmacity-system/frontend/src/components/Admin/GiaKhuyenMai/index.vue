@@ -1,493 +1,787 @@
 ﻿<template>
-  <section class="content-card mb-4">
-    <div class="d-flex flex-column flex-xl-row justify-content-between gap-4">
-      <div>
-        <div class="soft-badge soft-badge--blue mb-3">
-          <i class="bi bi-tags"></i>
-          Gia va khuyen mai
-        </div>
-        <h2 class="page-section-title">Quan ly gia ban va chuong trinh uu dai</h2>
-        <p class="page-section-copy mb-0">
-          Admin va nhan vien co the doi gia thuoc, tao khuyen mai rieng va de trang khach hang tu dong hien dung gia.
-        </p>
-      </div>
-
-      <div class="soft-badge">
-        <i class="bi bi-person-workspace"></i>
-        {{ currentUser?.ho_ten || "Tai khoan he thong" }}
-      </div>
-    </div>
-  </section>
-
-  <section class="content-card mb-4">
-    <div class="row g-3 align-items-end">
-      <div class="col-lg-6">
-        <label class="form-label fw-semibold">Tim thuoc hoac khuyen mai</label>
-        <input
-          v-model.trim="keyword"
-          class="form-control"
-          placeholder="Nhap ten thuoc, ma thuoc, ten khuyen mai"
-          @keyup.enter="handleSearch"
-        />
-      </div>
-
-      <div class="col-lg-6">
-        <div class="d-flex flex-wrap gap-2">
-          <button class="btn btn-primary" @click="loadData" :disabled="loading.sync">
-            <span v-if="loading.sync" class="spinner-border spinner-border-sm me-2"></span>
-            Dong bo du lieu
-          </button>
-          <button class="btn btn-outline-primary" @click="handleSearch" :disabled="loading.search || !keyword">
-            <span v-if="loading.search" class="spinner-border spinner-border-sm me-2"></span>
-            Tim kiem
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <div v-if="message" class="alert alert-info mt-4 mb-0">{{ message }}</div>
-    <div v-if="error" class="alert alert-danger mt-4 mb-0">{{ error }}</div>
-  </section>
-
-  <section class="row g-4">
-    <div class="col-xl-7">
-      <article class="content-card h-100">
-        <div class="d-flex justify-content-between align-items-center gap-3 mb-4">
-          <div>
-            <h3 class="panel-title">Bang gia thuoc</h3>
-            <p class="panel-subtitle mb-0">Chon mot thuoc de cap nhat gia ban va tao chuong trinh khuyen mai.</p>
+  <div class="vstack gap-4">
+    <section class="content-card">
+      <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
+        <div>
+          <div class="soft-badge soft-badge--blue mb-3">
+            <i class="bi bi-tags"></i>
+            Giá và khuyến mãi
           </div>
-          <span class="soft-badge soft-badge--teal">{{ thuocs.length }} thuoc</span>
-        </div>
-
-        <div class="table-responsive">
-          <table class="table table-master align-middle mb-0">
-            <thead>
-              <tr>
-                <th>Thuoc</th>
-                <th>Loai</th>
-                <th>Gia niem yet</th>
-                <th>Khuyen mai</th>
-                <th class="text-end">Tac vu</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="thuoc in thuocs"
-                :key="thuoc.ma_thuoc"
-                :class="{ 'table-active': selectedThuoc?.ma_thuoc === thuoc.ma_thuoc }"
-              >
-                <td>
-                  <div class="fw-semibold">{{ thuoc.ten_thuoc }}</div>
-                  <div class="small text-secondary">{{ thuoc.ma_thuoc }}</div>
-                </td>
-                <td>{{ thuoc.loaiThuoc?.ten_loai || "-" }}</td>
-                <td>{{ formatCurrency(thuoc.gia_ban) }}</td>
-                <td>
-                  <span v-if="latestPromotionLabel(thuoc)" class="soft-badge soft-badge--orange">
-                    {{ latestPromotionLabel(thuoc) }}
-                  </span>
-                  <span v-else class="text-secondary">Chua co</span>
-                </td>
-                <td class="text-end">
-                  <button class="btn btn-sm btn-outline-primary" @click="selectThuoc(thuoc)">Chon</button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </article>
-    </div>
-
-    <div class="col-xl-5">
-      <article class="content-card h-100">
-        <div class="mb-4">
-          <h3 class="panel-title">Cap nhat gia ban</h3>
-          <p class="panel-subtitle mb-0">
-            {{ selectedThuoc ? `Dang chinh gia cho ${selectedThuoc.ten_thuoc}` : "Chon thuoc tu bang ben trai." }}
+          <h2 class="page-section-title mb-2">Quản lý giá bán, khuyến mãi thuốc và mã giảm giá</h2>
+          <p class="page-section-copy mb-0">
+            Khuyến mãi thuốc dùng để giảm trực tiếp trên từng sản phẩm. Mã giảm giá dùng để giảm trên tổng hóa đơn
+            khi khách thanh toán.
           </p>
         </div>
 
-        <div v-if="selectedThuoc" class="vstack gap-3">
-          <div class="inventory-lot-card">
-            <div class="small text-secondary mb-1">Ma thuoc</div>
-            <div class="fw-semibold">{{ selectedThuoc.ma_thuoc }}</div>
-          </div>
+        <div class="soft-badge">
+          <i class="bi bi-person-badge"></i>
+          {{ currentUser?.ho_ten || "Tài khoản hệ thống" }}
+        </div>
+      </div>
+    </section>
 
+    <section class="content-card">
+      <div class="row g-3 align-items-end">
+        <div class="col-lg-5">
+          <label class="form-label fw-semibold">Tìm kiếm</label>
+          <input
+            v-model.trim="keyword"
+            class="form-control"
+            placeholder="Tên thuốc, mã thuốc, tên khuyến mãi hoặc mã giảm giá"
+          />
+        </div>
+
+        <div class="col-lg-7">
+          <div class="d-flex flex-wrap gap-2">
+            <button class="btn btn-primary" @click="loadData" :disabled="loading.sync">
+              <span v-if="loading.sync" class="spinner-border spinner-border-sm me-2"></span>
+              Đồng bộ dữ liệu
+            </button>
+            <button class="btn btn-outline-primary" @click="openPromotionModal()">
+              <i class="bi bi-plus-circle me-2"></i>
+              Tạo khuyến mãi thuốc
+            </button>
+            <button class="btn btn-outline-success" @click="openCodeModal()">
+              <i class="bi bi-ticket-perforated me-2"></i>
+              Tạo mã giảm giá
+            </button>
+            <button class="btn btn-outline-secondary" @click="openPromotionListModal()">
+              Danh sách khuyến mãi thuốc
+            </button>
+            <button class="btn btn-outline-secondary" @click="openCodeListModal()">
+              Danh sách mã giảm giá
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="error" class="alert alert-danger mt-4 mb-0">{{ error }}</div>
+    </section>
+
+    <section class="row g-4">
+      <div class="col-md-6 col-xl-3" v-for="metric in metrics" :key="metric.label">
+        <article class="metric-card h-100">
+          <div class="d-flex justify-content-between gap-3">
+            <div>
+              <p class="metric-card__label mb-2">{{ metric.label }}</p>
+              <h3 class="metric-card__value mb-1">{{ metric.value }}</h3>
+              <span class="metric-card__delta" :class="metric.deltaClass">{{ metric.note }}</span>
+            </div>
+            <div class="metric-card__icon" :class="metric.iconClass">
+              <i :class="metric.icon"></i>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="content-card">
+      <div class="d-flex justify-content-between align-items-center gap-3 mb-4">
+        <div>
+          <h3 class="panel-title mb-1">Bảng giá thuốc</h3>
+          <p class="panel-subtitle mb-0">Cập nhật giá bán và theo dõi khuyến mãi đang áp dụng trên từng thuốc.</p>
+        </div>
+        <span class="soft-badge soft-badge--teal">{{ filteredThuocs.length }} thuốc</span>
+      </div>
+
+      <div v-if="filteredThuocs.length" class="table-responsive">
+        <table class="table table-master align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Thuốc</th>
+              <th>Loại</th>
+              <th>Giá bán</th>
+              <th>Khuyến mãi thuốc</th>
+              <th class="text-end">Tác vụ</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="thuoc in filteredThuocs" :key="thuoc.ma_thuoc">
+              <td>
+                <div class="fw-semibold">{{ thuoc.ten_thuoc }}</div>
+                <div class="small text-secondary">{{ thuoc.ma_thuoc }}</div>
+              </td>
+              <td>{{ thuoc.loaiThuoc?.ten_loai || "-" }}</td>
+              <td>{{ formatCurrency(thuoc.gia_ban) }}</td>
+              <td>
+                <div v-if="promotionCountForThuoc(thuoc.ma_thuoc)" class="vstack gap-1">
+                  <span
+                    v-for="item in promotionsForThuoc(thuoc.ma_thuoc).slice(0, 2)"
+                    :key="item.id"
+                    class="soft-badge soft-badge--blue justify-content-start"
+                  >
+                    {{ item.ten_khuyen_mai }} - {{ promotionValueLabel(item) }}
+                  </span>
+                  <span v-if="promotionCountForThuoc(thuoc.ma_thuoc) > 2" class="small text-secondary">
+                    +{{ promotionCountForThuoc(thuoc.ma_thuoc) - 2 }} khuyến mãi khác
+                  </span>
+                </div>
+                <span v-else class="text-secondary small">Chưa có khuyến mãi</span>
+              </td>
+              <td class="text-end">
+                <div class="d-flex justify-content-end flex-wrap gap-2">
+                  <button class="btn btn-sm btn-outline-primary" @click="openPriceModal(thuoc)">Cập nhật giá</button>
+                  <button class="btn btn-sm btn-outline-success" @click="openPromotionModal(thuoc)">Tạo khuyến mãi</button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div v-else class="master-empty">
+        <p class="mb-2 fw-semibold">Không có dữ liệu phù hợp.</p>
+        <p class="mb-0 text-secondary">Thử đổi từ khóa tìm kiếm hoặc đồng bộ lại dữ liệu.</p>
+      </div>
+    </section>
+  </div>
+
+  <div ref="priceModalEl" class="modal fade" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 shadow-lg">
+        <div class="modal-header">
           <div>
-            <label class="form-label fw-semibold">Gia ban moi</label>
-            <input v-model.number="priceForm.gia_ban" type="number" min="1000" class="form-control" />
+            <h5 class="modal-title fw-bold mb-1">Cập nhật giá bán</h5>
+            <p class="mb-0 text-secondary small">{{ priceForm.ten_thuoc }} - {{ priceForm.ma_thuoc }}</p>
           </div>
-
-          <button class="btn btn-primary" @click="savePrice" :disabled="loading.price">
-            <span v-if="loading.price" class="spinner-border spinner-border-sm me-2"></span>
-            Luu gia ban
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+        </div>
+        <div class="modal-body">
+          <label class="form-label fw-semibold">Giá bán mới</label>
+          <input v-model.number="priceForm.gia_ban" type="number" min="1" class="form-control" placeholder="Nhập giá bán" />
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Đóng</button>
+          <button type="button" class="btn btn-primary" @click="savePrice" :disabled="loading.savePrice">
+            <span v-if="loading.savePrice" class="spinner-border spinner-border-sm me-2"></span>
+            Lưu giá bán
           </button>
         </div>
-
-        <div v-else class="master-empty">
-          <p class="mb-2 fw-semibold">Chua chon thuoc.</p>
-          <p class="mb-0 text-secondary">Hay chon mot thuoc de mo form chinh gia ban.</p>
-        </div>
-      </article>
+      </div>
     </div>
-  </section>
-
-  <section class="row g-4 mt-1">
-    <div class="col-xl-5">
-      <article class="content-card h-100">
-        <div class="mb-4">
-          <h3 class="panel-title">Tao / sua khuyen mai</h3>
-          <p class="panel-subtitle mb-0">Khuyen mai chi hien ben khach hang khi dang active va con trong thoi gian ap dung.</p>
+  </div>
+  <div ref="promotionModalEl" class="modal fade" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered">
+      <div class="modal-content border-0 shadow-lg">
+        <div class="modal-header">
+          <div>
+            <h5 class="modal-title fw-bold mb-1">{{ promotionForm.id ? "Cập nhật khuyến mãi thuốc" : "Tạo khuyến mãi thuốc" }}</h5>
+            <p class="mb-0 text-secondary small">Khuyến mãi thuốc giảm trực tiếp trên giá bán của sản phẩm.</p>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
         </div>
-
-        <div class="vstack gap-3">
-          <div>
-            <label class="form-label fw-semibold">Thuoc ap dung</label>
-            <select v-model="promoForm.ma_thuoc" class="form-select">
-              <option value="">Chon thuoc</option>
-              <option v-for="thuoc in thuocs" :key="thuoc.ma_thuoc" :value="thuoc.ma_thuoc">
-                {{ thuoc.ma_thuoc }} - {{ thuoc.ten_thuoc }}
-              </option>
-            </select>
-          </div>
-
-          <div>
-            <label class="form-label fw-semibold">Ten khuyen mai</label>
-            <input v-model.trim="promoForm.ten_khuyen_mai" class="form-control" placeholder="Vi du: Deal hot cuoi tuan" />
-          </div>
-
-          <div>
-            <label class="form-label fw-semibold">Nhan hien thi</label>
-            <input v-model.trim="promoForm.nhan_hien_thi" class="form-control" placeholder="Vi du: Giam 15%" />
-          </div>
-
+        <div class="modal-body">
           <div class="row g-3">
             <div class="col-md-6">
-              <label class="form-label fw-semibold">Loai ap dung</label>
-              <select v-model="promoForm.loai_ap_dung" class="form-select">
-                <option value="phan_tram">Phan tram</option>
-                <option value="so_tien">So tien</option>
-                <option value="gia_co_dinh">Gia co dinh</option>
+              <label class="form-label fw-semibold">Thuốc áp dụng</label>
+              <input
+                v-model.trim="promotionThuocInput"
+                class="form-control"
+                list="promotion-thuoc-options"
+                placeholder="Nhập hoặc dán tên thuốc / mã thuốc"
+              />
+              <datalist id="promotion-thuoc-options">
+                <option v-for="item in thuocs" :key="item.ma_thuoc" :value="formatPromotionThuocOption(item)"></option>
+              </datalist>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Mã nội bộ khuyến mãi</label>
+              <div class="input-group">
+                <input v-model.trim="promotionForm.ma_khuyen_mai" class="form-control text-uppercase" placeholder="Ví dụ: KM-THUOC-01" />
+                <button class="btn btn-outline-secondary" type="button" @click="generatePromotionCode">Tạo mã</button>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Tên khuyến mãi</label>
+              <input v-model.trim="promotionForm.ten_khuyen_mai" class="form-control" placeholder="Nhập tên khuyến mãi" />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Nhãn hiển thị</label>
+              <input v-model.trim="promotionForm.nhan_hien_thi" class="form-control" placeholder="Ví dụ: Giảm 15%" />
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Mô tả</label>
+              <textarea v-model.trim="promotionForm.mo_ta" class="form-control" rows="3" placeholder="Mô tả ngắn cho khuyến mãi thuốc"></textarea>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Loại áp dụng</label>
+              <select v-model="promotionForm.loai_ap_dung" class="form-select">
+                <option value="phan_tram">Giảm theo phần trăm</option>
+                <option value="so_tien">Giảm số tiền</option>
+                <option value="gia_co_dinh">Đặt giá cố định</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Giá trị áp dụng</label>
+              <input v-model.number="promotionForm.gia_tri" type="number" min="1" class="form-control" placeholder="Nhập giá trị" />
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Trạng thái</label>
+              <select v-model="promotionForm.trang_thai" class="form-select">
+                <option value="draft">Nháp</option>
+                <option value="active">Đang áp dụng</option>
+                <option value="inactive">Tạm dừng</option>
               </select>
             </div>
             <div class="col-md-6">
-              <label class="form-label fw-semibold">Gia tri</label>
-              <input v-model.number="promoForm.gia_tri" type="number" min="1" class="form-control" />
+              <label class="form-label fw-semibold">Bắt đầu</label>
+              <input v-model="promotionForm.ngay_bat_dau" type="datetime-local" class="form-control" />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Kết thúc</label>
+              <input v-model="promotionForm.ngay_ket_thuc" type="datetime-local" class="form-control" />
             </div>
           </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Đóng</button>
+          <button type="button" class="btn btn-primary" @click="savePromotion" :disabled="loading.savePromotion">
+            <span v-if="loading.savePromotion" class="spinner-border spinner-border-sm me-2"></span>
+            {{ promotionForm.id ? "Lưu thay đổi" : "Tạo khuyến mãi" }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 
+  <div ref="promotionListModalEl" class="modal fade" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered">
+      <div class="modal-content border-0 shadow-lg">
+        <div class="modal-header">
+          <div>
+            <h5 class="modal-title fw-bold mb-1">Danh sách khuyến mãi thuốc</h5>
+            <p class="mb-0 text-secondary small">Theo dõi toàn bộ chương trình giảm giá trực tiếp trên từng thuốc.</p>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+        </div>
+        <div class="modal-body">
+          <div v-if="filteredKhuyenMais.length" class="table-responsive">
+            <table class="table table-master align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Chương trình</th>
+                  <th>Thuốc áp dụng</th>
+                  <th>Giá trị</th>
+                  <th>Thời gian</th>
+                  <th>Trạng thái</th>
+                  <th class="text-end">Tác vụ</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="item in filteredKhuyenMais" :key="item.id">
+                  <td>
+                    <div class="fw-semibold">{{ item.ten_khuyen_mai }}</div>
+                    <div class="small text-secondary">{{ item.ma_khuyen_mai || "Không có mã nội bộ" }}</div>
+                  </td>
+                  <td>
+                    <div>{{ item.ten_thuoc || "-" }}</div>
+                    <div class="small text-secondary">{{ item.ma_thuoc || "-" }}</div>
+                  </td>
+                  <td>{{ promotionValueLabel(item) }}</td>
+                  <td>{{ rangeLabel(item.ngay_bat_dau, item.ngay_ket_thuc) }}</td>
+                  <td>
+                    <span class="soft-badge" :class="statusBadgeClass(item.trang_thai)">{{ statusLabel(item.trang_thai) }}</span>
+                  </td>
+                  <td class="text-end">
+                    <div class="d-flex justify-content-end flex-wrap gap-2">
+                      <button class="btn btn-sm btn-outline-primary" @click="editPromotion(item)">Sửa</button>
+                      <button class="btn btn-sm btn-outline-danger" @click="removePromotion(item)">Xóa</button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div v-else class="master-empty">
+            <p class="mb-2 fw-semibold">Chưa có khuyến mãi thuốc.</p>
+            <p class="mb-0 text-secondary">Tạo khuyến mãi mới để bắt đầu áp dụng cho sản phẩm.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div ref="codeModalEl" class="modal fade" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered">
+      <div class="modal-content border-0 shadow-lg">
+        <div class="modal-header">
+          <div>
+            <h5 class="modal-title fw-bold mb-1">{{ codeForm.id ? "Cập nhật mã giảm giá" : "Tạo mã giảm giá" }}</h5>
+            <p class="mb-0 text-secondary small">Mã giảm giá áp dụng trên tổng hóa đơn tại bước thanh toán.</p>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+        </div>
+        <div class="modal-body">
           <div class="row g-3">
             <div class="col-md-6">
-              <label class="form-label fw-semibold">Ngay bat dau</label>
-              <input v-model="promoForm.ngay_bat_dau" type="datetime-local" class="form-control" />
+              <label class="form-label fw-semibold">Mã giảm giá</label>
+              <div class="input-group">
+                <input v-model.trim="codeForm.ma_giam_gia" class="form-control text-uppercase" placeholder="Ví dụ: GIAM50K" />
+                <button class="btn btn-outline-secondary" type="button" @click="generateOrderCode">Tạo mã</button>
+              </div>
             </div>
             <div class="col-md-6">
-              <label class="form-label fw-semibold">Ngay ket thuc</label>
-              <input v-model="promoForm.ngay_ket_thuc" type="datetime-local" class="form-control" />
+              <label class="form-label fw-semibold">Tên chương trình</label>
+              <input v-model.trim="codeForm.ten_ma" class="form-control" placeholder="Ví dụ: Giảm 50K cho đơn đầu" />
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Mô tả</label>
+              <textarea v-model.trim="codeForm.mo_ta" class="form-control" rows="3" placeholder="Mô tả ngắn về mã giảm giá"></textarea>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Loại áp dụng</label>
+              <select v-model="codeForm.loai_ap_dung" class="form-select">
+                <option value="so_tien">Giảm số tiền</option>
+                <option value="phan_tram">Giảm theo phần trăm</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Giá trị giảm</label>
+              <input v-model.number="codeForm.gia_tri" type="number" min="1" class="form-control" placeholder="Nhập giá trị giảm" />
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Trạng thái</label>
+              <select v-model="codeForm.trang_thai" class="form-select">
+                <option value="draft">Nháp</option>
+                <option value="active">Đang áp dụng</option>
+                <option value="inactive">Tạm dừng</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Giá trị đơn tối thiểu</label>
+              <input v-model.number="codeForm.gia_tri_don_toi_thieu" type="number" min="0" class="form-control" placeholder="Ví dụ: 300000" />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Số lần dùng tối đa mỗi khách</label>
+              <input v-model.number="codeForm.gioi_han_moi_khach" type="number" min="1" class="form-control" placeholder="Để trống nếu không giới hạn" />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Bắt đầu</label>
+              <input v-model="codeForm.ngay_bat_dau" type="datetime-local" class="form-control" />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Kết thúc</label>
+              <input v-model="codeForm.ngay_ket_thuc" type="datetime-local" class="form-control" />
             </div>
           </div>
-
-          <div>
-            <label class="form-label fw-semibold">Trang thai</label>
-            <select v-model="promoForm.trang_thai" class="form-select">
-              <option value="draft">Draft</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
-          </div>
-
-          <div>
-            <label class="form-label fw-semibold">Mo ta</label>
-            <textarea v-model.trim="promoForm.mo_ta" rows="3" class="form-control" placeholder="Mo ta ngan cho chuong trinh"></textarea>
-          </div>
-
-          <div class="d-flex flex-wrap gap-2">
-            <button class="btn btn-primary" @click="savePromotion" :disabled="loading.promo">
-              <span v-if="loading.promo" class="spinner-border spinner-border-sm me-2"></span>
-              {{ promoForm.id ? "Cap nhat khuyen mai" : "Tao khuyen mai" }}
-            </button>
-            <button class="btn btn-outline-secondary" @click="resetPromotionForm">Lam moi form</button>
-          </div>
         </div>
-      </article>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Đóng</button>
+          <button type="button" class="btn btn-success" @click="saveCode" :disabled="loading.saveCode">
+            <span v-if="loading.saveCode" class="spinner-border spinner-border-sm me-2"></span>
+            {{ codeForm.id ? "Lưu thay đổi" : "Tạo mã giảm giá" }}
+          </button>
+        </div>
+      </div>
     </div>
+  </div>
 
-    <div class="col-xl-7">
-      <article class="content-card h-100">
-        <div class="d-flex justify-content-between align-items-center gap-3 mb-4">
+  <div ref="codeListModalEl" class="modal fade" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered">
+      <div class="modal-content border-0 shadow-lg">
+        <div class="modal-header">
           <div>
-            <h3 class="panel-title">Danh sach khuyen mai</h3>
-            <p class="panel-subtitle mb-0">Danh sach nay la nguon hien thi cho gia va badge o trang khach hang.</p>
+            <h5 class="modal-title fw-bold mb-1">Danh sách mã giảm giá</h5>
+            <p class="mb-0 text-secondary small">Theo dõi mã áp dụng cho tổng hóa đơn, đơn tối thiểu và số lần sử dụng.</p>
           </div>
-          <span class="soft-badge soft-badge--blue">{{ promotions.length }} khuyen mai</span>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
         </div>
-
-        <div v-if="promotions.length" class="vstack gap-3">
-          <article v-for="item in promotions" :key="item.id" class="inventory-lot-card">
-            <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
-              <div>
-                <div class="fw-bold">{{ item.ten_khuyen_mai }}</div>
-                <div class="small text-secondary">{{ item.ma_thuoc }} - {{ item.ten_thuoc }}</div>
-              </div>
-              <span class="soft-badge" :class="promotionBadgeClass(item)">
-                {{ item.trang_thai }}
-              </span>
-            </div>
-
-            <div class="row g-3 small mb-3">
-              <div class="col-md-6">
-                <div class="text-secondary mb-1">Nhan hien thi</div>
-                <div class="fw-semibold">{{ item.nhan_hien_thi || "-" }}</div>
-              </div>
-              <div class="col-md-6">
-                <div class="text-secondary mb-1">Gia sau giam</div>
-                <div class="fw-semibold">{{ formatCurrency(item.gia_sau_giam) }}</div>
-              </div>
-              <div class="col-md-6">
-                <div class="text-secondary mb-1">Thoi gian</div>
-                <div class="fw-semibold">{{ formatDateTime(item.ngay_bat_dau) }}</div>
-              </div>
-              <div class="col-md-6">
-                <div class="text-secondary mb-1">Ket thuc</div>
-                <div class="fw-semibold">{{ item.ngay_ket_thuc ? formatDateTime(item.ngay_ket_thuc) : "Khong gioi han" }}</div>
-              </div>
-            </div>
-
-            <div class="d-flex flex-wrap gap-2">
-              <button class="btn btn-sm btn-outline-primary" @click="editPromotion(item)">Sua</button>
-              <button class="btn btn-sm btn-outline-danger" @click="removePromotion(item.id)" :disabled="loading.deleteId === item.id">
-                <span v-if="loading.deleteId === item.id" class="spinner-border spinner-border-sm me-2"></span>
-                Xoa
-              </button>
-            </div>
-          </article>
+        <div class="modal-body">
+          <div v-if="filteredOrderCodes.length" class="table-responsive">
+            <table class="table table-master align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Mã</th>
+                  <th>Giá trị</th>
+                  <th>Điều kiện</th>
+                  <th>Thời gian</th>
+                  <th>Trạng thái</th>
+                  <th class="text-end">Tác vụ</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="item in filteredOrderCodes" :key="item.id">
+                  <td>
+                    <div class="fw-semibold">{{ item.ma_giam_gia }}</div>
+                    <div class="small text-secondary">{{ item.ten_ma }}</div>
+                  </td>
+                  <td>{{ promotionValueLabel(item) }}</td>
+                  <td>
+                    <div>Đơn tối thiểu: {{ formatCurrency(item.gia_tri_don_toi_thieu) }}</div>
+                    <div class="small text-secondary">
+                      {{ item.gioi_han_moi_khach ? `Mỗi khách: ${item.gioi_han_moi_khach} lần` : "Không giới hạn lượt dùng" }}
+                    </div>
+                  </td>
+                  <td>{{ rangeLabel(item.ngay_bat_dau, item.ngay_ket_thuc) }}</td>
+                  <td>
+                    <span class="soft-badge" :class="statusBadgeClass(item.trang_thai)">{{ statusLabel(item.trang_thai) }}</span>
+                  </td>
+                  <td class="text-end">
+                    <div class="d-flex justify-content-end flex-wrap gap-2">
+                      <button class="btn btn-sm btn-outline-primary" @click="editCode(item)">Sửa</button>
+                      <button class="btn btn-sm btn-outline-danger" @click="removeCode(item)">Xóa</button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div v-else class="master-empty">
+            <p class="mb-2 fw-semibold">Chưa có mã giảm giá.</p>
+            <p class="mb-0 text-secondary">Tạo mã mới để khách áp dụng khi thanh toán.</p>
+          </div>
         </div>
-
-        <div v-else class="master-empty">
-          <p class="mb-2 fw-semibold">Chua co khuyen mai nao.</p>
-          <p class="mb-0 text-secondary">Tao mot khuyen mai o form ben trai de trang khach hang hien uu dai that.</p>
-        </div>
-      </article>
+      </div>
     </div>
-  </section>
+  </div>
 </template>
-
 <script>
-import { getThuocs, searchThuocs } from "../../../api/inventoryApi";
-import { createKhuyenMai, deleteKhuyenMai, getKhuyenMais, updateKhuyenMai, updateThuocPrice } from "../../../api/pricingApi";
+import { Modal } from "bootstrap";
+import {
+  createKhuyenMai,
+  createOrderDiscountCode,
+  deleteKhuyenMai,
+  deleteOrderDiscountCode,
+  getKhuyenMais,
+  getOrderDiscountCodes,
+  updateKhuyenMai,
+  updateOrderDiscountCode,
+  updateThuocPrice,
+} from "../../../api/pricingApi";
+import { getThuocList } from "../../../api/thuocManagementApi";
 import { getStoredUser } from "../../../lib/authStorage";
+import { showToast } from "../../../lib/toast";
+
+function nowAsInput() {
+  const now = new Date();
+  const localDate = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+  return localDate.toISOString().slice(0, 16);
+}
+
+function toInputDateTime(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return localDate.toISOString().slice(0, 16);
+}
+
 export default {
+  name: "GiaKhuyenMaiAdmin",
   data() {
     return {
       currentUser: getStoredUser(),
       keyword: "",
       thuocs: [],
-      promotions: [],
-      selectedThuoc: null,
-      message: "",
+      khuyenMais: [],
+      orderCodes: [],
       error: "",
       loading: {
         sync: false,
-        search: false,
-        price: false,
-        promo: false,
-        deleteId: null,
+        savePrice: false,
+        savePromotion: false,
+        saveCode: false,
       },
+      priceModal: null,
+      promotionModal: null,
+      promotionListModal: null,
+      codeModal: null,
+      codeListModal: null,
       priceForm: {
-        gia_ban: null,
-      },
-      promoForm: {
-        id: null,
         ma_thuoc: "",
-        ten_khuyen_mai: "",
-        mo_ta: "",
-        loai_ap_dung: "phan_tram",
-        gia_tri: 10,
-        nhan_hien_thi: "",
-        ngay_bat_dau: "",
-        ngay_ket_thuc: "",
-        trang_thai: "active",
+        ten_thuoc: "",
+        gia_ban: "",
       },
+      promotionForm: { id: null, ma_thuoc: "", ma_khuyen_mai: "", ten_khuyen_mai: "", mo_ta: "", loai_ap_dung: "phan_tram", gia_tri: "", nhan_hien_thi: "", ngay_bat_dau: nowAsInput(), ngay_ket_thuc: "", trang_thai: "active" },
+      promotionThuocInput: "",
+      codeForm: { id: null, ma_giam_gia: "", ten_ma: "", mo_ta: "", loai_ap_dung: "so_tien", gia_tri: "", gia_tri_don_toi_thieu: 0, gioi_han_moi_khach: "", ngay_bat_dau: nowAsInput(), ngay_ket_thuc: "", trang_thai: "active" },
     };
   },
-  methods: {
-    toInputDateTime(value) {
-      const date = new Date(value);
-      const year = date.getFullYear();
-      const month = `${date.getMonth() + 1}`.padStart(2, "0");
-      const day = `${date.getDate()}`.padStart(2, "0");
-      const hours = `${date.getHours()}`.padStart(2, "0");
-      const minutes = `${date.getMinutes()}`.padStart(2, "0");
-
-      return `${year}-${month}-${day}T${hours}:${minutes}`;
+  computed: {
+    filteredThuocs() {
+      const keyword = this.keyword.toLowerCase();
+      if (!keyword) return this.thuocs;
+      return this.thuocs.filter((thuoc) => {
+        const promoText = this.promotionsForThuoc(thuoc.ma_thuoc)
+          .map((item) => `${item.ten_khuyen_mai} ${item.ma_khuyen_mai || ""}`)
+          .join(" ")
+          .toLowerCase();
+        return [thuoc.ten_thuoc, thuoc.ma_thuoc, thuoc.loaiThuoc?.ten_loai, promoText]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase()
+          .includes(keyword);
+      });
     },
-    normalizeError(err) {
-      if (err?.payload?.errors) {
-        return Object.values(err.payload.errors).flat().join(" | ");
+    filteredKhuyenMais() {
+      const keyword = this.keyword.toLowerCase();
+      if (!keyword) return this.khuyenMais;
+      return this.khuyenMais.filter((item) =>
+        [item.ten_khuyen_mai, item.ma_khuyen_mai, item.ten_thuoc, item.ma_thuoc, item.nhan_hien_thi]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase()
+          .includes(keyword),
+      );
+    },
+    filteredOrderCodes() {
+      const keyword = this.keyword.toLowerCase();
+      if (!keyword) return this.orderCodes;
+      return this.orderCodes.filter((item) =>
+        [item.ma_giam_gia, item.ten_ma, item.mo_ta].filter(Boolean).join(" ").toLowerCase().includes(keyword),
+      );
+    },
+    metrics() {
+      const khuyenMaiDangApDung = this.khuyenMais.filter((item) => item.trang_thai === "active").length;
+      const maDangApDung = this.orderCodes.filter((item) => item.trang_thai === "active").length;
+      const maCoDieuKien = this.orderCodes.filter((item) => Number(item.gia_tri_don_toi_thieu || 0) > 0).length;
+      return [
+        { label: "Thuốc có thể cập nhật giá", value: this.thuocs.length, note: "Nguồn dữ liệu từ danh mục thuốc", deltaClass: "is-positive", icon: "bi bi-capsule-pill", iconClass: "metric-card__icon--blue" },
+        { label: "Khuyến mãi thuốc đang áp dụng", value: khuyenMaiDangApDung, note: "Giảm trực tiếp trên từng thuốc", deltaClass: "is-positive", icon: "bi bi-bag-check", iconClass: "metric-card__icon--teal" },
+        { label: "Mã giảm giá đơn hàng", value: maDangApDung, note: "Áp trên tổng hóa đơn", deltaClass: "is-positive", icon: "bi bi-ticket-perforated", iconClass: "metric-card__icon--orange" },
+        { label: "Mã có điều kiện tối thiểu", value: maCoDieuKien, note: "Yêu cầu giá trị đơn hàng", deltaClass: "is-warning", icon: "bi bi-shield-check", iconClass: "metric-card__icon--violet" },
+      ];
+    },
+  },
+  mounted() {
+    this.promotionForm = this.createPromotionForm();
+    this.codeForm = this.createCodeForm();
+    this.priceModal = new Modal(this.$refs.priceModalEl);
+    this.promotionModal = new Modal(this.$refs.promotionModalEl);
+    this.promotionListModal = new Modal(this.$refs.promotionListModalEl);
+    this.codeModal = new Modal(this.$refs.codeModalEl);
+    this.codeListModal = new Modal(this.$refs.codeListModalEl);
+    this.loadData();
+  },
+  methods: {
+    createPromotionForm() {
+      return { id: null, ma_thuoc: "", ma_khuyen_mai: "", ten_khuyen_mai: "", mo_ta: "", loai_ap_dung: "phan_tram", gia_tri: "", nhan_hien_thi: "", ngay_bat_dau: nowAsInput(), ngay_ket_thuc: "", trang_thai: "active" };
+    },
+    formatPromotionThuocOption(item) {
+      return `${item.ten_thuoc} - ${item.ma_thuoc}`;
+    },
+    resolvePromotionThuocInput() {
+      const raw = (this.promotionThuocInput || "").trim();
+
+      if (!raw) {
+        this.promotionForm.ma_thuoc = "";
+        return null;
       }
 
-      return err?.message || "Khong the xu ly du lieu gia va khuyen mai.";
-    },
-    formatCurrency(value) {
-      return new Intl.NumberFormat("vi-VN", {
-        style: "currency",
-        currency: "VND",
-        maximumFractionDigits: 0,
-      }).format(Number(value || 0));
-    },
-    formatDateTime(value) {
-      if (!value) return "-";
+      const normalized = raw.toLowerCase();
+      const found = this.thuocs.find((item) => {
+        const option = this.formatPromotionThuocOption(item).toLowerCase();
+        return item.ma_thuoc?.toLowerCase() === normalized
+          || item.ten_thuoc?.toLowerCase() === normalized
+          || option === normalized;
+      });
 
-      return new Intl.DateTimeFormat("vi-VN", {
-        dateStyle: "short",
-        timeStyle: "short",
-      }).format(new Date(value));
+      if (!found) {
+        this.promotionForm.ma_thuoc = "";
+        return null;
+      }
+
+      this.promotionForm.ma_thuoc = found.ma_thuoc;
+      this.promotionThuocInput = this.formatPromotionThuocOption(found);
+      return found;
     },
-    latestPromotionLabel(thuoc) {
-      const latest = (thuoc.khuyen_mais || [])[0];
-      return latest?.nhan_hien_thi || latest?.ten_khuyen_mai || "";
-    },
-    selectThuoc(thuoc) {
-      this.selectedThuoc = thuoc;
-      this.priceForm.gia_ban = Number(thuoc.gia_ban || 0);
-      this.promoForm.ma_thuoc = thuoc.ma_thuoc;
-    },
-    resetPromotionForm() {
-      this.promoForm.id = null;
-      this.promoForm.ma_thuoc = this.selectedThuoc?.ma_thuoc || "";
-      this.promoForm.ten_khuyen_mai = "";
-      this.promoForm.mo_ta = "";
-      this.promoForm.loai_ap_dung = "phan_tram";
-      this.promoForm.gia_tri = 10;
-      this.promoForm.nhan_hien_thi = "";
-      this.promoForm.ngay_bat_dau = this.toInputDateTime(new Date());
-      this.promoForm.ngay_ket_thuc = "";
-      this.promoForm.trang_thai = "active";
+    createCodeForm() {
+      return { id: null, ma_giam_gia: "", ten_ma: "", mo_ta: "", loai_ap_dung: "so_tien", gia_tri: "", gia_tri_don_toi_thieu: 0, gioi_han_moi_khach: "", ngay_bat_dau: nowAsInput(), ngay_ket_thuc: "", trang_thai: "active" };
     },
     async loadData() {
       this.loading.sync = true;
       this.error = "";
-
       try {
-        const [thuocData, promotionResponse] = await Promise.all([getThuocs(), getKhuyenMais()]);
-        this.thuocs = thuocData;
-        this.promotions = promotionResponse.data || [];
-        this.message = `Da dong bo ${this.thuocs.length} thuoc va ${this.promotions.length} khuyen mai.`;
-      } catch (err) {
-        this.error = this.normalizeError(err);
+        const [thuocs, khuyenMaisResponse, orderCodesResponse] = await Promise.all([getThuocList(), getKhuyenMais(), getOrderDiscountCodes()]);
+        this.thuocs = Array.isArray(thuocs) ? thuocs : [];
+        this.khuyenMais = Array.isArray(khuyenMaisResponse?.data) ? khuyenMaisResponse.data : [];
+        this.orderCodes = Array.isArray(orderCodesResponse?.data) ? orderCodesResponse.data : [];
+      } catch (error) {
+        this.error = error?.message || "Không thể tải dữ liệu giá và khuyến mãi.";
       } finally {
         this.loading.sync = false;
       }
     },
-    async handleSearch() {
-      if (!this.keyword) return;
-
-      this.loading.search = true;
-      this.error = "";
-
-      try {
-        const [thuocData, promotionResponse] = await Promise.all([
-          searchThuocs(this.keyword),
-          getKhuyenMais(this.keyword),
-        ]);
-
-        this.thuocs = thuocData;
-        this.promotions = promotionResponse.data || [];
-        this.message = `Tim thay ${this.thuocs.length} thuoc va ${this.promotions.length} khuyen mai.`;
-      } catch (err) {
-        this.error = this.normalizeError(err);
-      } finally {
-        this.loading.search = false;
+    promotionsForThuoc(maThuoc) {
+      return this.khuyenMais.filter((item) => item.ma_thuoc === maThuoc);
+    },
+    promotionCountForThuoc(maThuoc) {
+      return this.promotionsForThuoc(maThuoc).length;
+    },
+    formatCurrency(value) {
+      return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(Number(value || 0));
+    },
+    formatDateTime(value) {
+      if (!value) return "Không giới hạn";
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return "Không hợp lệ";
+      return new Intl.DateTimeFormat("vi-VN", { dateStyle: "short", timeStyle: "short" }).format(date);
+    },
+    rangeLabel(start, end) {
+      return `${this.formatDateTime(start)} - ${this.formatDateTime(end)}`;
+    },
+    promotionValueLabel(item) {
+      if (item.loai_ap_dung === "phan_tram") return `Giảm ${Number(item.gia_tri || 0)}%`;
+      if (item.loai_ap_dung === "gia_co_dinh") return `Giá còn ${this.formatCurrency(item.gia_tri)}`;
+      return `Giảm ${this.formatCurrency(item.gia_tri)}`;
+    },
+    statusLabel(status) {
+      const map = { draft: "Nháp", active: "Đang áp dụng", inactive: "Tạm dừng" };
+      return map[status] || status || "Không xác định";
+    },
+    statusBadgeClass(status) {
+      if (status === "active") return "soft-badge--teal";
+      if (status === "inactive") return "soft-badge--orange";
+      return "soft-badge--blue";
+    },
+    normalizeError(error, fallback) {
+      const fieldErrors = error?.payload?.errors;
+      if (fieldErrors && typeof fieldErrors === "object") {
+        const firstField = Object.keys(fieldErrors)[0];
+        if (firstField && Array.isArray(fieldErrors[firstField]) && fieldErrors[firstField][0]) return fieldErrors[firstField][0];
       }
+      return error?.message || fallback;
+    },
+    openPriceModal(thuoc) {
+      this.priceForm = { ma_thuoc: thuoc.ma_thuoc, ten_thuoc: thuoc.ten_thuoc, gia_ban: Number(thuoc.gia_ban || 0) };
+      this.priceModal.show();
     },
     async savePrice() {
-      if (!this.selectedThuoc) return;
-
-      this.loading.price = true;
-      this.error = "";
-
+      if (!this.priceForm.ma_thuoc || Number(this.priceForm.gia_ban) <= 0) {
+        showToast("Giá bán phải lớn hơn 0.", "error");
+        return;
+      }
+      this.loading.savePrice = true;
       try {
-        await updateThuocPrice(this.selectedThuoc.ma_thuoc, { gia_ban: this.priceForm.gia_ban });
+        await updateThuocPrice(this.priceForm.ma_thuoc, { gia_ban: Number(this.priceForm.gia_ban) });
+        this.priceModal.hide();
+        showToast("Cập nhật giá bán thành công.");
         await this.loadData();
-        this.message = `Da cap nhat gia ban cho ${this.selectedThuoc.ten_thuoc}.`;
-      } catch (err) {
-        this.error = this.normalizeError(err);
+      } catch (error) {
+        showToast(this.normalizeError(error, "Không thể cập nhật giá bán."), "error");
       } finally {
-        this.loading.price = false;
+        this.loading.savePrice = false;
       }
     },
-    async savePromotion() {
-      this.loading.promo = true;
-      this.error = "";
-
-      try {
-        const payload = {
-          ma_thuoc: this.promoForm.ma_thuoc,
-          ten_khuyen_mai: this.promoForm.ten_khuyen_mai,
-          mo_ta: this.promoForm.mo_ta,
-          loai_ap_dung: this.promoForm.loai_ap_dung,
-          gia_tri: this.promoForm.gia_tri,
-          nhan_hien_thi: this.promoForm.nhan_hien_thi,
-          ngay_bat_dau: new Date(this.promoForm.ngay_bat_dau).toISOString().slice(0, 19).replace("T", " "),
-          ngay_ket_thuc: this.promoForm.ngay_ket_thuc
-            ? new Date(this.promoForm.ngay_ket_thuc).toISOString().slice(0, 19).replace("T", " ")
-            : null,
-          trang_thai: this.promoForm.trang_thai,
-        };
-
-        if (this.promoForm.id) {
-          await updateKhuyenMai(this.promoForm.id, payload);
-          this.message = "Da cap nhat khuyen mai.";
-        } else {
-          await createKhuyenMai(payload);
-          this.message = "Da tao khuyen mai moi.";
-        }
-
-        this.resetPromotionForm();
-        await this.loadData();
-      } catch (err) {
-        this.error = this.normalizeError(err);
-      } finally {
-        this.loading.promo = false;
+    openPromotionModal(thuoc = null) {
+      this.promotionForm = this.createPromotionForm();
+      this.promotionThuocInput = "";
+      if (thuoc) {
+        this.promotionForm.ma_thuoc = thuoc.ma_thuoc;
+        this.promotionThuocInput = this.formatPromotionThuocOption(thuoc);
       }
+      this.promotionModal.show();
     },
     editPromotion(item) {
-      this.promoForm.id = item.id;
-      this.promoForm.ma_thuoc = item.ma_thuoc;
-      this.promoForm.ten_khuyen_mai = item.ten_khuyen_mai;
-      this.promoForm.mo_ta = item.mo_ta || "";
-      this.promoForm.loai_ap_dung = item.loai_ap_dung;
-      this.promoForm.gia_tri = item.gia_tri;
-      this.promoForm.nhan_hien_thi = item.nhan_hien_thi || "";
-      this.promoForm.ngay_bat_dau = item.ngay_bat_dau ? this.toInputDateTime(item.ngay_bat_dau) : this.toInputDateTime(new Date());
-      this.promoForm.ngay_ket_thuc = item.ngay_ket_thuc ? this.toInputDateTime(item.ngay_ket_thuc) : "";
-      this.promoForm.trang_thai = item.trang_thai;
+      this.promotionListModal.hide();
+      this.promotionForm = { id: item.id, ma_thuoc: item.ma_thuoc || "", ma_khuyen_mai: item.ma_khuyen_mai || "", ten_khuyen_mai: item.ten_khuyen_mai || "", mo_ta: item.mo_ta || "", loai_ap_dung: item.loai_ap_dung || "phan_tram", gia_tri: Number(item.gia_tri || 0), nhan_hien_thi: item.nhan_hien_thi || "", ngay_bat_dau: toInputDateTime(item.ngay_bat_dau), ngay_ket_thuc: toInputDateTime(item.ngay_ket_thuc), trang_thai: item.trang_thai || "draft" };
+      const matchedThuoc = this.thuocs.find((thuoc) => thuoc.ma_thuoc === item.ma_thuoc);
+      this.promotionThuocInput = matchedThuoc
+        ? this.formatPromotionThuocOption(matchedThuoc)
+        : (item.ten_thuoc ? `${item.ten_thuoc} - ${item.ma_thuoc}` : item.ma_thuoc || "");
+      this.promotionModal.show();
     },
-    async removePromotion(id) {
-      this.loading.deleteId = id;
-      this.error = "";
+    async savePromotion() {
+      const matchedThuoc = this.resolvePromotionThuocInput();
 
+      if (!matchedThuoc) {
+        showToast("Không tìm thấy thuốc khớp với tên hoặc mã đã nhập.", "error");
+        return;
+      }
+
+      if (!this.promotionForm.ma_thuoc || !this.promotionForm.ten_khuyen_mai || Number(this.promotionForm.gia_tri) <= 0) {
+        showToast("Cần chọn thuốc, nhập tên và giá trị khuyến mãi hợp lệ.", "error");
+        return;
+      }
+      const payload = { ma_thuoc: this.promotionForm.ma_thuoc, ma_khuyen_mai: this.promotionForm.ma_khuyen_mai || null, ten_khuyen_mai: this.promotionForm.ten_khuyen_mai, mo_ta: this.promotionForm.mo_ta || null, loai_ap_dung: this.promotionForm.loai_ap_dung, gia_tri: Number(this.promotionForm.gia_tri), nhan_hien_thi: this.promotionForm.nhan_hien_thi || null, ngay_bat_dau: this.promotionForm.ngay_bat_dau || null, ngay_ket_thuc: this.promotionForm.ngay_ket_thuc || null, trang_thai: this.promotionForm.trang_thai };
+      this.loading.savePromotion = true;
       try {
-        await deleteKhuyenMai(id);
+        if (this.promotionForm.id) {
+          await updateKhuyenMai(this.promotionForm.id, payload);
+          showToast("Cập nhật khuyến mãi thuốc thành công.");
+        } else {
+          await createKhuyenMai(payload);
+          showToast("Tạo khuyến mãi thuốc thành công.");
+        }
+        this.promotionModal.hide();
         await this.loadData();
-        this.message = "Da xoa khuyen mai.";
-      } catch (err) {
-        this.error = this.normalizeError(err);
+      } catch (error) {
+        showToast(this.normalizeError(error, "Không thể lưu khuyến mãi thuốc."), "error");
       } finally {
-        this.loading.deleteId = null;
+        this.loading.savePromotion = false;
       }
     },
-    promotionBadgeClass(item) {
-      if (item.trang_thai === "active") return "soft-badge--teal";
-      if (item.trang_thai === "draft") return "soft-badge--blue";
-      return "soft-badge--orange";
+    async removePromotion(item) {
+      if (!window.confirm(`Xóa khuyến mãi "${item.ten_khuyen_mai}"?`)) return;
+      try {
+        await deleteKhuyenMai(item.id);
+        showToast("Xóa khuyến mãi thuốc thành công.");
+        await this.loadData();
+      } catch (error) {
+        showToast(this.normalizeError(error, "Không thể xóa khuyến mãi thuốc."), "error");
+      }
     },
-  },
-  mounted() {
-    this.promoForm.ngay_bat_dau = this.toInputDateTime(new Date());
-    this.loadData();
+    openPromotionListModal() {
+      this.promotionListModal.show();
+    },
+    openCodeModal() {
+      this.codeForm = this.createCodeForm();
+      this.codeModal.show();
+    },
+    editCode(item) {
+      this.codeListModal.hide();
+      this.codeForm = { id: item.id, ma_giam_gia: item.ma_giam_gia || "", ten_ma: item.ten_ma || "", mo_ta: item.mo_ta || "", loai_ap_dung: item.loai_ap_dung || "so_tien", gia_tri: Number(item.gia_tri || 0), gia_tri_don_toi_thieu: Number(item.gia_tri_don_toi_thieu || 0), gioi_han_moi_khach: item.gioi_han_moi_khach || "", ngay_bat_dau: toInputDateTime(item.ngay_bat_dau), ngay_ket_thuc: toInputDateTime(item.ngay_ket_thuc), trang_thai: item.trang_thai || "draft" };
+      this.codeModal.show();
+    },
+    async saveCode() {
+      if (!this.codeForm.ma_giam_gia || !this.codeForm.ten_ma || Number(this.codeForm.gia_tri) <= 0) {
+        showToast("Cần nhập mã, tên và giá trị giảm hợp lệ.", "error");
+        return;
+      }
+      const payload = { ma_giam_gia: this.codeForm.ma_giam_gia, ten_ma: this.codeForm.ten_ma, mo_ta: this.codeForm.mo_ta || null, loai_ap_dung: this.codeForm.loai_ap_dung, gia_tri: Number(this.codeForm.gia_tri), gia_tri_don_toi_thieu: Number(this.codeForm.gia_tri_don_toi_thieu || 0), gioi_han_moi_khach: this.codeForm.gioi_han_moi_khach ? Number(this.codeForm.gioi_han_moi_khach) : null, ngay_bat_dau: this.codeForm.ngay_bat_dau || null, ngay_ket_thuc: this.codeForm.ngay_ket_thuc || null, trang_thai: this.codeForm.trang_thai };
+      this.loading.saveCode = true;
+      try {
+        if (this.codeForm.id) {
+          await updateOrderDiscountCode(this.codeForm.id, payload);
+          showToast("Cập nhật mã giảm giá thành công.");
+        } else {
+          await createOrderDiscountCode(payload);
+          showToast("Tạo mã giảm giá thành công.");
+        }
+        this.codeModal.hide();
+        await this.loadData();
+      } catch (error) {
+        showToast(this.normalizeError(error, "Không thể lưu mã giảm giá."), "error");
+      } finally {
+        this.loading.saveCode = false;
+      }
+    },
+    async removeCode(item) {
+      if (!window.confirm(`Xóa mã giảm giá "${item.ma_giam_gia}"?`)) return;
+      try {
+        await deleteOrderDiscountCode(item.id);
+        showToast("Xóa mã giảm giá thành công.");
+        await this.loadData();
+      } catch (error) {
+        showToast(this.normalizeError(error, "Không thể xóa mã giảm giá."), "error");
+      }
+    },
+    openCodeListModal() {
+      this.codeListModal.show();
+    },
+    generatePromotionCode() {
+      this.promotionForm.ma_khuyen_mai = `KM-${Date.now().toString().slice(-6)}`;
+    },
+    generateOrderCode() {
+      this.codeForm.ma_giam_gia = `MAGIAM-${Date.now().toString().slice(-6)}`;
+    },
   },
 };
 </script>
+
+<style scoped>
+.table-master td {
+  vertical-align: top;
+}
+</style>
 

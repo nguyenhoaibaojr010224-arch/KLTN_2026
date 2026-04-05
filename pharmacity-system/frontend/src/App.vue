@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <component :is="layout">
     <router-view :key="$route.fullPath"></router-view>
   </component>
@@ -6,10 +6,10 @@
   <transition name="pc-toast">
     <div v-if="toastState.visible" class="pc-toast" :class="`pc-toast--${toastState.type}`" role="status" aria-live="polite">
       <div class="pc-toast__icon">
-        <i class="bi bi-check-circle-fill"></i>
+        <i :class="toastIcon"></i>
       </div>
       <div class="pc-toast__body">
-        <strong>Thành công</strong>
+        <strong>{{ toastTitle }}</strong>
         <span>{{ toastState.message }}</span>
       </div>
       <button class="pc-toast__close" type="button" @click="hideToast" aria-label="Đóng thông báo">
@@ -34,6 +34,14 @@ export default {
   computed: {
     layout() {
       return (this.$route.meta.layout || default_layout) + "-layout";
+    },
+    toastTitle() {
+      return this.toastState.type === "error" ? "\u004c\u1ed7i" : "Th\u00e0nh c\u00f4ng";
+    },
+    toastIcon() {
+      return this.toastState.type === "error"
+        ? "bi bi-exclamation-circle-fill"
+        : "bi bi-check-circle-fill";
     },
   },
 };
@@ -127,6 +135,10 @@ export default {
     background: linear-gradient(135deg, #0f9f6f, #12b981);
   }
 
+  .pc-toast--error {
+    background: linear-gradient(135deg, #dc2626, #ef4444);
+  }
+
   .pc-toast__icon {
     width: 38px;
     height: 38px;
@@ -206,14 +218,44 @@ export default {
     font-weight: 500;
   }
 
-  .master-topstrip__badge {
-    padding: 8px 12px;
-    border-radius: var(--pc-radius-pill);
-    background: rgba(255, 255, 255, 0.14);
-    font-size: 0.75rem;
+  .master-topstrip__brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    color: #fff;
+    text-decoration: none;
+  }
+
+  .master-topstrip__logo-mark {
+    width: 48px;
+    height: 48px;
+    display: grid;
+    place-items: center;
+    border-radius: 16px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.08));
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    font-size: 1.35rem;
+    box-shadow: 0 12px 24px rgba(8, 26, 73, 0.22);
+  }
+
+  .master-topstrip__logo-text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.05;
+  }
+
+  .master-topstrip__logo-text small {
+    font-size: 0.74rem;
     font-weight: 700;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    opacity: 0.78;
+  }
+
+  .master-topstrip__logo-text strong {
+    margin-top: 4px;
+    font-size: 1.45rem;
+    font-weight: 800;
+    color: #9be14a;
   }
 
   .master-body {
@@ -277,6 +319,52 @@ export default {
     border: 0;
     background: transparent;
     box-shadow: none;
+  }
+
+  .master-header__actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .master-header__user-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 10px 8px 8px;
+    border: 1px solid rgba(22, 82, 197, 0.1);
+    border-radius: 18px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(246, 249, 255, 0.96));
+    box-shadow: 0 12px 28px rgba(15, 31, 79, 0.08);
+  }
+
+  .master-header__user-meta {
+    display: flex;
+    flex-direction: column;
+    min-width: 132px;
+    line-height: 1.2;
+  }
+
+  .master-header__user-name {
+    font-size: 0.98rem;
+    font-weight: 800;
+    color: var(--pc-text);
+  }
+
+  .master-header__user-role {
+    margin-top: 2px;
+    font-size: 0.82rem;
+    color: var(--pc-text-muted);
+  }
+
+  .master-header__logout-btn {
+    min-height: 42px;
+    padding-inline: 16px;
+    border-radius: 14px;
+    white-space: nowrap;
+    font-weight: 600;
   }
 
   .master-content {
@@ -3142,11 +3230,25 @@ export default {
     color: #576b85;
   }
 
-@media (max-width: 1199.98px) {
+  @media (max-width: 1199.98px) {
   .pc-services .pc-container,
   .pc-product-grid,
   .pc-category-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  @media (max-width: 991.98px) {
+    .master-header__actions {
+      justify-content: stretch;
+    }
+
+    .master-header__user-card {
+      width: 100%;
+    }
+
+    .master-header__user-card {
+      justify-content: space-between;
+    }
   }
 
   .pc-hero__content,
@@ -3234,4 +3336,5 @@ export default {
   }
 
 </style>
+
 

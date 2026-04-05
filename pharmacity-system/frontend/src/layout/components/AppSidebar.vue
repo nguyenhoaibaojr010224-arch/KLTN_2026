@@ -1,8 +1,8 @@
 <template>
   <div class="sidebar-shell">
     <div v-if="mobile" class="offcanvas-header border-bottom px-4 py-3">
-      <h5 id="masterSidebarLabel" class="mb-0 fw-bold">Pharmacity FE</h5>
-      <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+      <h5 id="masterSidebarLabel" class="mb-0 fw-bold">Quản lý hệ thống</h5>
+      <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Đóng"></button>
     </div>
 
     <div class="sidebar-brand">
@@ -11,8 +11,8 @@
           <i class="bi bi-capsule-pill"></i>
         </div>
         <div>
-          <div class="fw-bold fs-5">Pharmacity FE</div>
-          <div class="small text-secondary">Bootstrap master workspace</div>
+          <div class="fw-bold fs-5">Quản lý hệ thống</div>
+          <div class="small text-secondary">Điều hành thuốc, đơn hàng và tồn kho</div>
         </div>
       </div>
     </div>
@@ -44,11 +44,11 @@
       <div class="promo-card p-3 mt-4">
         <div class="soft-badge soft-badge--blue mb-3">
           <i class="bi bi-layout-text-window-reverse"></i>
-          Shared shell
+          Khung dùng chung
         </div>
-        <h6 class="fw-bold mb-2">Menu, header va footer da tach rieng</h6>
+        <h6 class="fw-bold mb-2">Menu, header và footer đã tách riêng</h6>
         <p class="small text-secondary mb-0">
-          Cac page chi can tap trung vao content, master layout se bao phan khung dung chung.
+          Các trang chỉ cần tập trung vào nội dung, khung quản trị sẽ lo phần giao diện dùng chung.
         </p>
       </div>
     </div>
@@ -72,50 +72,50 @@ const router = useRouter();
 
 const menuSections = computed(() => [
   {
-    label: "Dieu hanh",
+    label: "Điều hành",
     items: [
       {
         to: "/",
-        label: "Trang Chu Khach Hang",
-        caption: "Quay lai giao dien ban hang",
+        label: "Trang chủ khách hàng",
+        caption: "Quay lại giao diện bán hàng",
         icon: "bi bi-house-door",
       },
       {
         to: "/dashboard",
-        label: "Dashboard",
-        caption: "Tong quan van hanh",
+        label: "Bảng điều khiển",
+        caption: "Tổng quan vận hành",
         icon: "bi bi-grid-1x2-fill",
       },
       {
         to: "/hoa-dons",
-        label: "Hoa Don",
-        caption: "Doanh thu va don hang",
+        label: "Hóa đơn",
+        caption: "Doanh thu và đơn hàng",
         icon: "bi bi-receipt",
       },
       {
         to: "/ton-kho",
-        label: "Ton Kho",
-        caption: "Thuoc va lo thuoc",
+        label: "Tồn kho",
+        caption: "Thuốc và lô thuốc",
         icon: "bi bi-box-seam",
       },
       {
         to: "/thuocs",
-        label: "Thuoc",
-        caption: "Danh sach va them thuoc",
+        label: "Thuốc",
+        caption: "Danh sách và thêm thuốc",
         icon: "bi bi-capsule-pill",
       },
       {
         to: "/gia-khuyen-mai",
-        label: "Gia & Khuyen Mai",
-        caption: "Gia ban va uu dai",
+        label: "Giá và khuyến mãi",
+        caption: "Giá bán và ưu đãi",
         icon: "bi bi-tags",
       },
       ...(isAdminState.value
         ? [
             {
               to: "/nhan-viens",
-              label: "Nhan Vien",
-              caption: "Quan sat du lieu admin",
+              label: "Nhân viên",
+              caption: "Quản lý dữ liệu nhân sự",
               icon: "bi bi-people",
             },
           ]
@@ -123,18 +123,18 @@ const menuSections = computed(() => [
     ],
   },
   {
-    label: "Thu nghiem layout",
+    label: "Công cụ",
     items: [
       {
         to: "/sample",
-        label: "Sample Page",
-        caption: "Kiem tra page ke thua",
+        label: "Trang mẫu",
+        caption: "Kiểm tra trang kế thừa",
         icon: "bi bi-window-stack",
       },
       {
         to: "/api-playground",
-        label: "API Playground",
-        caption: "Test login va goi backend",
+        label: "Kết nối API",
+        caption: "Kiểm tra đăng nhập và gọi backend",
         icon: "bi bi-plug-fill",
       },
     ],

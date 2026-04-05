@@ -65,4 +65,9 @@ class HoaDon extends Model
     {
         return $this->hasMany(LichSuDonHang::class, 'id_hoa_don', 'id_hoa_don');
     }
+
+    public function latestLichSuDonHang(): HasOne
+    {
+        return $this->hasOne(LichSuDonHang::class, 'id_hoa_don', 'id_hoa_don')->latestOfMany('thoi_gian');
+    }
 }

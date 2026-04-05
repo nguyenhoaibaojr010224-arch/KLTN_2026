@@ -5,20 +5,21 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
-class KhuyenMai extends Model
+class MaGiamGia extends Model
 {
     use HasFactory;
 
     protected $fillable = [
-        'ma_thuoc',
-        'ma_khuyen_mai',
-        'ten_khuyen_mai',
+        'ma_giam_gia',
+        'ten_ma',
         'mo_ta',
         'loai_ap_dung',
         'gia_tri',
-        'nhan_hien_thi',
+        'gia_tri_don_toi_thieu',
+        'gioi_han_moi_khach',
         'ngay_bat_dau',
         'ngay_ket_thuc',
         'trang_thai',
@@ -33,14 +34,14 @@ class KhuyenMai extends Model
         ];
     }
 
-    public function thuoc(): BelongsTo
-    {
-        return $this->belongsTo(Thuoc::class, 'ma_thuoc', 'ma_thuoc');
-    }
-
     public function nhanVien(): BelongsTo
     {
         return $this->belongsTo(NhanVien::class, 'id_nhan_vien', 'id_nhan_vien');
+    }
+
+    public function luotDungs(): HasMany
+    {
+        return $this->hasMany(MaGiamGiaLuotDung::class, 'ma_giam_gia_id');
     }
 
     public function scopeDangHoatDong($query)
@@ -57,20 +58,18 @@ class KhuyenMai extends Model
             });
     }
 
-    public function tinhGiaSauGiam(int $giaNiemYet): int
+    public function tinhGiaSauGiam(int $tongDon): int
     {
         return match ($this->loai_ap_dung) {
-            'phan_tram' => max((int) round($giaNiemYet - (($giaNiemYet * $this->gia_tri) / 100)), 0),
-            'so_tien' => max($giaNiemYet - (int) $this->gia_tri, 0),
-            'gia_co_dinh' => max(min((int) $this->gia_tri, $giaNiemYet), 0),
-            default => $giaNiemYet,
+            'phan_tram' => max((int) round($tongDon - (($tongDon * $this->gia_tri) / 100)), 0),
+            'so_tien' => max($tongDon - (int) $this->gia_tri, 0),
+            'gia_co_dinh' => max(min((int) $this->gia_tri, $tongDon), 0),
+            default => $tongDon,
         };
     }
 
-    public function tinhTienGiamTheoDon(int $tongDon): int
+    public function tinhTienGiam(int $tongDon): int
     {
-        $tongSauGiam = $this->tinhGiaSauGiam($tongDon);
-
-        return max($tongDon - $tongSauGiam, 0);
+        return max($tongDon - $this->tinhGiaSauGiam($tongDon), 0);
     }
 }

@@ -20,6 +20,8 @@ class KhachHang extends Authenticatable
         'so_dien_thoai',
         'email',
         'dia_chi',
+        'ngay_sinh',
+        'gioi_tinh',
         'avatar',
         'diem_tich_luy',
         'mat_khau',
@@ -40,6 +42,7 @@ class KhachHang extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'email_verified' => 'boolean',
+            'ngay_sinh' => 'date',
             'mat_khau' => 'hashed',
         ];
     }

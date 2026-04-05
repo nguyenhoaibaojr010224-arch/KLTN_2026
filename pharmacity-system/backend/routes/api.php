@@ -5,6 +5,7 @@ use App\Http\Controllers\BangCapController;
 use App\Http\Controllers\CatalogThuocController;
 use App\Http\Controllers\ChiTietHoaDonController;
 use App\Http\Controllers\ChiTietPhieuNhapController;
+use App\Http\Controllers\CustomerOrderController;
 use App\Http\Controllers\EmailVerificationController;
 use App\Http\Controllers\HoaDonController;
 use App\Http\Controllers\KhachHangController;
@@ -12,6 +13,7 @@ use App\Http\Controllers\KhuyenMaiController;
 use App\Http\Controllers\LichSuDonHangController;
 use App\Http\Controllers\LoaiThuocController;
 use App\Http\Controllers\LoThuocController;
+use App\Http\Controllers\MaGiamGiaController;
 use App\Http\Controllers\NhanVienController;
 use App\Http\Controllers\NhaSanXuatController;
 use App\Http\Controllers\PasswordResetController;
@@ -169,9 +171,12 @@ Route::prefix('hoa-dons')
     ->group(function () {
         // Nhan vien/Admin - Hoa don
         Route::get('/search', [HoaDonController::class, 'search']);
+        Route::get('/statistics', [HoaDonController::class, 'statistics']);
+        Route::get('/pending-notifications', [HoaDonController::class, 'pendingNotifications']);
         Route::get('/', [HoaDonController::class, 'index']);
         Route::post('/', [HoaDonController::class, 'store']);
         Route::get('/{id}', [HoaDonController::class, 'show']);
+        Route::post('/{id}/confirm', [HoaDonController::class, 'confirm']);
 
         // Nhan vien/Admin - Chi tiet hoa don
         Route::get('/{id_hoa_don}/chi-tiets', [ChiTietHoaDonController::class, 'indexByHoaDon']);
@@ -242,6 +247,17 @@ Route::prefix('khuyen-mais')
         Route::delete('/{id}', [KhuyenMaiController::class, 'destroy']);
     });
 
+Route::prefix('ma-giam-gias')
+    ->middleware(['auth:sanctum', 'nhan_vien.role:admin,staff'])
+    ->group(function () {
+        Route::get('/search', [MaGiamGiaController::class, 'search']);
+        Route::get('/', [MaGiamGiaController::class, 'index']);
+        Route::post('/', [MaGiamGiaController::class, 'store']);
+        Route::get('/{id}', [MaGiamGiaController::class, 'show'])->whereNumber('id');
+        Route::put('/{id}', [MaGiamGiaController::class, 'update'])->whereNumber('id');
+        Route::delete('/{id}', [MaGiamGiaController::class, 'destroy'])->whereNumber('id');
+    });
+
 Route::prefix('lo-thuocs')
     ->middleware(['auth:sanctum', 'nhan_vien.role:admin,staff'])
     ->group(function () {
@@ -263,6 +279,24 @@ Route::prefix('profile')
         Route::put('/', [AuthController::class, 'updateProfile']);
         Route::put('/change-password', [AuthController::class, 'changePassword']);
     });
+
+Route::prefix('checkout')
+    ->middleware(['auth:sanctum'])
+    ->group(function () {
+        Route::get('/orders', [CustomerOrderController::class, 'index']);
+        Route::post('/orders', [CustomerOrderController::class, 'store']);
+    });
+
+Route::post('/ma-giam-gias/validate-code', [MaGiamGiaController::class, 'validateCode'])
+    ->middleware(['auth:sanctum']);
+Route::get('/ma-giam-gias/customer-list', [MaGiamGiaController::class, 'customerList'])
+    ->middleware(['auth:sanctum']);
+Route::get('/ma-giam-gias/customer-available', [MaGiamGiaController::class, 'customerAvailable'])
+    ->middleware(['auth:sanctum']);
+Route::get('/ma-giam-gias/available', [MaGiamGiaController::class, 'available'])
+    ->middleware(['auth:sanctum']);
+Route::post('/ma-giam-gias/redeem-code', [MaGiamGiaController::class, 'redeemCode'])
+    ->middleware(['auth:sanctum']);
 
 Route::prefix('thong-tin-nhan-vien')
     ->middleware(['auth:sanctum', 'nhan_vien.role:admin,staff'])

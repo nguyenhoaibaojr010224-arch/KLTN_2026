@@ -23,7 +23,9 @@ class ThongTinNhanVien extends Model
         'so_dien_thoai',
         'email',
         'dia_chi',
+        'avatar',
         'ngay_sinh',
+        'gioi_tinh',
         'ngay_vao_lam',
     ];
 

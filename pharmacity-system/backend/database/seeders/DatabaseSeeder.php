@@ -3,7 +3,6 @@
 namespace Database\Seeders;
 
 use App\Models\BangCap;
-use App\Models\HoaDon;
 use App\Models\KhachHang;
 use App\Models\KhuyenMai;
 use App\Models\LoaiThuoc;
@@ -104,10 +103,6 @@ class DatabaseSeeder extends Seeder
         $missingKhachHang = max(0, 40 - KhachHang::count());
         if ($missingKhachHang > 0) {
             KhachHang::factory($missingKhachHang)->create();
-        }
-
-        if (HoaDon::count() === 0) {
-            HoaDon::factory(10)->create();
         }
 
         if (KhuyenMai::count() === 0) {
