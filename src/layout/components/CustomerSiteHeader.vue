@@ -2,7 +2,7 @@
   <header class="pc-site-header">
 
     <div class="pc-mainbar">
-      <div class="container-fluid pc-container">
+      <div class="pc-container">
         <div class="pc-mainbar__inner">
           <RouterLink to="/" class="pc-logo">
             <span class="pc-logo__brand">NHÀ THUỐC</span>
@@ -10,7 +10,7 @@
           </RouterLink>
 
           <div class="pc-mainbar__search">
-            <div class="pc-category">
+            <div ref="categoryRef" class="pc-category">
               <button class="pc-category__button" type="button" @click="toggleMegaMenu">
                 <i class="bi bi-grid"></i>
                 <span>Danh Mục</span>
@@ -100,9 +100,46 @@
           </div>
 
           <div class="pc-actions">
-            <RouterLink class="pc-action-icon" :to="loggedIn ? '/tai-khoan/thong-bao' : '/login'">
-              <i class="bi bi-bell"></i>
-            </RouterLink>
+            <div ref="notificationMenuRef" class="pc-notification-dropdown">
+              <button class="pc-action-icon pc-action-icon--notification" type="button" @click="toggleNotificationMenu">
+                <i class="bi bi-bell"></i>
+                <span v-if="unreadNotificationCount" class="pc-action-icon__badge">{{ unreadNotificationCount }}</span>
+              </button>
+
+              <div v-if="showNotificationMenu" class="pc-notification-menu">
+                <div class="pc-notification-menu__head">
+                  <strong>Thông báo</strong>
+                  <button v-if="loggedIn" type="button" class="pc-notification-menu__link" @click="goToNotifications">
+                    Xem tất cả
+                  </button>
+                </div>
+
+                <div v-if="loggedIn && recentNotifications.length" class="pc-notification-menu__list">
+                  <button
+                    v-for="item in recentNotifications"
+                    :key="item.id"
+                    type="button"
+                    class="pc-notification-menu__item"
+                    @click="openNotification(item)"
+                  >
+                    <div class="pc-notification-menu__content">
+                      <strong>{{ item.group }}</strong>
+                      <span>{{ item.tieuDe }}</span>
+                    </div>
+                    <small :class="{ 'is-read': item.daDoc }">{{ item.daDoc ? "Đã đọc" : "Mới" }}</small>
+                  </button>
+                </div>
+
+                <p v-else-if="loggedIn" class="pc-notification-menu__empty">Chưa có thông báo nào.</p>
+
+                <div v-else class="pc-notification-menu__guest">
+                  <p>Đăng nhập để xem thông báo của bạn.</p>
+                  <RouterLink to="/login" class="pc-notification-menu__login" @click="closeNotificationMenu">
+                    Đăng nhập
+                  </RouterLink>
+                </div>
+              </div>
+            </div>
 
             <RouterLink class="pc-action-icon pc-action-icon--cart" to="/gio-hang">
               <i class="bi bi-cart3"></i>
@@ -110,35 +147,33 @@
             </RouterLink>
 
             <template v-if="loggedIn">
-              <div class="dropdown">
+              <div ref="userMenuRef" class="pc-user-dropdown">
                 <button
-                  class="pc-auth-link pc-auth-link--dropdown dropdown-toggle"
+                  class="pc-auth-link pc-auth-link--dropdown"
                   type="button"
-                  data-bs-toggle="dropdown"
-                  aria-expanded="false"
+                  :aria-expanded="showUserMenu"
+                  @click="toggleUserMenu"
                 >
-                  <span v-if="avatarUrl" class="pc-auth-link__avatar pc-auth-link__avatar--image">
-                    <img :src="avatarUrl" alt="Avatar khách hàng" />
+                  <span v-if="avatarUrl && !avatarLoadFailed" class="pc-auth-link__avatar pc-auth-link__avatar--image">
+                    <img :src="avatarUrl" alt="Avatar khách hàng" @error="handleAvatarError" />
                   </span>
                   <span v-else class="pc-auth-link__avatar">{{ avatarInitials }}</span>
                   <span class="pc-auth-link__meta">
                     <small>Xin Chào</small>
                     <strong>{{ displayName }}</strong>
                   </span>
+                  <i class="bi bi-chevron-down pc-auth-link__chevron" :class="{ 'is-open': showUserMenu }"></i>
                 </button>
 
-                <ul class="dropdown-menu dropdown-menu-end pc-user-menu">
-                  <li><RouterLink class="dropdown-item" to="/tai-khoan/thong-tin">Thông tin cá nhân</RouterLink></li>
-                  <li><RouterLink class="dropdown-item" to="/tai-khoan/dia-chi">Số địa chỉ nhận hàng</RouterLink></li>
-                  <li><RouterLink class="dropdown-item" to="/tai-khoan/lich-su-don-hang">Lịch sử đơn hàng</RouterLink></li>
-                  <li><RouterLink class="dropdown-item" to="/tai-khoan/thong-bao">Thông báo của tôi</RouterLink></li>
+                <ul v-if="showUserMenu" class="pc-user-menu">
+                  <li><RouterLink class="dropdown-item" to="/tai-khoan/thong-tin" @click="closeUserMenu">Thông tin cá nhân</RouterLink></li>
+                  <li><RouterLink class="dropdown-item" to="/tai-khoan/dia-chi" @click="closeUserMenu">Số địa chỉ nhận hàng</RouterLink></li>
+                  <li><RouterLink class="dropdown-item" to="/tai-khoan/lich-su-don-hang" @click="closeUserMenu">Lịch sử đơn hàng</RouterLink></li>
+                  <li><RouterLink class="dropdown-item" to="/tai-khoan/thong-bao" @click="closeUserMenu">Thông báo của tôi</RouterLink></li>
                   <li v-if="isSystemAccount"><hr class="dropdown-divider" /></li>
-                  <li v-if="isSystemAccount"><RouterLink class="dropdown-item" to="/dashboard">Quản lý hệ thống</RouterLink></li>
-                  <li v-if="isAdminAccount"><RouterLink class="dropdown-item" to="/nhan-viens">Quản lý nhân viên</RouterLink></li>
-                  <li v-if="isSystemAccount"><RouterLink class="dropdown-item" to="/ton-kho">Tồn kho và lô thuốc</RouterLink></li>
-                  <li v-if="isSystemAccount"><RouterLink class="dropdown-item" to="/gia-khuyen-mai">Giá và khuyến mãi</RouterLink></li>
+                  <li v-if="isSystemAccount"><RouterLink class="dropdown-item" to="/dashboard" @click="closeUserMenu">Quản lý hệ thống</RouterLink></li>
                   <li><hr class="dropdown-divider" /></li>
-                  <li><button class="dropdown-item text-danger" type="button" @click="handleLogout">Đăng Xuất</button></li>
+                  <li><button class="dropdown-item text-danger" type="button" @click="handleLogout">Đăng xuất</button></li>
                 </ul>
               </div>
             </template>
@@ -146,7 +181,6 @@
             <RouterLink v-else to="/login" class="pc-auth-link">
               <span class="pc-auth-link__icon"><i class="bi bi-person-circle"></i></span>
               <span class="pc-auth-link__meta">
-                <small>Xin Chào</small>
                 <strong>Đăng nhập</strong>
               </span>
             </RouterLink>
@@ -161,16 +195,21 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { catalogSections } from "../../data/catalogSections";
-import { authState, clearAuthSession, isAdminState, isAuthenticatedState, isSystemUserState } from "../../lib/authStorage";
+import { authState, clearAuthSession, getAuthType, isAuthenticatedState, isSystemUserState } from "../../lib/authStorage";
 import { useCustomerStore } from "../../lib/customerStore";
 import { clearRecentSearches, getRecentSearches, saveRecentSearch } from "../../lib/recentSearches";
 
 const route = useRoute();
 const router = useRouter();
-const { cartCount } = useCustomerStore();
+const { cartCount, state, markNotificationRead, markNotificationsReadByGroup, markAllNotificationsRead, syncOrdersFromApi } = useCustomerStore();
 const searchQuery = ref(route.query.q || "");
 const searchContainerRef = ref(null);
+const categoryRef = ref(null);
+const userMenuRef = ref(null);
+const notificationMenuRef = ref(null);
 const searchDropdownOpen = ref(false);
+const showUserMenu = ref(false);
+const showNotificationMenu = ref(false);
 const recentSearches = ref(getRecentSearches());
 const showMegaMenu = ref(false);
 const activeCategory = ref("thuoc");
@@ -184,19 +223,22 @@ const placeholderPhrases = [
   "Tìm nhanh theo tên thuốc hoặc loại thuốc",
 ];
 let placeholderTimer = null;
+let orderSyncTimer = null;
 let currentPhraseIndex = 0;
 let currentCharIndex = 0;
 let isDeletingPlaceholder = false;
 
 const loggedIn = isAuthenticatedState;
 const isSystemAccount = isSystemUserState;
-const isAdminAccount = isAdminState;
 const displayName = computed(() => authState.user?.ten_khach_hang || authState.user?.ho_ten || "Khách hàng");
 const avatarUrl = computed(() => authState.user?.avatar_url || "");
+const avatarLoadFailed = ref(false);
 const avatarInitials = computed(() => {
   const name = displayName.value.trim();
   return name ? name.slice(0, 2).toUpperCase() : "KH";
 });
+const recentNotifications = computed(() => [...state.notifications].slice(0, 5));
+const unreadNotificationCount = computed(() => state.notifications.filter((item) => !item.daDoc).length);
 const showSearchDropdown = computed(() => searchDropdownOpen.value);
 const showAnimatedPlaceholder = computed(() => !searchQuery.value);
 const activeMegaItems = computed(
@@ -209,18 +251,45 @@ watch(
     showMegaMenu.value = false;
     searchQuery.value = route.query.q || "";
     searchDropdownOpen.value = false;
+    showUserMenu.value = false;
+    showNotificationMenu.value = false;
   }
 );
 
-onMounted(() => {
+watch(
+  () => avatarUrl.value,
+  () => {
+    avatarLoadFailed.value = false;
+  },
+  { immediate: true }
+);
+
+onMounted(async () => {
   document.addEventListener("click", handleDocumentClick);
+  if (loggedIn.value && getAuthType() === "customer") {
+    await syncOrdersFromApi();
+    startOrderSyncPolling();
+  }
   runPlaceholderAnimation();
 });
 
 onBeforeUnmount(() => {
   document.removeEventListener("click", handleDocumentClick);
   stopPlaceholderAnimation();
+  stopOrderSyncPolling();
 });
+
+watch(
+  () => [loggedIn.value, getAuthType()],
+  async ([isLoggedIn, authType]) => {
+    stopOrderSyncPolling();
+
+    if (isLoggedIn && authType === "customer") {
+      await syncOrdersFromApi();
+      startOrderSyncPolling();
+    }
+  }
+);
 
 function toggleMegaMenu() {
   showMegaMenu.value = !showMegaMenu.value;
@@ -236,8 +305,20 @@ function openSearchDropdown() {
 }
 
 function handleDocumentClick(event) {
+  if (!categoryRef.value?.contains(event.target)) {
+    showMegaMenu.value = false;
+  }
+
   if (!searchContainerRef.value?.contains(event.target)) {
     searchDropdownOpen.value = false;
+  }
+
+  if (!userMenuRef.value?.contains(event.target)) {
+    showUserMenu.value = false;
+  }
+
+  if (!notificationMenuRef.value?.contains(event.target)) {
+    showNotificationMenu.value = false;
   }
 }
 
@@ -278,6 +359,70 @@ function selectRecentSearch(keyword) {
 
 function clearRecentSearchHistory() {
   recentSearches.value = clearRecentSearches();
+}
+
+async function toggleNotificationMenu() {
+  if (!loggedIn.value) {
+    router.push("/login");
+    return;
+  }
+
+  if (getAuthType() === "customer") {
+    await syncOrdersFromApi();
+  }
+
+  showNotificationMenu.value = !showNotificationMenu.value;
+  showUserMenu.value = false;
+}
+
+function closeNotificationMenu() {
+  showNotificationMenu.value = false;
+}
+
+function goToNotifications() {
+  closeNotificationMenu();
+  router.push("/tai-khoan/thong-bao");
+}
+
+function openNotification(item) {
+  closeNotificationMenu();
+  markNotificationRead(item.id);
+  router.push({
+    path: "/tai-khoan/thong-bao",
+    query: {
+      notice: item.id,
+      tab: item.group,
+    },
+  });
+}
+
+function toggleUserMenu() {
+  showUserMenu.value = !showUserMenu.value;
+  showNotificationMenu.value = false;
+}
+
+function closeUserMenu() {
+  showUserMenu.value = false;
+}
+
+function startOrderSyncPolling() {
+  stopOrderSyncPolling();
+
+  orderSyncTimer = window.setInterval(async () => {
+    if (!loggedIn.value || getAuthType() !== "customer") {
+      stopOrderSyncPolling();
+      return;
+    }
+
+    await syncOrdersFromApi();
+  }, 15000);
+}
+
+function stopOrderSyncPolling() {
+  if (orderSyncTimer) {
+    clearInterval(orderSyncTimer);
+    orderSyncTimer = null;
+  }
 }
 
 function stopPlaceholderAnimation() {
@@ -335,8 +480,14 @@ watch(
 );
 
 function handleLogout() {
+  closeUserMenu();
+  stopOrderSyncPolling();
   clearAuthSession();
   router.push("/");
+}
+
+function handleAvatarError() {
+  avatarLoadFailed.value = true;
 }
 </script>
 
@@ -416,6 +567,8 @@ function handleLogout() {
 }
 
 .pc-mainbar__search {
+  position: relative;
+  z-index: 1;
   display: grid;
   grid-template-columns: 220px minmax(0, 1fr);
   gap: 14px;
@@ -576,6 +729,8 @@ function handleLogout() {
 }
 
 .pc-actions {
+  position: relative;
+  z-index: 4;
   display: flex;
   align-items: center;
   gap: 14px;
@@ -588,22 +743,40 @@ function handleLogout() {
 
 .pc-action-icon {
   position: relative;
-  width: 32px;
-  height: 32px;
+  width: 42px;
+  height: 42px;
   display: grid;
   place-items: center;
   border-radius: 999px;
-  background: transparent;
+  border: 0;
+  background: rgba(255, 255, 255, 0.08);
   color: #fff;
-  font-size: 1.45rem;
+  font-size: 1.25rem;
+  transition: background-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.pc-action-icon:hover,
+.pc-action-icon:focus-visible {
+  background: rgba(255, 255, 255, 0.16);
+  box-shadow: 0 10px 24px rgba(8, 28, 79, 0.18);
+  transform: translateY(-1px);
+}
+
+.pc-action-icon--notification {
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+}
+
+.pc-action-icon--notification i {
+  transform: translateY(1px);
 }
 
 .pc-action-icon__badge {
   position: absolute;
-  top: -2px;
-  right: -1px;
-  min-width: 20px;
-  height: 20px;
+  top: -3px;
+  right: -3px;
+  min-width: 21px;
+  height: 21px;
   display: grid;
   place-items: center;
   padding: 0 4px;
@@ -611,8 +784,9 @@ function handleLogout() {
   border-radius: 999px;
   background: #ff6b35;
   color: #fff;
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 700;
+  line-height: 1;
 }
 
 .pc-auth-link {
@@ -627,6 +801,20 @@ function handleLogout() {
   background: transparent;
   color: #fff;
   text-decoration: none !important;
+}
+
+.pc-user-dropdown {
+  position: relative;
+  z-index: 5;
+}
+
+.pc-notification-dropdown {
+  position: relative;
+  z-index: 5;
+}
+
+.pc-auth-link--dropdown {
+  cursor: pointer;
 }
 
 .pc-logo *,
@@ -690,17 +878,183 @@ function handleLogout() {
   object-fit: cover;
 }
 
-.pc-auth-link--dropdown::after {
-  margin-left: 4px;
+.pc-auth-link__chevron {
+  margin-left: 2px;
   font-size: 0.75rem;
+  transition: transform 0.18s ease;
+}
+
+.pc-auth-link__chevron.is-open {
+  transform: rotate(180deg);
 }
 
 .pc-user-menu {
-  min-width: 220px;
-  padding: 6px;
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  min-width: 250px;
+  margin: 0;
+  padding: 8px;
+  border: 0;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 24px 48px rgba(15, 31, 79, 0.18);
+  z-index: 1080;
+  list-style: none;
+}
+
+.pc-notification-menu {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 320px;
+  padding: 10px;
+  border: 0;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 24px 48px rgba(15, 31, 79, 0.18);
+  z-index: 1080;
+}
+
+.pc-notification-menu__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 6px 10px;
+}
+
+.pc-notification-menu__head strong {
+  color: #243b5d;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.pc-notification-menu__link {
+  border: 0;
+  background: transparent;
+  color: #1652c5;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.pc-notification-menu__list {
+  display: grid;
+  gap: 8px;
+}
+
+.pc-notification-menu__item {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
   border: 0;
   border-radius: 14px;
-  box-shadow: 0 20px 40px rgba(15, 31, 79, 0.18);
+  background: #f6f8ff;
+  color: #243b5d;
+  text-align: left;
+}
+
+.pc-notification-menu__content {
+  display: grid;
+  gap: 4px;
+}
+
+.pc-notification-menu__content strong {
+  color: #17345f;
+  font-size: 0.92rem;
+  font-weight: 800;
+}
+
+.pc-notification-menu__content span {
+  color: #60738d;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.pc-notification-menu__item small {
+  flex-shrink: 0;
+  color: #1652c5;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.pc-notification-menu__item small.is-read {
+  color: #7a8ca7;
+}
+
+.pc-notification-menu__empty,
+.pc-notification-menu__guest p {
+  margin: 0;
+  padding: 12px;
+  color: #60738d;
+  font-size: 0.92rem;
+}
+
+.pc-notification-menu__guest {
+  display: grid;
+  gap: 10px;
+  padding: 4px 2px 2px;
+}
+
+.pc-notification-menu__login {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 12px;
+  background: #1652c5;
+  color: #fff;
+  font-size: 0.92rem;
+  font-weight: 700;
+  text-decoration: none !important;
+}
+
+.pc-user-menu li {
+  list-style: none;
+}
+
+.pc-user-menu :deep(.dropdown-item) {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: #243b5d;
+  font-size: 0.98rem;
+  font-weight: 600;
+  line-height: 1.35;
+  text-decoration: none !important;
+  transition: background-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+
+.pc-user-menu :deep(.dropdown-item:hover),
+.pc-user-menu :deep(.dropdown-item:focus),
+.pc-user-menu :deep(.dropdown-item.router-link-active) {
+  background: #f4f7ff;
+  color: #1652c5;
+  transform: translateX(2px);
+}
+
+.pc-user-menu :deep(.dropdown-item.text-danger) {
+  color: #e53935 !important;
+}
+
+.pc-user-menu :deep(.dropdown-item.text-danger:hover),
+.pc-user-menu :deep(.dropdown-item.text-danger:focus) {
+  background: #fff3f2;
+  color: #d32f2f !important;
+}
+
+.pc-user-menu :deep(.dropdown-divider) {
+  margin: 6px 4px;
+  border-top-color: rgba(22, 82, 197, 0.1);
 }
 
 .pc-mega-menu {
@@ -808,3 +1162,4 @@ function handleLogout() {
   }
 }
 </style>
+

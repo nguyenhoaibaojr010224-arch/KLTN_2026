@@ -1,6 +1,6 @@
 <template>
   <footer class="pc-footer">
-    <div class="container-fluid pc-container">
+    <div class="pc-container">
       <div class="pc-footer__grid">
         <div class="pc-footer__brand">
           <RouterLink to="/" class="pc-footer__logo">
@@ -9,8 +9,8 @@
           </RouterLink>
 
           <p class="pc-footer__copy">
-            PharmaGo là nhà thuốc trực tuyến hiện đại, cung cấp sản phẩm chính hãng và giải pháp chăm sóc sức khỏe tiện
-            lợi. Tìm kiếm nhanh, tư vấn tận tâm, giao hàng tận nơi giúp bạn an tâm mỗi ngày.
+            PharmaGo là nhà thuốc trực tuyến hiện đại, cung cấp sản phẩm chính hãng và giải pháp chăm sóc sức khỏe tiện lợi.
+            Tìm kiếm nhanh, tư vấn tận tâm, giao hàng tận nơi giúp bạn an tâm mỗi ngày.
           </p>
         </div>
 

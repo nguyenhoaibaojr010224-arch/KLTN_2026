@@ -11,11 +11,25 @@ export function searchThuocs(keyword) {
 }
 
 export function getLoThuocs() {
-  return apiClient("/lo-thuocs");
+  return apiClient("/admin/lo-thuocs");
 }
 
 export function searchLoThuocs(keyword) {
   const query = new URLSearchParams({ q: keyword });
 
-  return apiClient(`/lo-thuocs/search?${query.toString()}`);
+  return apiClient(`/admin/lo-thuocs/search?${query.toString()}`);
+}
+
+export function createLoThuoc(payload) {
+  return apiClient("/admin/lo-thuocs", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateLoThuoc(id, payload) {
+  return apiClient(`/admin/lo-thuocs/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
 }

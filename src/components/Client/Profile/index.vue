@@ -1,0 +1,1107 @@
+﻿<template>
+  <div class="pc-page">
+    <div class="container-fluid pc-container">
+      <div class="row g-4 align-items-start">
+        <div class="col-xl-3">
+          <aside class="pc-account-sidebar">
+            <div class="pc-account-profile">
+              <div class="pc-account-profile__avatar">
+                <img
+                  v-if="currentAvatarUrl && !avatarLoadFailed"
+                  :src="currentAvatarUrl"
+                  alt="Ảnh đại diện"
+                  @error="handleAvatarError"
+                />
+                <span v-else>{{ avatarText }}</span>
+              </div>
+
+              <div class="pc-account-profile__content">
+                <h3>{{ state.profile.hoTen }}</h3>
+                <p class="pc-account-profile__subtext">{{ state.profile.email || state.profile.soDienThoai }}</p>
+              </div>
+            </div>
+
+            <nav class="pc-account-nav">
+              <RouterLink
+                v-for="item in menuItems"
+                :key="item.section"
+                :to="item.to"
+                class="pc-account-nav__item"
+              >
+                <i :class="item.icon"></i>
+                <span>{{ item.label }}</span>
+              </RouterLink>
+            </nav>
+          </aside>
+        </div>
+
+        <div class="col-xl-9">
+          <section v-if="section === 'thong-tin'" class="pc-account-panel">
+            <h1>Thông tin cá nhân</h1>
+
+            <div class="pc-account-form__avatar-wrap">
+              <div class="pc-account-form__avatar">
+                <img
+                  v-if="currentAvatarUrl && !avatarLoadFailed"
+                  :src="currentAvatarUrl"
+                  alt="Ảnh đại diện"
+                  @error="handleAvatarError"
+                />
+                <span v-else>{{ avatarText }}</span>
+              </div>
+
+              <label class="btn btn-outline-primary rounded-pill px-3 mt-3">
+                <input
+                  hidden
+                  type="file"
+                  accept="image/png,image/jpeg,image/jpg,image/webp"
+                  @change="handleAvatarChange"
+                />
+                Chọn ảnh đại diện
+              </label>
+            </div>
+
+            <div class="pc-account-form">
+              <div class="pc-form-field">
+                <label>Họ và tên</label>
+                <input v-model="profileDraft.hoTen" type="text" />
+              </div>
+
+              <div class="pc-form-field">
+                <label>Số điện thoại</label>
+                <input v-model="profileDraft.soDienThoai" type="text" />
+              </div>
+
+              <div class="pc-form-field">
+                <label>Email</label>
+                <input v-model="profileDraft.email" type="email" />
+              </div>
+
+              <div class="pc-form-field">
+                <label>Địa chỉ</label>
+                <input v-model="profileDraft.diaChi" type="text" />
+              </div>
+
+              <div class="pc-form-field">
+                <label>Ngày sinh</label>
+                <input v-model="profileDraft.ngaySinh" type="date" />
+              </div>
+
+              <div class="pc-form-field">
+                <label>Giới tính</label>
+                <select v-model="profileDraft.gioiTinh">
+                  <option value="">Chọn giới tính</option>
+                  <option value="Nam">Nam</option>
+                  <option value="Nữ">Nữ</option>
+                  <option value="Khác">Khác</option>
+                </select>
+              </div>
+
+              <div class="pc-form-field">
+                <label>Mật khẩu</label>
+                <div class="pc-password-row">
+                  <input type="password" value="123456789" disabled />
+                  <button type="button" @click="showPasswordHint = !showPasswordHint">Cập nhật</button>
+                </div>
+                <small v-if="showPasswordHint">Chức năng đổi mật khẩu sẽ dùng API riêng ở bước sau.</small>
+              </div>
+            </div>
+
+            <div class="pc-account-panel__actions">
+              <button class="btn btn-primary rounded-pill px-4" type="button" @click="saveProfile">
+                Lưu thông tin
+              </button>
+            </div>
+          </section>
+
+          <section v-else-if="section === 'dia-chi'" class="pc-account-panel">
+            <div class="pc-account-panel__head">
+              <h1>Sổ địa chỉ nhận hàng</h1>
+              <button class="btn btn-outline-primary rounded-pill px-4" type="button" @click="openAddAddressModal">
+                <i class="bi bi-plus-lg me-2"></i> Thêm địa chỉ
+              </button>
+            </div>
+
+            <div class="pc-address-list">
+              <article v-for="address in state.addresses" :key="address.id" class="pc-address-card">
+                <div>
+                  <h3>{{ address.hoTen }} | {{ address.soDienThoai }}</h3>
+                  <p>{{ formatFullAddress(address) }}</p>
+                </div>
+                <div class="pc-address-card__actions">
+                  <span class="pc-address-card__tag">{{ address.loaiDiaChi }}</span>
+                  <button type="button" class="btn btn-sm btn-outline-primary" @click="openEditAddressModal(address)">
+                    Chỉnh sửa
+                  </button>
+                </div>
+              </article>
+            </div>
+          </section>
+
+          <section v-else-if="section === 'lich-su-don-hang'" class="pc-account-panel">
+            <h1>Lịch sử đơn hàng</h1>
+            <div class="pc-history-list">
+              <article
+                v-for="order in state.orders"
+                :key="order.id"
+                class="pc-history-card"
+                :class="{ 'is-open': expandedOrderId === order.id }"
+              >
+                <div class="pc-history-card__head">
+                  <strong class="pc-history-card__code">{{ order.id }}</strong>
+                  <div class="pc-history-card__meta">
+                    <p>{{ order.ngay }} • {{ order.sanPham }} sản phẩm</p>
+                  </div>
+                  <div class="pc-history-card__summary">
+                    <div class="pc-history-card__status">{{ order.trangThai }}</div>
+                    <strong>{{ formatCurrency(order.tongTien) }}</strong>
+                    <button
+                      type="button"
+                      class="pc-history-card__toggle"
+                      @click.stop="toggleOrderDetails(order.id)"
+                    >
+                      {{ expandedOrderId === order.id ? "Thu gọn" : "Xem sản phẩm đã mua" }}
+                    </button>
+                    <button
+                      type="button"
+                      class="pc-history-card__delete"
+                      @click.stop="removeOrderItem(order.id)"
+                    >
+                      Xóa
+                    </button>
+                  </div>
+                </div>
+
+                <div v-if="expandedOrderId === order.id" class="pc-history-card__details">
+                  <article v-for="item in order.items || []" :key="`${order.id}-${item.id}`" class="pc-history-product">
+                    <div class="pc-history-product__thumb" :class="`tone-${item.imageTone || 'pink'}`"></div>
+                    <div class="pc-history-product__content">
+                      <strong>{{ item.ten }}</strong>
+                      <p v-if="item.loai">Loại: {{ item.loai }}</p>
+                      <p v-if="item.moTa">{{ item.moTa }}</p>
+                    </div>
+                    <div class="pc-history-product__meta">
+                      <span>x{{ item.soLuong }}</span>
+                      <strong>{{ formatCurrency(item.gia) }}</strong>
+                    </div>
+                  </article>
+
+                  <div v-if="!(order.items && order.items.length)" class="pc-history-card__empty">
+                    <i class="bi bi-bag"></i>
+                    <span>Đơn hàng chưa có chi tiết sản phẩm.</span>
+                  </div>
+                </div>
+              </article>
+            </div>
+          </section>
+
+          <section v-else-if="section === 'ma-giam-gia'" class="pc-account-panel">
+            <div class="pc-account-panel__head">
+              <h1>Mã giảm giá</h1>
+            </div>
+
+            <div v-if="discountCodesLoading" class="pc-empty-card pc-empty-card--inline">
+              <div class="spinner-border text-primary mb-3"></div>
+              <h2>Đang tải danh sách mã giảm giá</h2>
+            </div>
+
+            <div v-else-if="discountCodes.length" class="pc-discount-list">
+              <article
+                v-for="item in discountCodes"
+                :key="item.id"
+                class="pc-discount-card"
+                :class="{ 'is-disabled': !item.co_the_ap_dung }"
+              >
+                <div class="pc-discount-card__code">{{ item.ma_giam_gia }}</div>
+                <div class="pc-discount-card__content">
+                  <h3>{{ item.ten_ma }}</h3>
+                  <p>{{ item.mo_ta || "Áp dụng khi đơn hàng đủ điều kiện." }}</p>
+                  <div class="pc-discount-card__meta">
+                    <span>Giảm: {{ promotionValueLabel(item) }}</span>
+                    <span>Đơn tối thiểu: {{ formatCurrency(item.gia_tri_don_toi_thieu) }}</span>
+                    <span v-if="item.ngay_bat_dau || item.ngay_ket_thuc">
+                      Hiệu lực: {{ item.ngay_bat_dau || "..." }} - {{ item.ngay_ket_thuc || "..." }}
+                    </span>
+                  </div>
+                  <small v-if="!item.co_the_ap_dung" class="pc-discount-card__notice">
+                    {{ item.ly_do_khong_ap_dung || "Chưa đủ điều kiện để sử dụng mã này." }}
+                  </small>
+                </div>
+              </article>
+            </div>
+
+            <div v-else class="pc-empty-card pc-empty-card--inline">
+              <i class="bi bi-ticket-perforated"></i>
+              <h2>Chưa có mã giảm giá</h2>
+              <p>Hiện chưa có mã giảm giá nào để hiển thị.</p>
+            </div>
+          </section>
+
+          <section v-else-if="section === 'thong-bao'" class="pc-account-panel">
+            <div class="pc-account-panel__head">
+              <h1>Thông báo của tôi</h1>
+              <button type="button" class="pc-link-button" @click="markAllNotificationsAsRead">Đọc tất cả</button>
+            </div>
+
+            <div class="pc-tabline">
+              <button
+                v-for="tab in notificationTabs"
+                :key="tab"
+                type="button"
+                :class="{ active: tab === activeTab }"
+                @click="activeTab = tab"
+              >
+                {{ tab }}
+              </button>
+            </div>
+
+            <div v-if="filteredNotifications.length" class="pc-notification-list">
+              <article v-for="item in filteredNotifications" :key="item.id" class="pc-notification-card">
+                <div>
+                  <strong>{{ item.group }}</strong>
+                  <p>{{ item.tieuDe }}</p>
+                </div>
+                <span :class="['pc-notification-card__badge', { read: item.daDoc }]">
+                  {{ item.daDoc ? "Đã đọc" : "Mới" }}
+                </span>
+              </article>
+            </div>
+
+            <div v-else class="pc-empty-card pc-empty-card--inline">
+              <i class="bi bi-bell-slash"></i>
+              <h2>Chưa có thông báo nào</h2>
+            </div>
+          </section>
+
+          <section v-else class="pc-account-panel">
+            <h1>{{ fallbackTitle }}</h1>
+            <div class="pc-empty-card pc-empty-card--inline">
+              <i class="bi bi-grid"></i>
+              <h2>Phần này đã có khung giao diện</h2>
+              <p>Màn này đã có điều hướng sẵn, có thể nối thêm API hoặc dữ liệu thật ở bước sau.</p>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="showAddressModal" class="pc-modal-backdrop" @click.self="closeAddressModal">
+      <div class="pc-modal-card pc-modal-card--form">
+        <button class="pc-modal-card__close" type="button" @click="closeAddressModal">
+          <i class="bi bi-x-lg"></i>
+        </button>
+
+        <h2>{{ addressDraft.id ? "Chỉnh sửa địa chỉ nhận hàng" : "Thêm địa chỉ nhận hàng" }}</h2>
+
+        <div class="pc-address-form">
+          <div class="pc-form-field">
+            <label>Họ và tên</label>
+            <input v-model="addressDraft.hoTen" type="text" placeholder="Nhập họ và tên" />
+          </div>
+
+          <div class="pc-form-field">
+            <label>Số điện thoại</label>
+            <input v-model="addressDraft.soDienThoai" type="text" placeholder="Nhập số điện thoại" />
+          </div>
+
+          <div class="pc-form-field">
+            <label>Tỉnh/Thành phố</label>
+            <select v-model="addressDraft.tinhThanh">
+              <option value="">Chọn Tỉnh/Thành phố</option>
+              <option v-for="city in cityOptions" :key="city" :value="city">{{ city }}</option>
+            </select>
+          </div>
+
+          <div class="pc-address-form__row">
+            <div class="pc-form-field">
+              <label>Quận/Huyện</label>
+              <select v-model="addressDraft.quanHuyen" :disabled="!addressDraft.tinhThanh">
+                <option value="">Chọn Quận/Huyện</option>
+                <option v-for="district in districtOptions" :key="district" :value="district">{{ district }}</option>
+              </select>
+            </div>
+
+            <div class="pc-form-field">
+              <label>Phường/Xã</label>
+              <select v-model="addressDraft.phuongXa" :disabled="!addressDraft.quanHuyen">
+                <option value="">Chọn Phường/Xã</option>
+                <option v-for="ward in wardOptions" :key="ward" :value="ward">{{ ward }}</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="pc-form-field">
+            <label>Số nhà/Tên đường</label>
+            <input v-model="addressDraft.soNha" type="text" placeholder="Nhập số nhà/tên đường" />
+          </div>
+
+          <div class="pc-form-field">
+            <label>Loại địa chỉ</label>
+            <div class="pc-pill-switch">
+              <button
+                v-for="item in ['Nhà riêng', 'Công ty']"
+                :key="item"
+                type="button"
+                :class="{ active: addressDraft.loaiDiaChi === item }"
+                @click="addressDraft.loaiDiaChi = item"
+              >
+                {{ item }}
+              </button>
+            </div>
+          </div>
+
+          <label class="pc-checkbox-line">
+            <input v-model="addressDraft.macDinh" type="checkbox" />
+            <span>Đặt làm mặc định</span>
+          </label>
+        </div>
+
+        <div class="pc-modal-card__actions">
+          <button class="btn btn-light rounded-pill px-4" type="button" @click="closeAddressModal">Quay lại</button>
+          <button class="btn btn-primary rounded-pill px-4" type="button" @click="submitAddress">Lưu lại</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import { getAuthType } from "../../../lib/authStorage";
+import { getCustomerOrderDiscountCodes } from "../../../api/pricingApi";
+import { useCustomerStore } from "../../../lib/customerStore";
+import { showToast } from "../../../lib/toast";
+
+function createEmptyAddressDraft(profile) {
+  return {
+    id: null,
+    hoTen: profile.hoTen || "",
+    soDienThoai: String(profile.soDienThoai || "").replaceAll("*", "0"),
+    tinhThanh: "",
+    quanHuyen: "",
+    phuongXa: "",
+    soNha: "",
+    loaiDiaChi: "Nhà riêng",
+    macDinh: false,
+  };
+}
+
+const LOCATION_OPTIONS = {
+  "TP. Hồ Chí Minh": {
+    "Quận 1": ["Phường Bến Nghé", "Phường Bến Thành", "Phường Cầu Ông Lãnh"],
+    "Quận 3": ["Phường Võ Thị Sáu", "Phường 1", "Phường 2"],
+    "Quận Bình Thạnh": ["Phường 25", "Phường 26", "Phường 14"],
+  },
+  "Hà Nội": {
+    "Quận Ba Đình": ["Phường Điện Biên", "Phường Kim Mã", "Phường Ngọc Hà"],
+    "Quận Cầu Giấy": ["Phường Dịch Vọng", "Phường Mai Dịch", "Phường Nghĩa Tân"],
+    "Quận Đống Đa": ["Phường Láng Hạ", "Phường Ô Chợ Dừa", "Phường Trung Liệt"],
+  },
+  "Đà Nẵng": {
+    "Quận Hải Châu": ["Phường Thạch Thang", "Phường Hải Châu I", "Phường Bình Hiên"],
+    "Quận Thanh Khê": ["Phường Thạc Gián", "Phường Chính Gián", "Phường Tân Chính"],
+    "Quận Sơn Trà": ["Phường An Hải Bắc", "Phường Phước Mỹ", "Phường Mân Thái"],
+  },
+};
+
+function normalizeAddressDraft(address) {
+  const draft = {
+    ...address,
+    tinhThanh: address?.tinhThanh || "",
+    quanHuyen: address?.quanHuyen || "",
+    phuongXa: address?.phuongXa || "",
+  };
+
+  const validDistricts = Object.keys(LOCATION_OPTIONS[draft.tinhThanh] || {});
+  if (!validDistricts.includes(draft.quanHuyen)) {
+    draft.quanHuyen = "";
+  }
+
+  const validWards = LOCATION_OPTIONS[draft.tinhThanh]?.[draft.quanHuyen] || [];
+  if (!validWards.includes(draft.phuongXa)) {
+    draft.phuongXa = "";
+  }
+
+  return draft;
+}
+
+export default {
+  name: "ProfileClient",
+
+  data() {
+    const customerStore = useCustomerStore();
+    const state = customerStore.state;
+
+    return {
+      customerStore,
+      state,
+      showAddressModal: false,
+      showPasswordHint: false,
+      activeTab: "Đơn hàng",
+      avatarFile: null,
+      avatarLoadFailed: false,
+      avatarObjectUrl: "",
+      avatarPreviewUrl: state.profile.avatarUrl || "",
+      discountCodesLoading: false,
+      discountCodes: [],
+      expandedOrderId: null,
+      notificationTabs: ["Đơn hàng", "Thương hiệu", "Ưu đãi", "Sức khỏe", "Tin tức", "Hệ thống"],
+      menuItems: [
+        { section: "thong-tin", label: "Thông tin cá nhân", icon: "bi bi-person-circle", to: "/tai-khoan/thong-tin" },
+        { section: "dia-chi", label: "Sổ địa chỉ nhận hàng", icon: "bi bi-geo-alt", to: "/tai-khoan/dia-chi" },
+        { section: "lich-su-don-hang", label: "Lịch sử đơn hàng", icon: "bi bi-receipt", to: "/tai-khoan/lich-su-don-hang" },
+        { section: "ma-giam-gia", label: "Mã giảm giá", icon: "bi bi-ticket-perforated", to: "/tai-khoan/ma-giam-gia" },
+        { section: "thong-bao", label: "Thông báo của tôi", icon: "bi bi-bell", to: "/tai-khoan/thong-bao" },
+        { section: "thanh-toan", label: "Quản lý thanh toán", icon: "bi bi-credit-card", to: "/tai-khoan/thanh-toan" },
+        { section: "gia-dinh", label: "Hồ sơ gia đình", icon: "bi bi-people", to: "/tai-khoan/gia-dinh" },
+      ],
+      profileDraft: {
+        hoTen: state.profile.hoTen,
+        soDienThoai: state.profile.soDienThoai,
+        email: state.profile.email,
+        diaChi: state.profile.diaChi,
+        ngaySinh: state.profile.ngaySinh,
+        gioiTinh: state.profile.gioiTinh,
+      },
+      addressDraft: createEmptyAddressDraft(state.profile),
+    };
+  },
+
+  computed: {
+    section() {
+      return this.$route.params.section || "thong-tin";
+    },
+    cityOptions() {
+      return Object.keys(LOCATION_OPTIONS);
+    },
+    districtOptions() {
+      return Object.keys(LOCATION_OPTIONS[this.addressDraft.tinhThanh] || {});
+    },
+    wardOptions() {
+      return LOCATION_OPTIONS[this.addressDraft.tinhThanh]?.[this.addressDraft.quanHuyen] || [];
+    },
+    currentAvatarUrl() {
+      return this.avatarPreviewUrl || this.state.profile.avatarUrl || "";
+    },
+    avatarText() {
+      const name = String(this.state.profile.hoTen || "KH").trim();
+      return name ? name.slice(0, 2).toUpperCase() : "KH";
+    },
+    filteredNotifications() {
+      return this.state.notifications.filter((item) => item.group === this.activeTab);
+    },
+    fallbackTitle() {
+      return this.menuItems.find((item) => item.section === this.section)?.label || "Tài khoản";
+    },
+  },
+
+  watch: {
+    "state.profile": {
+      handler(value) {
+        this.profileDraft = {
+          hoTen: value.hoTen || "",
+          soDienThoai: value.soDienThoai || "",
+          email: value.email || "",
+          diaChi: value.diaChi || "",
+          ngaySinh: value.ngaySinh || "",
+          gioiTinh: value.gioiTinh || "",
+        };
+      },
+      deep: true,
+    },
+    "state.profile.avatarUrl": {
+      handler(value) {
+        this.avatarLoadFailed = false;
+        if (!this.avatarFile) {
+          this.avatarPreviewUrl = value || "";
+        }
+      },
+      immediate: true,
+    },
+    section: {
+      immediate: true,
+      handler(nextSection) {
+        if (nextSection === "ma-giam-gia") {
+          this.loadDiscountCodes();
+        }
+
+        if (nextSection === "lich-su-don-hang" || nextSection === "thong-bao") {
+          this.customerStore.syncOrdersFromApi();
+        }
+
+        this.syncNotificationRouteState();
+      },
+    },
+    "state.cart": {
+      deep: true,
+      handler() {
+        if (this.section === "ma-giam-gia") {
+          this.loadDiscountCodes();
+        }
+      },
+    },
+    '$route.fullPath': {
+      handler() {
+        this.syncNotificationRouteState();
+      },
+    },
+    "addressDraft.tinhThanh"(nextValue) {
+      const validDistricts = Object.keys(LOCATION_OPTIONS[nextValue] || {});
+      if (!validDistricts.includes(this.addressDraft.quanHuyen)) {
+        this.addressDraft.quanHuyen = "";
+        this.addressDraft.phuongXa = "";
+      }
+    },
+    "addressDraft.quanHuyen"(nextValue) {
+      const validWards = LOCATION_OPTIONS[this.addressDraft.tinhThanh]?.[nextValue] || [];
+      if (!validWards.includes(this.addressDraft.phuongXa)) {
+        this.addressDraft.phuongXa = "";
+      }
+    },
+  },
+
+  mounted() {
+    this.customerStore.refreshProfileFromApi();
+    this.customerStore.syncOrdersFromApi();
+    this.syncNotificationRouteState();
+  },
+
+  beforeUnmount() {
+    if (this.avatarObjectUrl) {
+      URL.revokeObjectURL(this.avatarObjectUrl);
+    }
+  },
+
+  methods: {
+    formatCurrency(value) {
+      return new Intl.NumberFormat("vi-VN", {
+        style: "currency",
+        currency: "VND",
+        maximumFractionDigits: 0,
+      }).format(Number(value || 0));
+    },
+    promotionValueLabel(item) {
+      if (item.loai_ap_dung === "phan_tram") {
+        return `${Number(item.gia_tri || 0)}%`;
+      }
+      return this.formatCurrency(item.gia_tri);
+    },
+    formatFullAddress(address) {
+      return [address.soNha, address.phuongXa, address.quanHuyen, address.tinhThanh].filter(Boolean).join(", ");
+    },
+    extractErrorMessage(error, fallbackMessage) {
+      const fieldErrors = error?.payload?.errors || error?.response?.data?.errors;
+
+      if (fieldErrors && typeof fieldErrors === "object") {
+        const firstField = Object.keys(fieldErrors)[0];
+        const firstMessage = Array.isArray(fieldErrors[firstField]) ? fieldErrors[firstField][0] : fieldErrors[firstField];
+        if (firstMessage) return firstMessage;
+      }
+
+      return error?.payload?.message || error?.response?.data?.message || error?.message || fallbackMessage;
+    },
+    async loadDiscountCodes() {
+      this.discountCodesLoading = true;
+      try {
+        const response = await getCustomerOrderDiscountCodes(Number(this.customerStore.payableSubtotal?.value || 0));
+        this.discountCodes = Array.isArray(response?.data) ? response.data : [];
+      } catch (error) {
+        this.discountCodes = [];
+        showToast(this.extractErrorMessage(error, "Không thể tải danh sách mã giảm giá."), "error");
+      } finally {
+        this.discountCodesLoading = false;
+      }
+    },
+    handleAvatarChange(event) {
+      const file = event.target.files?.[0] || null;
+
+      if (this.avatarObjectUrl) {
+        URL.revokeObjectURL(this.avatarObjectUrl);
+        this.avatarObjectUrl = "";
+      }
+
+      this.avatarFile = file;
+      this.avatarLoadFailed = false;
+
+      if (!file) {
+        this.avatarPreviewUrl = this.state.profile.avatarUrl || "";
+        return;
+      }
+
+      this.avatarObjectUrl = URL.createObjectURL(file);
+      this.avatarPreviewUrl = this.avatarObjectUrl;
+    },
+    handleAvatarError() {
+      this.avatarLoadFailed = true;
+    },
+    async saveProfile() {
+      try {
+        const payload = new FormData();
+        const authType = getAuthType();
+
+        if (authType === "customer") {
+          payload.append("ten_khach_hang", this.profileDraft.hoTen || "");
+        } else {
+          payload.append("ho_ten", this.profileDraft.hoTen || "");
+        }
+
+        payload.append("so_dien_thoai", this.profileDraft.soDienThoai || "");
+        payload.append("email", this.profileDraft.email || "");
+        payload.append("dia_chi", this.profileDraft.diaChi || "");
+        payload.append("ngay_sinh", this.profileDraft.ngaySinh || "");
+        payload.append("gioi_tinh", this.profileDraft.gioiTinh || "");
+
+        if (this.avatarFile) {
+          payload.append("avatar", this.avatarFile);
+        }
+
+        await this.customerStore.updateProfile(payload);
+
+        if (this.avatarObjectUrl) {
+          URL.revokeObjectURL(this.avatarObjectUrl);
+          this.avatarObjectUrl = "";
+        }
+
+        this.avatarFile = null;
+        this.avatarLoadFailed = false;
+        this.avatarPreviewUrl = this.state.profile.avatarUrl || "";
+        showToast("Đã cập nhật thông tin cá nhân.");
+      } catch (error) {
+        showToast(this.extractErrorMessage(error, "Không thể cập nhật thông tin cá nhân."), "error");
+      }
+    },
+    openAddAddressModal() {
+      this.addressDraft = normalizeAddressDraft(createEmptyAddressDraft(this.state.profile));
+      this.showAddressModal = true;
+    },
+    openEditAddressModal(address) {
+      this.addressDraft = normalizeAddressDraft({ ...address });
+      this.showAddressModal = true;
+    },
+    closeAddressModal() {
+      this.showAddressModal = false;
+      this.addressDraft = normalizeAddressDraft(createEmptyAddressDraft(this.state.profile));
+    },
+    toggleOrderDetails(orderId) {
+      this.expandedOrderId = this.expandedOrderId === orderId ? null : orderId;
+    },
+    removeOrderItem(orderId) {
+      if (this.expandedOrderId === orderId) {
+        this.expandedOrderId = null;
+      }
+
+      this.customerStore.removeOrder(orderId);
+      showToast("Đã xóa đơn hàng khỏi lịch sử.");
+    },
+    syncNotificationRouteState() {
+      const noticeId = String(this.$route.query.notice || "").trim();
+      const queryTab = String(this.$route.query.tab || "").trim();
+
+      if (this.section === "thong-bao") {
+        if (queryTab && this.notificationTabs.includes(queryTab)) {
+          this.activeTab = queryTab;
+        }
+
+        if (noticeId) {
+          this.customerStore.markNotificationRead(noticeId);
+        } else {
+          this.customerStore.markAllNotificationsRead();
+        }
+
+        return;
+      }
+
+      if (this.section === "lich-su-don-hang" || this.section === "ma-giam-gia") {
+        if (noticeId) {
+          this.customerStore.markNotificationRead(noticeId);
+        }
+      }
+    },
+    markAllNotificationsAsRead() {
+      this.customerStore.markAllNotificationsRead();
+      showToast("Đã đánh dấu tất cả thông báo là đã đọc.");
+    },
+    submitAddress() {
+      const normalizedDraft = normalizeAddressDraft({ ...this.addressDraft });
+
+      if (!normalizedDraft.tinhThanh || !normalizedDraft.quanHuyen || !normalizedDraft.phuongXa) {
+        showToast("Vui lòng chọn đúng Tỉnh/Thành phố, Quận/Huyện và Phường/Xã.", "error");
+        return;
+      }
+
+      this.customerStore.saveAddress(normalizedDraft);
+      this.showAddressModal = false;
+      this.addressDraft = normalizeAddressDraft(createEmptyAddressDraft(this.state.profile));
+      showToast("Đã lưu địa chỉ nhận hàng.");
+    },
+  },
+};
+</script>
+
+<style scoped>
+.pc-account-profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.pc-account-profile__content {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.pc-account-profile__content h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pc-account-profile__subtext {
+  margin: 4px 0 0;
+  color: #6a7894;
+  font-size: 0.84rem;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pc-account-form__avatar-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin: 8px 0 28px;
+}
+
+.pc-account-profile__avatar,
+.pc-account-form__avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: #eaf2ff;
+  color: #1652c5;
+  border: 1px solid rgba(22, 82, 197, 0.12);
+  border-radius: 50%;
+  box-shadow: 0 10px 24px rgba(18, 43, 82, 0.08);
+}
+
+.pc-account-profile__avatar {
+  width: 72px;
+  height: 72px;
+  flex-shrink: 0;
+  font-size: 1.2rem;
+  font-weight: 800;
+}
+
+.pc-account-form__avatar {
+  width: 112px;
+  height: 112px;
+  flex-shrink: 0;
+  font-size: 1.8rem;
+  font-weight: 800;
+}
+
+.pc-account-profile__avatar img,
+.pc-account-form__avatar img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.pc-address-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pc-discount-list {
+  display: grid;
+  gap: 16px;
+}
+
+.pc-discount-card {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 18px;
+  padding: 20px 22px;
+  border: 1px solid rgba(22, 82, 197, 0.12);
+  border-radius: 22px;
+  background: #fff;
+}
+
+.pc-discount-card.is-disabled {
+  opacity: 0.62;
+  background: #f5f7fb;
+}
+
+.pc-discount-card__code {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 76px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #1757d8, #2bc0f2);
+  color: #fff;
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.pc-discount-card__content h3 {
+  margin: 0 0 8px;
+  color: #122b52;
+  font-size: 1.08rem;
+  font-weight: 800;
+}
+
+.pc-discount-card__content p {
+  margin: 0 0 12px;
+  color: #6a7894;
+}
+
+.pc-discount-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.pc-discount-card__meta span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: #eef5ff;
+  color: #1757d8;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.pc-discount-card__notice {
+  display: inline-block;
+  margin-top: 12px;
+  color: #8f96a3;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.pc-address-form__row {
+  align-items: start;
+}
+
+.pc-address-form__row > .pc-form-field + .pc-form-field {
+  margin-top: 0;
+}
+
+@media (max-width: 767.98px) {
+  .pc-account-profile {
+    align-items: flex-start;
+  }
+
+  .pc-account-profile__content h3,
+  .pc-account-profile__subtext {
+    white-space: normal;
+    word-break: break-word;
+  }
+
+  .pc-discount-card {
+    grid-template-columns: 1fr;
+  }
+
+  .pc-address-card__actions {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+.pc-history-card {
+  display: block;
+  width: 100%;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+  }
+
+.pc-history-card:hover {
+  border-color: rgba(22, 82, 197, 0.18);
+  box-shadow: 0 12px 28px rgba(18, 43, 82, 0.08);
+  transform: translateY(-1px);
+}
+
+.pc-history-card.is-open {
+  border-color: rgba(22, 82, 197, 0.22);
+  box-shadow: 0 16px 32px rgba(18, 43, 82, 0.1);
+}
+
+.pc-history-card__head {
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(180px, 240px) minmax(180px, 1fr) minmax(220px, auto);
+    align-items: center;
+    gap: 18px;
+  }
+
+.pc-history-card__code {
+  display: block;
+  color: #122b52;
+  font-size: 1.05rem;
+}
+
+.pc-history-card__meta p {
+  margin: 0;
+}
+
+.pc-history-card__summary {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.pc-history-card__toggle {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #1652c5;
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pc-history-card__toggle:hover {
+  color: #0f45ac;
+  text-decoration: underline;
+}
+
+.pc-history-card__delete {
+  min-height: 34px;
+  padding: 0 14px;
+  border: 1px solid rgba(220, 53, 69, 0.18);
+  border-radius: 999px;
+  background: #fff5f6;
+  color: #dc3545;
+  font-size: 0.86rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pc-history-card__delete:hover {
+  background: #ffe9ec;
+}
+
+.pc-history-card__details {
+    width: 100%;
+    display: grid;
+    gap: 12px;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(22, 82, 197, 0.08);
+  }
+  
+  .pc-history-product {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 58px minmax(0, 1fr) auto;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 14px 0;
+  }
+
+.pc-history-product__thumb {
+  width: 58px;
+  height: 58px;
+  flex-shrink: 0;
+  border-radius: 18px;
+  border: 1px solid rgba(22, 82, 197, 0.1);
+  background: linear-gradient(145deg, #ffeaf3, #f3e8ff);
+}
+
+.pc-history-product__thumb.tone-blue {
+  background: linear-gradient(145deg, #dff3ff, #eef5ff);
+}
+
+.pc-history-product__thumb.tone-green {
+  background: linear-gradient(145deg, #e7ffe7, #eefdf2);
+}
+
+.pc-history-product__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.pc-history-product__content strong {
+  display: block;
+  margin-bottom: 6px;
+  color: #122b52;
+  font-size: 1rem;
+}
+
+.pc-history-product__content p {
+  margin: 0;
+  color: #6a7894;
+  font-size: 0.93rem;
+  line-height: 1.55;
+}
+
+  .pc-history-product__meta {
+    min-width: 120px;
+    text-align: right;
+    display: grid;
+    gap: 6px;
+    color: #122b52;
+  }
+
+.pc-history-product__meta span {
+  color: #6a7894;
+  font-weight: 700;
+}
+
+.pc-history-card__empty {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 56px;
+  padding: 14px 16px;
+  border: 1px dashed rgba(22, 82, 197, 0.18);
+  border-radius: 16px;
+  background: #f8fbff;
+  color: #6a7894;
+}
+
+.pc-history-card__empty i {
+  color: #7aa7ea;
+  font-size: 1.15rem;
+}
+
+@media (max-width: 767.98px) {
+  .pc-account-form__avatar {
+    width: 96px;
+    height: 96px;
+  }
+
+  .pc-history-card__head {
+    grid-template-columns: 1fr;
+    align-items: flex-start;
+  }
+  
+    .pc-history-product {
+      grid-template-columns: 1fr;
+    }
+  
+    .pc-history-product__meta {
+      min-width: auto;
+      text-align: left;
+  }
+
+  .pc-history-card__summary {
+    justify-content: flex-start;
+  }
+}
+</style>
+

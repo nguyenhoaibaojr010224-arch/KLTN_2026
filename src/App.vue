@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <component :is="layout">
     <router-view :key="$route.fullPath"></router-view>
   </component>
@@ -6,10 +6,10 @@
   <transition name="pc-toast">
     <div v-if="toastState.visible" class="pc-toast" :class="`pc-toast--${toastState.type}`" role="status" aria-live="polite">
       <div class="pc-toast__icon">
-        <i class="bi bi-check-circle-fill"></i>
+        <i :class="toastIcon"></i>
       </div>
       <div class="pc-toast__body">
-        <strong>Thành công</strong>
+        <strong>{{ toastTitle }}</strong>
         <span>{{ toastState.message }}</span>
       </div>
       <button class="pc-toast__close" type="button" @click="hideToast" aria-label="Đóng thông báo">
@@ -34,6 +34,14 @@ export default {
   computed: {
     layout() {
       return (this.$route.meta.layout || default_layout) + "-layout";
+    },
+    toastTitle() {
+      return this.toastState.type === "error" ? "\u004c\u1ed7i" : "Th\u00e0nh c\u00f4ng";
+    },
+    toastIcon() {
+      return this.toastState.type === "error"
+        ? "bi bi-exclamation-circle-fill"
+        : "bi bi-check-circle-fill";
     },
   },
 };
@@ -127,6 +135,10 @@ export default {
     background: linear-gradient(135deg, #0f9f6f, #12b981);
   }
 
+  .pc-toast--error {
+    background: linear-gradient(135deg, #dc2626, #ef4444);
+  }
+
   .pc-toast__icon {
     width: 38px;
     height: 38px;
@@ -206,14 +218,44 @@ export default {
     font-weight: 500;
   }
 
-  .master-topstrip__badge {
-    padding: 8px 12px;
-    border-radius: var(--pc-radius-pill);
-    background: rgba(255, 255, 255, 0.14);
-    font-size: 0.75rem;
+  .master-topstrip__brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    color: #fff;
+    text-decoration: none;
+  }
+
+  .master-topstrip__logo-mark {
+    width: 48px;
+    height: 48px;
+    display: grid;
+    place-items: center;
+    border-radius: 16px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.08));
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    font-size: 1.35rem;
+    box-shadow: 0 12px 24px rgba(8, 26, 73, 0.22);
+  }
+
+  .master-topstrip__logo-text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.05;
+  }
+
+  .master-topstrip__logo-text small {
+    font-size: 0.74rem;
     font-weight: 700;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    opacity: 0.78;
+  }
+
+  .master-topstrip__logo-text strong {
+    margin-top: 4px;
+    font-size: 1.45rem;
+    font-weight: 800;
+    color: #9be14a;
   }
 
   .master-body {
@@ -277,6 +319,52 @@ export default {
     border: 0;
     background: transparent;
     box-shadow: none;
+  }
+
+  .master-header__actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .master-header__user-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 10px 8px 8px;
+    border: 1px solid rgba(22, 82, 197, 0.1);
+    border-radius: 18px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(246, 249, 255, 0.96));
+    box-shadow: 0 12px 28px rgba(15, 31, 79, 0.08);
+  }
+
+  .master-header__user-meta {
+    display: flex;
+    flex-direction: column;
+    min-width: 132px;
+    line-height: 1.2;
+  }
+
+  .master-header__user-name {
+    font-size: 0.98rem;
+    font-weight: 800;
+    color: var(--pc-text);
+  }
+
+  .master-header__user-role {
+    margin-top: 2px;
+    font-size: 0.82rem;
+    color: var(--pc-text-muted);
+  }
+
+  .master-header__logout-btn {
+    min-height: 42px;
+    padding-inline: 16px;
+    border-radius: 14px;
+    white-space: nowrap;
+    font-weight: 600;
   }
 
   .master-content {
@@ -1288,8 +1376,10 @@ export default {
   }
 
   .pc-container {
-    width: min(1240px, calc(100vw - 32px));
+    width: min(1200px, calc(100vw - 40px));
     margin: 0 auto;
+    padding-left: 0;
+    padding-right: 0;
   }
 
 .pc-logo--footer .pc-logo__name {
@@ -1364,7 +1454,7 @@ export default {
   }
 
   .pc-page {
-    padding: 28px 0 56px;
+    padding: 24px 0 56px;
   }
 
   .pc-page__title {
@@ -1382,8 +1472,13 @@ export default {
     padding-bottom: 60px;
   }
 
+  .pc-homepage .pc-container,
+  .pc-page .pc-container {
+    max-width: 1200px;
+  }
+
   .pc-hero {
-    padding: 0 0 34px;
+    padding: 0 0 28px;
     background: linear-gradient(180deg, #dff0ff 0%, #f5f7fb 72%);
   }
 
@@ -1459,9 +1554,10 @@ export default {
     position: relative;
     z-index: 1;
     display: grid;
-    grid-template-columns: minmax(0, 1.1fr) minmax(320px, 440px);
+    grid-template-columns: minmax(0, 1fr) 430px;
     gap: 28px;
     align-items: center;
+    min-height: 390px;
   }
 
   .pc-hero__dots {
@@ -1522,17 +1618,23 @@ export default {
   .pc-hero__visual {
     display: grid;
     gap: 18px;
+    width: 430px;
     justify-items: end;
+    justify-self: end;
+    align-content: end;
+    min-height: 390px;
   }
 
   .pc-phone-card {
-    width: 280px;
+    width: 300px;
+    height: 390px;
     padding: 12px;
     border: 4px solid #164fbc;
     border-radius: 34px;
     background: linear-gradient(180deg, #123b90, #1652c5 50%, #3aa0ff);
     box-shadow: 0 30px 50px rgba(18, 64, 160, 0.24);
     transform: rotate(-8deg);
+    transform-origin: center center;
     transition: transform 0.5s ease, box-shadow 0.5s ease, background 0.5s ease;
   }
 
@@ -1557,7 +1659,8 @@ export default {
   }
 
   .pc-phone-card__screen {
-    min-height: 320px;
+    min-height: 100%;
+    height: 100%;
     padding: 24px 18px;
     border-radius: 24px;
     background:
@@ -1594,18 +1697,31 @@ export default {
   }
 
   .pc-ticket-stack {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-end;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
+    width: 100%;
+    max-width: 420px;
+    align-items: stretch;
   }
 
   .pc-ticket {
+    width: 100%;
+    min-width: 0;
+    min-height: 48px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     padding: 14px 18px;
     border-radius: 18px;
     color: #fff;
     font-weight: 800;
     box-shadow: 0 14px 24px rgba(15, 31, 79, 0.14);
+    text-align: center;
+  }
+
+  .pc-ticket-stack .pc-ticket:last-child {
+    grid-column: 2;
   }
 
   .pc-ticket--green {
@@ -2007,23 +2123,94 @@ export default {
   }
 
   .pc-catalog-toolbar {
-    display: flex;
-    justify-content: space-between;
-    gap: 16px;
-    align-items: center;
-    margin-bottom: 18px;
-  }
+  margin-bottom: 18px;
+}
 
-  .pc-catalog-toolbar h2 {
-    margin: 0 0 4px;
-    font-size: 1.2rem;
-  }
+.pc-catalog-toolbar__intro {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 18px 20px;
+  border: 1px solid rgba(22, 82, 197, 0.1);
+  border-radius: 22px;
+  background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+}
 
-  .pc-catalog-toolbar p {
-    margin: 0;
-    color: #698099;
-    font-size: 0.88rem;
-  }
+.pc-catalog-toolbar__badge {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(22, 82, 197, 0.08);
+  color: #1652c5;
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.pc-catalog-toolbar h2 {
+  margin: 0;
+  font-size: 1.28rem;
+}
+
+.pc-catalog-toolbar p {
+  margin: 0;
+  color: #698099;
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+.pc-catalog-symptoms {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding: 18px 20px;
+  border: 1px solid rgba(22, 82, 197, 0.08);
+  border-radius: 22px;
+  background: #ffffff;
+  box-shadow: 0 10px 30px rgba(22, 82, 197, 0.05);
+}
+
+.pc-catalog-symptoms__head {
+  min-width: 220px;
+  max-width: 320px;
+}
+
+.pc-catalog-symptoms__head h3 {
+  margin: 0 0 6px;
+  font-size: 1rem;
+  color: #19345f;
+}
+
+.pc-catalog-symptoms__head p {
+  margin: 0;
+  color: #698099;
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.pc-catalog-symptoms__chips {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 10px;
+}
+
+.pc-catalog-symptoms__chips span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: #eef5ff;
+  color: #1652c5;
+  font-size: 0.86rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
 
   .pc-catalog-page .pc-product-grid {
     grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -3043,11 +3230,25 @@ export default {
     color: #576b85;
   }
 
-@media (max-width: 1199.98px) {
+  @media (max-width: 1199.98px) {
   .pc-services .pc-container,
   .pc-product-grid,
   .pc-category-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  @media (max-width: 991.98px) {
+    .master-header__actions {
+      justify-content: stretch;
+    }
+
+    .master-header__user-card {
+      width: 100%;
+    }
+
+    .master-header__user-card {
+      justify-content: space-between;
+    }
   }
 
   .pc-hero__content,
@@ -3135,4 +3336,5 @@ export default {
   }
 
 </style>
+
 

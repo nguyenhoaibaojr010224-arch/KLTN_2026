@@ -1,4 +1,4 @@
-import { getAccessToken } from "./authStorage";
+import { clearAuthSession, getAccessToken } from "./authStorage";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000/api";
 
@@ -10,6 +10,14 @@ async function parseResponse(response) {
   if (!response.ok) {
     const message =
       (isJson && (payload.message || payload.error)) || "Yeu cau that bai. Vui long thu lai.";
+
+    if (response.status === 401) {
+      clearAuthSession();
+
+      if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
+        window.location.href = "/login";
+      }
+    }
 
     throw {
       status: response.status,
