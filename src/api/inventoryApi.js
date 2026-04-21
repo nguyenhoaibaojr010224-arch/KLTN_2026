@@ -11,13 +11,13 @@ export function searchThuocs(keyword) {
 }
 
 export function getLoThuocs() {
-  return apiClient("/admin/lo-thuocs");
+  return apiClient("/lo-thuocs");
 }
 
 export function searchLoThuocs(keyword) {
   const query = new URLSearchParams({ q: keyword });
 
-  return apiClient(`/admin/lo-thuocs/search?${query.toString()}`);
+  return apiClient(`/lo-thuocs/search?${query.toString()}`);
 }
 
 export function createLoThuoc(payload) {

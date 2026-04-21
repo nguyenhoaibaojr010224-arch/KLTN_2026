@@ -151,10 +151,21 @@
                   <strong class="pc-history-card__code">{{ order.id }}</strong>
                   <div class="pc-history-card__meta">
                     <p>{{ order.ngay }} • {{ order.sanPham }} sản phẩm</p>
+                    <small v-if="order.phuongThucThanhToanLabel">{{ order.phuongThucThanhToanLabel }}</small>
                   </div>
                   <div class="pc-history-card__summary">
                     <div class="pc-history-card__status">{{ order.trangThai }}</div>
-                    <strong>{{ formatCurrency(order.tongTien) }}</strong>
+                    <div class="pc-history-card__total">
+                      <span>Tổng thanh toán</span>
+                      <strong>{{ formatCurrency(order.tongTien) }}</strong>
+                    </div>
+                    <button
+                      type="button"
+                      class="pc-history-card__reorder"
+                      @click.stop="reorderOrder(order)"
+                    >
+                      Mua lại
+                    </button>
                     <button
                       type="button"
                       class="pc-history-card__toggle"
@@ -173,16 +184,87 @@
                 </div>
 
                 <div v-if="expandedOrderId === order.id" class="pc-history-card__details">
+                  <div class="pc-history-card__overview">
+                    <section class="pc-history-info">
+                      <span class="pc-history-info__label">Người nhận</span>
+                      <strong>{{ order.nguoiNhan || state.profile.hoTen }}</strong>
+                      <p v-if="order.soDienThoaiNhan">{{ order.soDienThoaiNhan }}</p>
+                      <p v-if="order.diaChiGiaoHang">{{ order.diaChiGiaoHang }}</p>
+                    </section>
+
+                    <section class="pc-history-info">
+                      <span class="pc-history-info__label">Thanh toán</span>
+                      <strong>{{ order.phuongThucThanhToanLabel || "Tiền mặt" }}</strong>
+                      <p v-if="order.thoiGianThanhToan">Ghi nhận: {{ formatDateTime(order.thoiGianThanhToan) }}</p>
+                      <p v-if="order.maGiaoDich">Mã giao dịch: {{ order.maGiaoDich }}</p>
+                    </section>
+
+                    <section class="pc-history-info pc-history-info--totals">
+                      <span class="pc-history-info__label">Chi tiết tiền</span>
+                      <div class="pc-history-info__row">
+                        <span>Tạm tính</span>
+                        <strong>{{ formatCurrency(order.tamTinh) }}</strong>
+                      </div>
+                      <div class="pc-history-info__row">
+                        <span>Giảm giá</span>
+                        <strong>{{ order.giamGia > 0 ? `-${formatCurrency(order.giamGia)}` : formatCurrency(0) }}</strong>
+                      </div>
+                      <div class="pc-history-info__row">
+                        <span>VAT</span>
+                        <strong>{{ formatCurrency(order.thueVat) }}</strong>
+                      </div>
+                      <div class="pc-history-info__row pc-history-info__row--total">
+                        <span>Tổng thanh toán</span>
+                        <strong>{{ formatCurrency(order.tongTien) }}</strong>
+                      </div>
+                    </section>
+                  </div>
+
+                  <div v-if="order.ghiChu || order.ghiChuHeThong" class="pc-history-card__notes">
+                    <div v-if="order.ghiChu" class="pc-history-note">
+                      <span class="pc-history-info__label">Ghi chú đơn hàng</span>
+                      <p>{{ order.ghiChu }}</p>
+                    </div>
+                    <div v-if="order.ghiChuHeThong" class="pc-history-note">
+                      <span class="pc-history-info__label">Lưu ý hệ thống</span>
+                      <p>{{ order.ghiChuHeThong }}</p>
+                    </div>
+                  </div>
+
+                  <div v-if="order.timeline && order.timeline.length" class="pc-history-timeline">
+                    <div
+                      v-for="event in order.timeline"
+                      :key="`${order.id}-${event.id}`"
+                      class="pc-history-timeline__item"
+                    >
+                      <span class="pc-history-timeline__dot"></span>
+                      <div class="pc-history-timeline__content">
+                        <strong>{{ event.label }}</strong>
+                        <p>{{ formatDateTime(event.thoiGian) }}</p>
+                        <small v-if="event.moTa">{{ event.moTa }}</small>
+                      </div>
+                    </div>
+                  </div>
+
                   <article v-for="item in order.items || []" :key="`${order.id}-${item.id}`" class="pc-history-product">
-                    <div class="pc-history-product__thumb" :class="`tone-${item.imageTone || 'pink'}`"></div>
+                    <div class="pc-history-product__thumb" :class="`tone-${item.imageTone || 'pink'}`">
+                      <img
+                        v-if="item.hinhAnhUrl"
+                        :src="item.hinhAnhUrl"
+                        :alt="item.ten"
+                        style="width: 100%; height: 100%; object-fit: cover; display: block; border-radius: inherit"
+                      />
+                    </div>
                     <div class="pc-history-product__content">
                       <strong>{{ item.ten }}</strong>
                       <p v-if="item.loai">Loại: {{ item.loai }}</p>
+                      <p v-if="item.donVi">Phân loại: {{ item.donVi }}</p>
                       <p v-if="item.moTa">{{ item.moTa }}</p>
                     </div>
                     <div class="pc-history-product__meta">
-                      <span>x{{ item.soLuong }}</span>
-                      <strong>{{ formatCurrency(item.gia) }}</strong>
+                      <span>{{ item.soLuong }} x {{ formatCurrency(item.gia) }}</span>
+                      <small>Thành tiền</small>
+                      <strong>{{ formatCurrency(item.thanhTien || item.gia * item.soLuong) }}</strong>
                     </div>
                   </article>
 
@@ -579,6 +661,24 @@ export default {
         maximumFractionDigits: 0,
       }).format(Number(value || 0));
     },
+    formatDateTime(value) {
+      if (!value) {
+        return "Đang cập nhật";
+      }
+
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) {
+        return "Đang cập nhật";
+      }
+
+      return new Intl.DateTimeFormat("vi-VN", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(date);
+    },
     promotionValueLabel(item) {
       if (item.loai_ap_dung === "phan_tram") {
         return `${Number(item.gia_tri || 0)}%`;
@@ -691,6 +791,26 @@ export default {
 
       this.customerStore.removeOrder(orderId);
       showToast("Đã xóa đơn hàng khỏi lịch sử.");
+    },
+    async reorderOrder(order) {
+      try {
+        const result = await this.customerStore.reorderOrder(order);
+
+        if (!result.added) {
+          showToast("Không thể mua lại vì các sản phẩm trong đơn hiện không còn khả dụng.", "error");
+          return;
+        }
+
+        if (result.skipped.length) {
+          showToast(`Đã thêm ${result.added} sản phẩm vào giỏ. ${result.skipped.length} sản phẩm hiện không còn hàng.`, "warning");
+        } else {
+          showToast(`Đã thêm ${result.added} sản phẩm vào giỏ hàng.`);
+        }
+
+        this.$router.push("/gio-hang");
+      } catch (error) {
+        showToast(this.extractErrorMessage(error, "Không thể mua lại đơn hàng này."), "error");
+      }
     },
     syncNotificationRouteState() {
       const noticeId = String(this.$route.query.notice || "").trim();
@@ -956,12 +1076,53 @@ export default {
   margin: 0;
 }
 
+.pc-history-card__meta small {
+  display: block;
+  margin-top: 4px;
+  color: #6a7894;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
 .pc-history-card__summary {
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 14px;
   flex-wrap: wrap;
+}
+
+.pc-history-card__total {
+  display: grid;
+  gap: 2px;
+  text-align: right;
+}
+
+.pc-history-card__total span {
+  color: #6a7894;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.pc-history-card__total strong {
+  color: #122b52;
+  font-size: 1.02rem;
+}
+
+.pc-history-card__reorder {
+  min-height: 36px;
+  padding: 0 16px;
+  border: 1px solid rgba(22, 82, 197, 0.18);
+  border-radius: 999px;
+  background: #eef5ff;
+  color: #1652c5;
+  font-size: 0.88rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.pc-history-card__reorder:hover {
+  background: #dfeaff;
 }
 
 .pc-history-card__toggle {
@@ -1003,6 +1164,102 @@ export default {
     padding-top: 16px;
     border-top: 1px solid rgba(22, 82, 197, 0.08);
   }
+
+.pc-history-card__overview {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.pc-history-info,
+.pc-history-note {
+  padding: 16px 18px;
+  border: 1px solid rgba(22, 82, 197, 0.08);
+  border-radius: 18px;
+  background: #f8fbff;
+}
+
+.pc-history-info__label {
+  display: block;
+  margin-bottom: 8px;
+  color: #6a7894;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.pc-history-info strong,
+.pc-history-timeline__content strong {
+  color: #122b52;
+}
+
+.pc-history-info p,
+.pc-history-note p {
+  margin: 6px 0 0;
+  color: #6a7894;
+  line-height: 1.55;
+}
+
+.pc-history-info--totals {
+  display: grid;
+  gap: 8px;
+}
+
+.pc-history-info__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #6a7894;
+  font-size: 0.93rem;
+}
+
+.pc-history-info__row strong {
+  font-size: 0.95rem;
+}
+
+.pc-history-info__row--total {
+  padding-top: 8px;
+  margin-top: 4px;
+  border-top: 1px dashed rgba(22, 82, 197, 0.16);
+  color: #122b52;
+  font-weight: 800;
+}
+
+.pc-history-card__notes {
+  display: grid;
+  gap: 12px;
+}
+
+.pc-history-timeline {
+  display: grid;
+  gap: 10px;
+}
+
+.pc-history-timeline__item {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.pc-history-timeline__dot {
+  width: 10px;
+  height: 10px;
+  margin-top: 7px;
+  border-radius: 50%;
+  background: #1652c5;
+  box-shadow: 0 0 0 4px rgba(22, 82, 197, 0.12);
+}
+
+.pc-history-timeline__content p,
+.pc-history-timeline__content small {
+  display: block;
+  margin: 4px 0 0;
+  color: #6a7894;
+  line-height: 1.45;
+}
   
   .pc-history-product {
     width: 100%;
@@ -1020,6 +1277,7 @@ export default {
   border-radius: 18px;
   border: 1px solid rgba(22, 82, 197, 0.1);
   background: linear-gradient(145deg, #ffeaf3, #f3e8ff);
+  overflow: hidden;
 }
 
 .pc-history-product__thumb.tone-blue {
@@ -1047,6 +1305,9 @@ export default {
   color: #6a7894;
   font-size: 0.93rem;
   line-height: 1.55;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
   .pc-history-product__meta {
@@ -1059,6 +1320,12 @@ export default {
 
 .pc-history-product__meta span {
   color: #6a7894;
+  font-weight: 700;
+}
+
+.pc-history-product__meta small {
+  color: #8a96ad;
+  font-size: 0.8rem;
   font-weight: 700;
 }
 
@@ -1088,6 +1355,10 @@ export default {
   .pc-history-card__head {
     grid-template-columns: 1fr;
     align-items: flex-start;
+  }
+
+  .pc-history-card__overview {
+    grid-template-columns: 1fr;
   }
   
     .pc-history-product {

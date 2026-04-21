@@ -17,9 +17,3 @@ export function getHoaDonStatistics() {
 export function getPendingHoaDonNotifications() {
   return apiClient("/hoa-dons/pending-notifications");
 }
-
-export function confirmHoaDon(id) {
-  return apiClient(`/hoa-dons/${id}/confirm`, {
-    method: "POST",
-  });
-}

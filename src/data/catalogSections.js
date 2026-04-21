@@ -1,394 +1,720 @@
-export const catalogSections = [
+const THUOC_KHONG_KE_DON_CHILDREN = [
   {
-    id: "thuoc",
-    label: "Thuốc",
-    description: "Danh mục thuốc và thực phẩm chức năng đang có trên hệ thống.",
-    cards: [
-      {
-        slug: "khong-ke-don",
-        label: "Thuốc không kê đơn",
-        description: "Các sản phẩm hỗ trợ triệu chứng thông thường, có thể mua nhanh tại nhà thuốc.",
-        symptoms: ["Cảm sốt nhẹ", "Đau đầu", "Đau họng", "Đầy bụng"],
-        icon: "bi bi-capsule-pill",
-        tone: "tone-blue",
-        keywords: ["không kê đơn", "khong ke don", "otc", "cảm", "cam", "sốt", "sot", "đau đầu", "dau dau"],
-      },
-      {
-        slug: "ke-don",
-        label: "Thuốc kê đơn",
-        description: "Nhóm thuốc cần chỉ định điều trị và theo dõi đúng liệu trình.",
-        symptoms: ["Nhiễm khuẩn", "Viêm", "Điều trị chuyên khoa"],
-        icon: "bi bi-journal-medical",
-        tone: "tone-green",
-        keywords: ["kê đơn", "ke don", "kháng sinh", "khang sinh", "điều trị", "dieu tri"],
-      },
-      {
-        slug: "thuoc-khac",
-        label: "Thuốc khác",
-        description: "Các dòng thuốc hỗ trợ điều trị và chăm sóc sức khỏe không nằm trong nhóm chính.",
-        symptoms: ["Điều trị hỗ trợ", "Chăm sóc toàn diện"],
-        icon: "bi bi-capsule",
-        tone: "tone-purple",
-        keywords: ["thuốc", "thuoc", "điều trị", "dieu tri"],
-      },
-      {
-        slug: "vitamin-thuc-pham-chuc-nang",
-        label: "Vitamin và thực phẩm chức năng",
-        description: "Nhóm bổ sung dinh dưỡng, tăng đề kháng và hỗ trợ thể trạng.",
-        symptoms: ["Mệt mỏi", "Thiếu vi chất", "Cần tăng đề kháng"],
-        icon: "bi bi-stars",
-        tone: "tone-yellow",
-        keywords: ["vitamin", "thực phẩm chức năng", "thuc pham chuc nang", "bổ sung", "bo sung"],
-      },
-      {
-        slug: "tat-ca",
-        label: "Xem tất cả",
-        description: "Xem toàn bộ sản phẩm thuộc nhóm thuốc đang có trên hệ thống.",
-        symptoms: [],
-        icon: "bi bi-arrow-right",
-        tone: "tone-soft",
-        keywords: [],
-      },
-    ],
+    slug: "khong-ke-don-ngua-thai",
+    label: "Ngừa thai",
+    icon: "bi bi-gender-female",
+    tone: "tone-blue",
+    description: "Thuốc không kê đơn hỗ trợ nhu cầu ngừa thai và chăm sóc sinh sản thường gặp.",
+    keywords: ["ngua thai", "ngừa thai", "tranh thai", "tránh thai", "sinh san", "sinh sản"],
   },
   {
-    id: "tra-cuu-benh",
-    label: "Tra cứu bệnh",
-    description: "Gợi ý sản phẩm theo nhóm triệu chứng và nhu cầu chăm sóc sức khỏe.",
-    cards: [
-      {
-        slug: "tai-mui-hong",
-        label: "Tai - Mũi - Họng",
-        description: "Các sản phẩm hỗ trợ đau họng, nghẹt mũi, viêm mũi và khó chịu vùng họng.",
-        symptoms: ["Ho", "Đau họng", "Sổ mũi", "Nghẹt mũi"],
-        icon: "bi bi-earbuds",
-        tone: "tone-blue",
-        keywords: ["tai", "mũi", "mui", "họng", "hong", "ho", "đau họng", "dau hong"],
-      },
-      {
-        slug: "ho-hap",
-        label: "Hô hấp",
-        description: "Nhóm sản phẩm hỗ trợ hô hấp, giảm khó thở, hỗ trợ viêm đường thở.",
-        symptoms: ["Khó thở", "Ho kéo dài", "Viêm đường hô hấp"],
-        icon: "bi bi-lungs",
-        tone: "tone-green",
-        keywords: ["hô hấp", "ho hap", "khó thở", "kho tho", "viêm họng", "viem hong"],
-      },
-      {
-        slug: "co-xuong-khop",
-        label: "Cơ - Xương - Khớp",
-        description: "Nhóm sản phẩm cho đau mỏi cơ, nhức khớp, vận động khó chịu.",
-        symptoms: ["Đau nhức", "Mỏi cơ", "Cứng khớp"],
-        icon: "bi bi-person-standing",
-        tone: "tone-purple",
-        keywords: ["cơ", "co", "xương", "xuong", "khớp", "khop", "đau nhức", "dau nhuc"],
-      },
-      {
-        slug: "di-ung",
-        label: "Dị ứng",
-        description: "Các dòng hỗ trợ ngứa, nổi mẩn, kích ứng da và cơ địa dị ứng.",
-        symptoms: ["Ngứa", "Mẩn đỏ", "Kích ứng", "Hắt hơi"],
-        icon: "bi bi-shield-plus",
-        tone: "tone-yellow",
-        keywords: ["dị ứng", "di ung", "ngứa", "ngua", "mẩn đỏ", "man do"],
-      },
-      {
-        slug: "tat-ca",
-        label: "Xem tất cả",
-        description: "Xem toàn bộ thuốc và sản phẩm phù hợp cho nhóm tra cứu bệnh.",
-        symptoms: [],
-        icon: "bi bi-arrow-right",
-        tone: "tone-soft",
-        keywords: [],
-      },
-    ],
+    slug: "khong-ke-don-khang-di-ung",
+    label: "Kháng dị ứng",
+    icon: "bi bi-hand-index-thumb",
+    tone: "tone-green",
+    description: "Thuốc không kê đơn dùng cho các triệu chứng dị ứng thông thường.",
+    keywords: ["khang di ung", "kháng dị ứng", "di ung", "dị ứng"],
   },
   {
-    id: "me-va-be",
-    label: "Mẹ và Bé",
-    description: "Sản phẩm chăm sóc mẹ, bé và các dòng dinh dưỡng phù hợp cho gia đình trẻ.",
-    cards: [
-      {
-        slug: "sua-dinh-duong",
-        label: "Sữa và dinh dưỡng",
-        description: "Nhóm sữa, bột dinh dưỡng và sản phẩm hỗ trợ phát triển thể chất.",
-        symptoms: ["Cần bổ sung dinh dưỡng", "Biếng ăn", "Cần tăng đề kháng"],
-        icon: "bi bi-cup-straw",
-        tone: "tone-blue",
-        keywords: ["sữa", "sua", "dinh dưỡng", "dinh duong", "trẻ em", "tre em"],
-      },
-      {
-        slug: "cham-soc-be",
-        label: "Chăm sóc bé",
-        description: "Các sản phẩm vệ sinh, chăm sóc thường ngày và hỗ trợ sinh hoạt cho bé.",
-        symptoms: ["Chăm sóc hằng ngày", "Da nhạy cảm", "Cần vệ sinh dịu nhẹ"],
-        icon: "bi bi-balloon-heart",
-        tone: "tone-green",
-        keywords: ["bé", "be", "trẻ", "tre", "em bé", "em be"],
-      },
-      {
-        slug: "cham-soc-me",
-        label: "Chăm sóc mẹ",
-        description: "Nhóm sản phẩm hỗ trợ mẹ bầu, sau sinh và giai đoạn phục hồi.",
-        symptoms: ["Mệt mỏi sau sinh", "Cần bổ sung dưỡng chất", "Chăm sóc mẹ bầu"],
-        icon: "bi bi-heart-pulse",
-        tone: "tone-purple",
-        keywords: ["mẹ", "me", "mang thai", "sau sinh"],
-      },
-      {
-        slug: "vitamin-cho-be",
-        label: "Vitamin cho bé",
-        description: "Các vitamin và vi chất hỗ trợ phát triển, ăn ngon và tăng đề kháng cho bé.",
-        symptoms: ["Thiếu vi chất", "Cần bổ sung vitamin", "Sức đề kháng yếu"],
-        icon: "bi bi-stars",
-        tone: "tone-yellow",
-        keywords: ["vitamin", "bé", "be", "trẻ em", "tre em"],
-      },
-      {
-        slug: "tat-ca",
-        label: "Xem tất cả",
-        description: "Xem toàn bộ sản phẩm dành cho mẹ và bé.",
-        symptoms: [],
-        icon: "bi bi-arrow-right",
-        tone: "tone-soft",
-        keywords: [],
-      },
-    ],
+    slug: "khong-ke-don-khang-viem",
+    label: "Kháng viêm",
+    icon: "bi bi-shield-plus",
+    tone: "tone-purple",
+    description: "Nhóm thuốc không kê đơn hỗ trợ giảm viêm, giảm sưng ở mức độ thông thường.",
+    keywords: ["khang viem", "kháng viêm", "viem", "viêm"],
   },
   {
-    id: "cham-soc-sac-dep",
-    label: "Chăm sóc sắc đẹp",
-    description: "Các sản phẩm làm đẹp, vệ sinh cá nhân và chăm sóc da tóc hằng ngày.",
-    cards: [
-      {
-        slug: "cham-soc-da",
-        label: "Chăm sóc da",
-        description: "Nhóm serum, kem dưỡng và sản phẩm phục hồi nền da khỏe hơn mỗi ngày.",
-        symptoms: ["Da khô", "Da thiếu ẩm", "Da nhạy cảm"],
-        icon: "bi bi-droplet-half",
-        tone: "tone-blue",
-        keywords: ["da", "serum", "kem", "dưỡng", "duong"],
-      },
-      {
-        slug: "cham-soc-toc",
-        label: "Chăm sóc tóc",
-        description: "Các sản phẩm gội xả, dưỡng tóc và chăm sóc da đầu.",
-        symptoms: ["Tóc khô xơ", "Rụng tóc", "Da đầu nhạy cảm"],
-        icon: "bi bi-scissors",
-        tone: "tone-green",
-        keywords: ["tóc", "toc", "gội", "goi", "dầu xả", "dau xa"],
-      },
-      {
-        slug: "chong-nang",
-        label: "Chống nắng",
-        description: "Sản phẩm chống nắng, bảo vệ da khi hoạt động ngoài trời.",
-        symptoms: ["Da dễ bắt nắng", "Cần chống tia UV"],
-        icon: "bi bi-sun",
-        tone: "tone-purple",
-        keywords: ["chống nắng", "chong nang", "uv", "spf"],
-      },
-      {
-        slug: "ve-sinh-ca-nhan",
-        label: "Vệ sinh cá nhân",
-        description: "Nhóm làm sạch, chăm sóc cơ thể và vệ sinh dịu nhẹ mỗi ngày.",
-        symptoms: ["Cần làm sạch dịu nhẹ", "Chăm sóc cá nhân hằng ngày"],
-        icon: "bi bi-shield-check",
-        tone: "tone-yellow",
-        keywords: ["rửa", "rua", "sạch", "sach", "vệ sinh", "ve sinh"],
-      },
-      {
-        slug: "tat-ca",
-        label: "Xem tất cả",
-        description: "Xem toàn bộ sản phẩm chăm sóc sắc đẹp.",
-        symptoms: [],
-        icon: "bi bi-arrow-right",
-        tone: "tone-soft",
-        keywords: [],
-      },
-    ],
+    slug: "khong-ke-don-cam-lanh",
+    label: "Cảm lạnh",
+    icon: "bi bi-thermometer-snow",
+    tone: "tone-yellow",
+    description: "Các thuốc hỗ trợ giảm triệu chứng cảm lạnh, nghẹt mũi và mệt mỏi.",
+    keywords: ["cam lanh", "cảm lạnh", "cam cum", "cảm cúm", "so mui", "sổ mũi"],
   },
   {
-    id: "tu-thuoc",
-    label: "Danh mục tủ thuốc",
-    description: "Chọn nhanh theo từng nhóm triệu chứng thường gặp để xem thuốc và sản phẩm phù hợp.",
-    cards: [
-      {
-        slug: "suc-khoe-sinh-san",
-        label: "Sức khỏe sinh sản",
-        description: "Gợi ý sản phẩm cho nhu cầu phụ khoa, chăm sóc sinh sản và cân bằng cơ thể.",
-        symptoms: ["Khó chịu phụ khoa", "Rối loạn kinh nguyệt", "Cần chăm sóc sinh sản"],
-        icon: "bi bi-gender-ambiguous",
-        tone: "tone-blue",
-        keywords: ["sinh sản", "sinh san", "phụ khoa", "phu khoa", "kinh nguyệt", "kinh nguyet"],
-      },
-      {
-        slug: "tai-mui-hong",
-        label: "Tai - Mũi - Họng",
-        description: "Danh mục thuốc và sản phẩm cho các triệu chứng vùng tai, mũi và họng.",
-        symptoms: ["Đau họng", "Nghẹt mũi", "Sổ mũi", "Ho nhẹ"],
-        icon: "bi bi-earbuds",
-        tone: "tone-green",
-        keywords: ["tai", "mũi", "mui", "họng", "hong", "đau họng", "dau hong", "sổ mũi", "so mui"],
-      },
-      {
-        slug: "co-xuong-khop",
-        label: "Cơ - Xương - Khớp",
-        description: "Gợi ý sản phẩm hỗ trợ xương khớp, đau cơ và khó chịu khi vận động.",
-        symptoms: ["Đau cơ", "Đau khớp", "Mỏi vai gáy", "Khó vận động"],
-        icon: "bi bi-person-standing",
-        tone: "tone-purple",
-        keywords: ["cơ", "co", "xương", "xuong", "khớp", "khop", "đau nhức", "dau nhuc"],
-      },
-      {
-        slug: "truyen-nhiem",
-        label: "Truyền nhiễm",
-        description: "Nhóm sản phẩm hỗ trợ triệu chứng sốt, viêm và các tình trạng nhiễm khuẩn thường gặp.",
-        symptoms: ["Sốt", "Mệt mỏi", "Viêm nhiễm", "Đau nhức cơ thể"],
-        icon: "bi bi-virus",
-        tone: "tone-yellow",
-        keywords: ["truyền nhiễm", "truyen nhiem", "sốt", "sot", "viêm", "viem", "nhiễm khuẩn", "nhiem khuan"],
-      },
-      {
-        slug: "than-tiet-nieu",
-        label: "Thận - Tiết niệu",
-        description: "Danh mục cho các nhu cầu hỗ trợ tiết niệu và chăm sóc hệ bài tiết.",
-        symptoms: ["Tiểu buốt", "Khó chịu tiết niệu", "Tiểu nhiều lần"],
-        icon: "bi bi-droplet",
-        tone: "tone-soft",
-        keywords: ["thận", "than", "tiết niệu", "tiet nieu", "tiểu", "tieu"],
-      },
-      {
-        slug: "mau",
-        label: "Máu",
-        description: "Các sản phẩm bổ sung, hỗ trợ thể trạng và nhóm có liên quan tới máu huyết.",
-        symptoms: ["Thiếu máu", "Chóng mặt", "Mệt mỏi kéo dài"],
-        icon: "bi bi-plus-circle",
-        tone: "tone-blue",
-        keywords: ["máu", "mau", "thiếu máu", "thieu mau", "sắt", "sat"],
-      },
-      {
-        slug: "mat",
-        label: "Mắt",
-        description: "Các dòng hỗ trợ khô mắt, mỏi mắt và chăm sóc thị lực mỗi ngày.",
-        symptoms: ["Khô mắt", "Mỏi mắt", "Nhức mắt", "Cần chăm sóc thị lực"],
-        icon: "bi bi-eye",
-        tone: "tone-green",
-        keywords: ["mắt", "mat", "khô mắt", "kho mat", "mỏi mắt", "moi mat"],
-      },
-      {
-        slug: "ho-hap",
-        label: "Hô hấp",
-        description: "Danh mục thuốc và sản phẩm cho ho, đờm, khó thở và viêm đường hô hấp.",
-        symptoms: ["Ho", "Có đờm", "Khó thở", "Rát họng"],
-        icon: "bi bi-lungs",
-        tone: "tone-purple",
-        keywords: ["hô hấp", "ho hap", "ho", "đờm", "dom", "khó thở", "kho tho"],
-      },
-      {
-        slug: "tam-than",
-        label: "Tâm thần",
-        description: "Nhóm sản phẩm hỗ trợ thư giãn, cải thiện giấc ngủ và cân bằng tinh thần.",
-        symptoms: ["Mất ngủ", "Căng thẳng", "Lo âu", "Khó thư giãn"],
-        icon: "bi bi-activity",
-        tone: "tone-yellow",
-        keywords: ["tâm thần", "tam than", "mất ngủ", "mat ngu", "căng thẳng", "cang thang", "lo âu", "lo au"],
-      },
-      {
-        slug: "di-ung",
-        label: "Dị ứng",
-        description: "Danh mục gợi ý khi gặp ngứa, mẩn đỏ, kích ứng và phản ứng cơ địa.",
-        symptoms: ["Ngứa", "Nổi mẩn", "Hắt hơi", "Kích ứng da"],
-        icon: "bi bi-hand-index-thumb",
-        tone: "tone-soft",
-        keywords: ["dị ứng", "di ung", "ngứa", "ngua", "mẩn đỏ", "man do", "kích ứng", "kich ung"],
-      },
-      {
-        slug: "tim-mach",
-        label: "Tim mạch",
-        description: "Nhóm sản phẩm hỗ trợ tuần hoàn và chăm sóc sức khỏe tim mạch hằng ngày.",
-        symptoms: ["Mệt tim", "Tuần hoàn kém", "Huyết áp không ổn định"],
-        icon: "bi bi-heart",
-        tone: "tone-blue",
-        keywords: ["tim mạch", "tim mach", "huyết áp", "huyet ap", "tuần hoàn", "tuan hoan"],
-      },
-      {
-        slug: "vitamin-khoang-chat",
-        label: "Vitamin - khoáng chất",
-        description: "Danh mục bổ sung vitamin và khoáng chất cho cơ thể trong các giai đoạn khác nhau.",
-        symptoms: ["Thiếu vi chất", "Mệt mỏi", "Cần bổ sung vitamin"],
-        icon: "bi bi-prescription2",
-        tone: "tone-green",
-        keywords: ["vitamin", "khoáng chất", "khoang chat", "bổ sung", "bo sung"],
-      },
-      {
-        slug: "tat-ca",
-        label: "Xem tất cả",
-        description: "Xem toàn bộ sản phẩm theo nhóm triệu chứng trong tủ thuốc.",
-        symptoms: [],
-        icon: "bi bi-arrow-right",
-        tone: "tone-soft",
-        keywords: [],
-      },
+    slug: "khong-ke-don-giam-can",
+    label: "Giảm cân",
+    icon: "bi bi-fire",
+    tone: "tone-orange",
+    description: "Sản phẩm hỗ trợ kiểm soát cân nặng và chuyển hóa.",
+    keywords: ["giam can", "giảm cân", "kiem soat can nang", "kiểm soát cân nặng"],
+  },
+  {
+    slug: "khong-ke-don-mat-tai-mui",
+    label: "Mắt/tai/mũi",
+    icon: "bi bi-eye",
+    tone: "tone-green",
+    description: "Thuốc không kê đơn cho các vấn đề thường gặp về mắt, tai và mũi.",
+    keywords: ["mat", "mắt", "tai", "mui", "mũi", "nho mat", "nhỏ mắt", "xit mui", "xịt mũi"],
+  },
+  {
+    slug: "khong-ke-don-tieu-hoa",
+    label: "Tiêu hóa",
+    icon: "bi bi-cup-hot",
+    tone: "tone-yellow",
+    description: "Thuốc không kê đơn hỗ trợ dạ dày, tiêu hóa và nhu cầu đi ngoài thông thường.",
+    keywords: ["tieu hoa", "tiêu hóa", "da day", "dạ dày", "tao bon", "táo bón"],
+  },
+  {
+    slug: "khong-ke-don-giam-dau-ha-sot",
+    label: "Giảm đau, hạ sốt",
+    icon: "bi bi-activity",
+    tone: "tone-red",
+    description: "Thuốc không kê đơn hỗ trợ hạ sốt, giảm đau và giảm nhức mỏi thông thường.",
+    keywords: ["giam dau", "giảm đau", "ha sot", "hạ sốt", "dau dau", "đau đầu", "sot", "sốt"],
+  },
+  {
+    slug: "khong-ke-don-da-lieu",
+    label: "Da liễu",
+    icon: "bi bi-droplet-half",
+    tone: "tone-pink",
+    description: "Nhóm thuốc và sản phẩm dùng ngoài cho các vấn đề da liễu thường gặp.",
+    keywords: ["da lieu", "da liễu", "sat khuan", "sát khuẩn", "nam da", "nấm da"],
+  },
+  {
+    slug: "khong-ke-don-danh-cho-nam",
+    label: "Dành cho nam",
+    icon: "bi bi-gender-male",
+    tone: "tone-blue",
+    description: "Các thuốc và sản phẩm chăm sóc sức khỏe dành cho nam giới.",
+    keywords: ["danh cho nam", "dành cho nam", "nam gioi", "nam giới"],
+  },
+  {
+    slug: "khong-ke-don-danh-cho-nu",
+    label: "Dành cho nữ",
+    icon: "bi bi-gender-female",
+    tone: "tone-purple",
+    description: "Các thuốc và sản phẩm chăm sóc sức khỏe dành cho nữ giới.",
+    keywords: ["danh cho nu", "dành cho nữ", "nu gioi", "nữ giới"],
+  },
+  {
+    slug: "khong-ke-don-than-kinh",
+    label: "Thần kinh",
+    icon: "bi bi-lightning-charge",
+    tone: "tone-yellow",
+    description: "Thuốc không kê đơn hỗ trợ đau đầu, căng thẳng và thần kinh thông thường.",
+    keywords: ["than kinh", "thần kinh", "chong mat", "chóng mặt", "say tau xe", "say tàu xe"],
+  },
+  {
+    slug: "khong-ke-don-xuong-khop",
+    label: "Xương khớp",
+    icon: "bi bi-person-standing",
+    tone: "tone-purple",
+    description: "Nhóm thuốc không kê đơn cho cơ xương khớp và đau nhức ngoài da.",
+    keywords: ["xuong khop", "xương khớp", "co xuong khop", "cơ xương khớp", "khop", "khớp"],
+  },
+  {
+    slug: "khong-ke-don-dau-cao-xoa-bop",
+    label: "Dầu, cao xoa bóp",
+    icon: "bi bi-moisture",
+    tone: "tone-orange",
+    description: "Sản phẩm dầu và cao xoa bóp dùng ngoài hỗ trợ giảm đau, thư giãn.",
+    keywords: ["dau xoa bop", "dầu xoa bóp", "cao xoa bop", "cao xoa bóp", "dau", "dầu"],
+  },
+];
+
+const THUOC_KE_DON_CHILDREN = [
+  {
+    slug: "ke-don-khang-sinh",
+    label: "Kháng sinh",
+    icon: "bi bi-shield-check",
+    tone: "tone-green",
+    description: "Thuốc kê đơn nhóm kháng sinh và điều trị nhiễm khuẩn.",
+    keywords: ["khang sinh", "kháng sinh", "nhiem khuan", "nhiễm khuẩn"],
+  },
+  {
+    slug: "ke-don-ung-thu",
+    label: "Ung thư",
+    icon: "bi bi-shield-plus",
+    tone: "tone-purple",
+    description: "Thuốc kê đơn thuộc nhóm hỗ trợ điều trị ung thư.",
+    keywords: ["ung thu", "ung thư"],
+  },
+  {
+    slug: "ke-don-tiet-nieu",
+    label: "Tiết niệu",
+    icon: "bi bi-droplet",
+    tone: "tone-blue",
+    description: "Thuốc kê đơn thuộc nhóm tiết niệu và đường tiết niệu.",
+    keywords: ["tiet nieu", "tiết niệu", "than tiet nieu", "thận tiết niệu"],
+  },
+  {
+    slug: "ke-don-danh-cho-nam",
+    label: "Dành cho nam",
+    icon: "bi bi-gender-male",
+    tone: "tone-blue",
+    description: "Thuốc kê đơn cho sức khỏe nam giới.",
+    keywords: ["danh cho nam", "dành cho nam", "nam gioi", "nam giới"],
+  },
+  {
+    slug: "ke-don-danh-cho-nu",
+    label: "Dành cho nữ",
+    icon: "bi bi-gender-female",
+    tone: "tone-purple",
+    description: "Thuốc kê đơn cho sức khỏe nữ giới.",
+    keywords: ["danh cho nu", "dành cho nữ", "nu gioi", "nữ giới"],
+  },
+  {
+    slug: "ke-don-mat-tai-mui",
+    label: "Mắt/tai/mũi",
+    icon: "bi bi-eye",
+    tone: "tone-green",
+    description: "Thuốc kê đơn dùng cho mắt, tai và mũi.",
+    keywords: ["mat", "mắt", "tai", "mui", "mũi"],
+  },
+  {
+    slug: "ke-don-da-lieu",
+    label: "Da liễu",
+    icon: "bi bi-droplet-half",
+    tone: "tone-pink",
+    description: "Thuốc kê đơn trong nhóm da liễu và điều trị ngoài da.",
+    keywords: ["da lieu", "da liễu"],
+  },
+  {
+    slug: "ke-don-thuoc-ho-cam-lanh",
+    label: "Thuốc ho, cảm lạnh",
+    icon: "bi bi-lungs",
+    tone: "tone-yellow",
+    description: "Thuốc kê đơn điều trị ho, cảm lạnh và các triệu chứng hô hấp trên.",
+    keywords: ["thuoc ho", "thuốc ho", "cam lanh", "cảm lạnh", "ho", "cảm"],
+  },
+  {
+    slug: "ke-don-ngua-thai",
+    label: "Ngừa thai",
+    icon: "bi bi-gender-female",
+    tone: "tone-blue",
+    description: "Thuốc kê đơn nhóm ngừa thai và nội tiết sinh sản.",
+    keywords: ["ngua thai", "ngừa thai", "tranh thai", "tránh thai"],
+  },
+  {
+    slug: "ke-don-tim-mach-huyet-ap",
+    label: "Tim mạch, huyết áp",
+    icon: "bi bi-heart",
+    tone: "tone-red",
+    description: "Thuốc kê đơn cho tim mạch và huyết áp.",
+    keywords: ["tim mach", "tim mạch", "huyet ap", "huyết áp"],
+  },
+  {
+    slug: "ke-don-tieu-hoa",
+    label: "Tiêu hóa",
+    icon: "bi bi-cup-hot",
+    tone: "tone-yellow",
+    description: "Thuốc kê đơn thuộc nhóm dạ dày, tiêu hóa và đường ruột.",
+    keywords: ["tieu hoa", "tiêu hóa", "da day", "dạ dày"],
+  },
+  {
+    slug: "ke-don-tieu-duong",
+    label: "Tiểu đường",
+    icon: "bi bi-activity",
+    tone: "tone-orange",
+    description: "Thuốc kê đơn cho tiểu đường và chuyển hóa.",
+    keywords: ["tieu duong", "tiểu đường", "duong huyet", "đường huyết"],
+  },
+  {
+    slug: "ke-don-khang-di-ung",
+    label: "Kháng dị ứng",
+    icon: "bi bi-hand-index-thumb",
+    tone: "tone-green",
+    description: "Thuốc kê đơn điều trị dị ứng.",
+    keywords: ["khang di ung", "kháng dị ứng", "di ung", "dị ứng"],
+  },
+  {
+    slug: "ke-don-khang-viem",
+    label: "Kháng viêm",
+    icon: "bi bi-shield-plus",
+    tone: "tone-purple",
+    description: "Thuốc kê đơn nhóm kháng viêm.",
+    keywords: ["khang viem", "kháng viêm", "viem", "viêm"],
+  },
+  {
+    slug: "ke-don-than-kinh",
+    label: "Thần kinh",
+    icon: "bi bi-lightning-charge",
+    tone: "tone-yellow",
+    description: "Thuốc kê đơn cho các vấn đề thần kinh.",
+    keywords: ["than kinh", "thần kinh"],
+  },
+  {
+    slug: "ke-don-giam-dau-ha-sot",
+    label: "Giảm đau hạ sốt",
+    icon: "bi bi-activity",
+    tone: "tone-red",
+    description: "Thuốc kê đơn giảm đau, hạ sốt và hỗ trợ chống viêm.",
+    keywords: ["giam dau", "giảm đau", "ha sot", "hạ sốt"],
+  },
+  {
+    slug: "ke-don-he-ho-hap",
+    label: "Hệ hô hấp",
+    icon: "bi bi-lungs",
+    tone: "tone-purple",
+    description: "Thuốc kê đơn cho các bệnh đường hô hấp.",
+    keywords: ["ho hap", "hô hấp", "phe quan", "phế quản"],
+  },
+  {
+    slug: "ke-don-co-xuong-khop",
+    label: "Cơ xương khớp",
+    icon: "bi bi-person-standing",
+    tone: "tone-blue",
+    description: "Thuốc kê đơn cho cơ, xương và khớp.",
+    keywords: ["co xuong khop", "cơ xương khớp", "xuong khop", "xương khớp"],
+  },
+];
+
+const THUOC_PARENT_CARDS = [
+  {
+    slug: "thuoc-khong-ke-don",
+    label: "Thuốc không kê đơn",
+    icon: "bi bi-capsule-pill",
+    tone: "tone-blue",
+    description: "Nhóm thuốc có thể mua trực tiếp tại nhà thuốc mà không cần đơn.",
+    keywords: ["thuoc khong ke don", "thuốc không kê đơn", "otc"],
+    children: THUOC_KHONG_KE_DON_CHILDREN,
+  },
+  {
+    slug: "thuoc-ke-don",
+    label: "Thuốc kê đơn",
+    icon: "bi bi-journal-medical",
+    tone: "tone-green",
+    description: "Nhóm thuốc cần theo chỉ định bác sĩ hoặc dược sĩ chuyên môn.",
+    keywords: ["thuoc ke don", "thuốc kê đơn", "rx"],
+    children: THUOC_KE_DON_CHILDREN,
+  },
+  {
+    slug: "vitamin-thuc-pham-chuc-nang",
+    label: "Vitamin và thực phẩm chức năng",
+    icon: "bi bi-stars",
+    tone: "tone-yellow",
+    description: "Click để xem toàn bộ thuốc và sản phẩm bổ trợ thuộc nhóm vitamin và thực phẩm chức năng.",
+    keywords: [
+      "vitamin",
+      "thuc pham chuc nang",
+      "thực phẩm chức năng",
+      "khoang chat",
+      "khoáng chất",
     ],
   },
 ];
 
-export function normalizeCatalogText(value = "") {
-  return value
-    .toString()
+const TRA_CUU_BENH_CARDS = [
+  {
+    slug: "suc-khoe-sinh-san",
+    label: "Sức khỏe sinh sản",
+    icon: "bi bi-gender-female",
+    tone: "tone-blue",
+    description: "Nhóm thuốc thường dùng cho sức khỏe sinh sản và nhu cầu phụ khoa thông thường.",
+    symptoms: ["Ngừa thai", "Khó chịu phụ khoa", "Rối loạn nội tiết nhẹ"],
+    keywords: ["suc khoe sinh san", "sức khỏe sinh sản", "ngua thai", "ngừa thai", "phu khoa", "phụ khoa"],
+    matchSlugs: ["suc-khoe-sinh-san"],
+  },
+  {
+    slug: "tai-mui-hong",
+    label: "Tai - Mũi - Họng",
+    icon: "bi bi-ear",
+    tone: "tone-green",
+    description: "Các thuốc hỗ trợ đau họng, sổ mũi, nghẹt mũi và kích ứng vùng tai mũi họng.",
+    symptoms: ["Đau họng", "Viêm họng", "Sổ mũi", "Xịt mũi"],
+    keywords: ["tai mui hong", "tai - mui - hong", "tai mũi họng", "dau hong", "đau họng", "so mui", "sổ mũi"],
+    matchSlugs: ["tai-mui-hong"],
+  },
+  {
+    slug: "co-xuong-khop",
+    label: "Cơ - Xương - Khớp",
+    icon: "bi bi-person-standing",
+    tone: "tone-purple",
+    description: "Nhóm thuốc và sản phẩm hỗ trợ đau nhức cơ, xương và khớp.",
+    symptoms: ["Đau lưng", "Mỏi cơ", "Đau khớp"],
+    keywords: ["co xuong khop", "cơ xương khớp", "xuong khop", "xương khớp", "dau khop", "đau khớp"],
+    matchSlugs: ["co-xuong-khop"],
+  },
+  {
+    slug: "truyen-nhiem",
+    label: "Truyền nhiễm",
+    icon: "bi bi-virus",
+    tone: "tone-yellow",
+    description: "Các sản phẩm thường dùng trong nhóm bệnh truyền nhiễm và phòng ngừa lây nhiễm.",
+    symptoms: ["Nhiễm khuẩn", "Sát khuẩn", "Truyền nhiễm"],
+    keywords: ["truyen nhiem", "truyền nhiễm", "sat khuan", "sát khuẩn", "nhiem khuan", "nhiễm khuẩn"],
+    matchSlugs: ["truyen-nhiem"],
+  },
+  {
+    slug: "than-tiet-nieu",
+    label: "Thận - Tiết niệu",
+    icon: "bi bi-droplet",
+    tone: "tone-blue",
+    description: "Nhóm thuốc hỗ trợ các vấn đề tiết niệu, thận và đường tiểu.",
+    symptoms: ["Tiểu buốt", "Tiểu rắt", "Khó chịu tiết niệu"],
+    keywords: ["than tiet nieu", "thận tiết niệu", "tiet nieu", "tiết niệu"],
+    matchSlugs: ["than-tiet-nieu"],
+  },
+  {
+    slug: "mau",
+    label: "Máu",
+    icon: "bi bi-plus-circle",
+    tone: "tone-blue",
+    description: "Các thuốc và sản phẩm bổ sung cho máu, thiếu máu và tuần hoàn.",
+    symptoms: ["Thiếu máu", "Bổ máu", "Tuần hoàn"],
+    keywords: ["mau", "máu", "bo mau", "bổ máu", "thieu mau", "thiếu máu"],
+    matchSlugs: ["mau"],
+  },
+  {
+    slug: "mat",
+    label: "Mắt",
+    icon: "bi bi-eye",
+    tone: "tone-green",
+    description: "Nhóm thuốc và sản phẩm thường dùng cho khô mắt, kích ứng và chăm sóc mắt.",
+    symptoms: ["Nhỏ mắt", "Khô mắt", "Dị ứng mắt"],
+    keywords: ["mat", "mắt", "nho mat", "nhỏ mắt", "kho mat", "khô mắt"],
+    matchSlugs: ["mat"],
+  },
+  {
+    slug: "ho-hap",
+    label: "Hô hấp",
+    icon: "bi bi-lungs",
+    tone: "tone-purple",
+    description: "Các thuốc hỗ trợ ho, đờm, khó thở và các vấn đề hô hấp thường gặp.",
+    symptoms: ["Ho", "Cảm", "Sổ mũi", "Khó thở"],
+    keywords: ["ho hap", "hô hấp", "ho", "cam", "cảm", "dom", "đờm"],
+    matchSlugs: ["ho-hap"],
+  },
+  {
+    slug: "tam-than",
+    label: "Tâm thần",
+    icon: "bi bi-activity",
+    tone: "tone-yellow",
+    description: "Nhóm thuốc thường dùng cho thần kinh, căng thẳng và tâm thần.",
+    symptoms: ["Mất ngủ", "Căng thẳng", "Lo âu"],
+    keywords: ["tam than", "tâm thần", "than kinh", "thần kinh", "mat ngu", "mất ngủ"],
+    matchSlugs: ["tam-than"],
+  },
+  {
+    slug: "di-ung",
+    label: "Dị ứng",
+    icon: "bi bi-hand-index-thumb",
+    tone: "tone-blue",
+    description: "Nhóm thuốc và sản phẩm dùng cho dị ứng thời tiết, nổi mề đay, ngứa.",
+    symptoms: ["Ngứa", "Dị ứng", "Mề đay"],
+    keywords: ["di ung", "dị ứng", "ngua", "ngứa", "me day", "mề đay"],
+    matchSlugs: ["di-ung"],
+  },
+  {
+    slug: "tim-mach",
+    label: "Tim mạch",
+    icon: "bi bi-heart",
+    tone: "tone-blue",
+    description: "Các thuốc và sản phẩm hỗ trợ tuần hoàn và tim mạch.",
+    symptoms: ["Tuần hoàn", "Tim mạch", "Huyết áp"],
+    keywords: ["tim mach", "tim mạch", "huyet ap", "huyết áp", "tuan hoan", "tuần hoàn"],
+    matchSlugs: ["tim-mach"],
+  },
+  {
+    slug: "vitamin-khoang-chat",
+    label: "Vitamin - khoáng chất",
+    icon: "bi bi-capsule",
+    tone: "tone-green",
+    description: "Nhóm vitamin, khoáng chất và sản phẩm bổ sung cho sức khỏe hằng ngày.",
+    symptoms: ["Bổ sung vitamin", "Khoáng chất", "Sức khỏe tổng quát"],
+    keywords: ["vitamin", "khoang chat", "khoáng chất", "bo sung", "bổ sung"],
+    matchSlugs: ["vitamin-khoang-chat"],
+  },
+];
+
+const CHAM_SOC_SAC_DEP_CARDS = [
+  {
+    slug: "cham-soc-da",
+    label: "Chăm sóc da",
+    icon: "bi bi-droplet-half",
+    tone: "tone-blue",
+    description: "Nhóm sản phẩm chăm sóc da và làm dịu da mỗi ngày.",
+    keywords: ["cham soc da", "chăm sóc da", "da mat", "da mặt"],
+  },
+  {
+    slug: "cham-soc-toc",
+    label: "Chăm sóc tóc",
+    icon: "bi bi-scissors",
+    tone: "tone-green",
+    description: "Nhóm sản phẩm chăm sóc tóc và da đầu.",
+    keywords: ["cham soc toc", "chăm sóc tóc", "toc", "tóc"],
+  },
+  {
+    slug: "chong-nang",
+    label: "Chống nắng",
+    icon: "bi bi-sun",
+    tone: "tone-purple",
+    description: "Nhóm sản phẩm chống nắng và bảo vệ da.",
+    keywords: ["chong nang", "chống nắng"],
+  },
+  {
+    slug: "ve-sinh-ca-nhan",
+    label: "Vệ sinh cá nhân",
+    icon: "bi bi-shield-check",
+    tone: "tone-yellow",
+    description: "Nhóm sản phẩm vệ sinh cá nhân dùng hằng ngày.",
+    keywords: ["ve sinh ca nhan", "vệ sinh cá nhân"],
+  },
+];
+
+const KHAC_CARD = {
+  slug: "tat-ca-thuoc-khac",
+  label: "Xem tất cả",
+  icon: "bi bi-grid-3x3-gap",
+  tone: "tone-blue",
+  description: "Hiển thị các thuốc chưa nằm trong bất kỳ danh mục nào đã khai báo.",
+};
+
+export const catalogSections = [
+  {
+    id: "thuoc",
+    label: "Thuốc",
+    description: "Nhóm thuốc chính gồm thuốc kê đơn, thuốc không kê đơn và vitamin thực phẩm chức năng.",
+    cards: THUOC_PARENT_CARDS,
+  },
+  {
+    id: "tra-cuu-benh",
+    label: "Vấn đề sức khỏe",
+    description: "Tra cứu nhanh theo nhóm triệu chứng và nhu cầu bệnh lý thường gặp.",
+    cards: TRA_CUU_BENH_CARDS,
+  },
+  {
+    id: "cham-soc-sac-dep",
+    label: "Chăm sóc sắc đẹp",
+    description: "Nhóm sản phẩm chăm sóc cá nhân, da, tóc và làm đẹp hằng ngày.",
+    cards: CHAM_SOC_SAC_DEP_CARDS,
+  },
+  {
+    id: "khac",
+    label: "Khác",
+    description: "Hiển thị các thuốc chưa được gán vào các danh mục chính.",
+    cards: [KHAC_CARD],
+  },
+];
+
+const SECTION_ALIAS = {
+  "tu-thuoc": "tra-cuu-benh",
+};
+
+const FALLBACK_SECTION = catalogSections[0];
+const ALL_SECTION_IDS = new Set(catalogSections.map((section) => section.id));
+
+function normalizeSlug(value) {
+  const raw = String(value || "").trim();
+  return SECTION_ALIAS[raw] || raw;
+}
+
+export function normalizeCatalogText(value) {
+  return String(value || "")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .trim();
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D")
+    .toLowerCase();
 }
 
-export function getCatalogSection(sectionId) {
-  return catalogSections.find((section) => section.id === sectionId) || catalogSections[0];
+function asTextArray(value) {
+  if (Array.isArray(value)) {
+    return value.filter(Boolean).map((item) => String(item));
+  }
+
+  if (!value) {
+    return [];
+  }
+
+  return [String(value)];
 }
 
-export function getCatalogCard(sectionId, cardSlug = "tat-ca") {
-  const section = getCatalogSection(sectionId);
-  return section.cards.find((card) => card.slug === cardSlug) || section.cards.find((card) => card.slug === "tat-ca") || section.cards[0];
-}
-
-function buildProductText(product) {
+function buildSearchText(product) {
   return normalizeCatalogText(
     [
-      product.ten_thuoc,
-      product.loai_thuoc,
-      product.nha_san_xuat,
-      product.mo_ta,
-      ...(product.trieu_chung || []),
-      ...(product.tac_dung_phu || []),
-    ].join(" ")
+      product?.ten_thuoc,
+      product?.nhan,
+      product?.loai_thuoc,
+      product?.mo_ta,
+      product?.lieu_luong,
+      product?.danh_muc_thuoc_slug,
+      product?.nha_san_xuat,
+      ...asTextArray(product?.hashtags),
+      ...asTextArray(product?.nhan_items),
+      ...asTextArray(product?.lieu_luong_items),
+    ]
+      .filter(Boolean)
+      .join(" | ")
   );
 }
 
-function matchesKeywords(product, keywords = []) {
-  if (!keywords.length) {
+function collectChildren(cards) {
+  return cards.flatMap((card) => [card, ...(card.children || [])]);
+}
+
+function flattenKnownCards() {
+  return catalogSections
+    .filter((section) => section.id !== "khac")
+    .flatMap((section) => collectChildren(section.cards))
+    .filter((card) => card.slug !== "tat-ca");
+}
+
+const KNOWN_CARDS = flattenKnownCards();
+
+function getSectionCards(sectionId) {
+  return getCatalogSection(sectionId).cards || [];
+}
+
+function findCard(sectionId, slug) {
+  const normalized = normalizeSlug(slug);
+  const cards = getSectionCards(sectionId);
+
+  for (const card of cards) {
+    if (card.slug === normalized) {
+      return card;
+    }
+
+    const child = (card.children || []).find((item) => item.slug === normalized);
+    if (child) {
+      return child;
+    }
+  }
+
+  return null;
+}
+
+function findParentCard(sectionId, slug) {
+  const normalized = normalizeSlug(slug);
+  const cards = getSectionCards(sectionId);
+  return (
+    cards.find((card) => card.slug === normalized || (card.children || []).some((child) => child.slug === normalized)) ||
+    null
+  );
+}
+
+function cardMatchesProduct(product, card) {
+  if (!card) {
+    return false;
+  }
+
+  if (card.children && card.children.length) {
+    return card.children.some((child) => cardMatchesProduct(product, child));
+  }
+
+  const currentSlug = normalizeCatalogText(product?.danh_muc_thuoc_slug);
+  const matchSlugs = (card.matchSlugs || [card.slug]).map((slug) => normalizeCatalogText(slug));
+  const cardSlug = normalizeCatalogText(card.slug);
+
+  if (cardSlug.startsWith("ke-don-") && !currentSlug.startsWith("ke-don-")) {
+    return false;
+  }
+
+  if (cardSlug.startsWith("khong-ke-don-") && !currentSlug.startsWith("khong-ke-don-")) {
+    return false;
+  }
+
+  if (currentSlug && matchSlugs.includes(currentSlug)) {
     return true;
   }
 
-  const haystack = buildProductText(product);
-  return keywords.some((keyword) => haystack.includes(normalizeCatalogText(keyword)));
-}
-
-export function filterProductsForSection(products, sectionId, cardSlug = "") {
-  const section = getCatalogSection(sectionId);
-
-  if (!cardSlug || cardSlug === "tat-ca") {
-    const cardsWithRules = section.cards.filter((item) => item.slug !== "tat-ca");
-    if (!cardsWithRules.length) {
-      return products;
-    }
-
-    return products.filter((product) => cardsWithRules.some((card) => matchesKeywords(product, card.keywords)));
+  if (currentSlug) {
+    return false;
   }
 
-  const activeCard = getCatalogCard(sectionId, cardSlug);
-  return products.filter((product) => matchesKeywords(product, activeCard.keywords));
+  const haystack = buildSearchText(product);
+  return (card.keywords || []).some((keyword) => haystack.includes(normalizeCatalogText(keyword)));
 }
 
-export function countProductsForCard(products, sectionId, cardSlug) {
-  return filterProductsForSection(products, sectionId, cardSlug).length;
+function productBelongsToOtherBucket(product) {
+  return !KNOWN_CARDS.some((card) => cardMatchesProduct(product, card));
+}
+
+function getSyntheticAllCard(sectionId, parentCard = null) {
+  if (sectionId === "thuoc" && parentCard) {
+    return {
+      slug: parentCard.slug,
+      label: parentCard.label,
+      icon: parentCard.icon,
+      tone: parentCard.tone,
+      description: parentCard.description,
+      keywords: parentCard.keywords || [],
+    };
+  }
+
+  const section = getCatalogSection(sectionId);
+  return {
+    slug: "tat-ca",
+    label: section.label,
+    icon: section.cards[0]?.icon || "bi bi-grid",
+    tone: section.cards[0]?.tone || "tone-blue",
+    description: section.description,
+  };
+}
+
+export function getCatalogSection(sectionId) {
+  const normalized = normalizeSlug(sectionId);
+  return catalogSections.find((section) => section.id === normalized) || FALLBACK_SECTION;
+}
+
+export function getCatalogCard(sectionId, slug = "tat-ca") {
+  const normalizedSection = normalizeSlug(sectionId);
+  const normalizedSlug = normalizeSlug(slug || "tat-ca");
+  const section = getCatalogSection(normalizedSection);
+
+  if (normalizedSlug === "tat-ca") {
+    return getSyntheticAllCard(section.id);
+  }
+
+  const directCard = findCard(section.id, normalizedSlug);
+  if (directCard) {
+    return directCard;
+  }
+
+  return getSyntheticAllCard(section.id);
+}
+
+export function getCatalogCardsForView(sectionId, slug = "tat-ca") {
+  const section = getCatalogSection(sectionId);
+  const normalizedSlug = normalizeSlug(slug || "tat-ca");
+
+  if (section.id === "thuoc" && normalizedSlug !== "tat-ca") {
+    const parentCard = findParentCard(section.id, normalizedSlug);
+
+    if (parentCard?.children?.length) {
+      return [getSyntheticAllCard(section.id, parentCard), ...parentCard.children];
+    }
+  }
+
+  return section.cards;
+}
+
+export function countProductsForCard(products, sectionId, slug = "tat-ca") {
+  return filterProductsForSection(products, sectionId, slug).length;
+}
+
+export function filterProductsForSection(products = [], sectionId, slug = "tat-ca") {
+  const section = getCatalogSection(sectionId);
+  const normalizedSlug = normalizeSlug(slug || "tat-ca");
+
+  if (!Array.isArray(products)) {
+    return [];
+  }
+
+  if (section.id === "khac") {
+    return products.filter((product) => productBelongsToOtherBucket(product));
+  }
+
+  if (section.id === "thuoc") {
+    const parentCards = section.cards;
+
+    if (normalizedSlug === "tat-ca") {
+      return products.filter((product) => parentCards.some((card) => cardMatchesProduct(product, card)));
+    }
+
+    const activeCard = findCard(section.id, normalizedSlug) || findParentCard(section.id, normalizedSlug);
+    return products.filter((product) => cardMatchesProduct(product, activeCard));
+  }
+
+  if (normalizedSlug === "tat-ca") {
+    return products.filter((product) => section.cards.some((card) => cardMatchesProduct(product, card)));
+  }
+
+  const activeCard = findCard(section.id, normalizedSlug);
+  return products.filter((product) => cardMatchesProduct(product, activeCard));
+}
+
+export function isCatalogSection(sectionId) {
+  return ALL_SECTION_IDS.has(normalizeSlug(sectionId));
 }

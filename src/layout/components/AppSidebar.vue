@@ -40,17 +40,6 @@
           </button>
         </div>
       </div>
-
-      <div class="promo-card p-3 mt-4">
-        <div class="soft-badge soft-badge--blue mb-3">
-          <i class="bi bi-layout-text-window-reverse"></i>
-          Khung dùng chung
-        </div>
-        <h6 class="fw-bold mb-2">Menu, header và footer đã tách riêng</h6>
-        <p class="small text-secondary mb-0">
-          Các trang chỉ cần tập trung vào nội dung, khung quản trị sẽ lo phần giao diện dùng chung.
-        </p>
-      </div>
     </div>
   </div>
 </template>
@@ -75,22 +64,16 @@ const menuSections = computed(() => [
     label: "Điều hành",
     items: [
       {
-        to: "/",
-        label: "Trang chủ khách hàng",
-        caption: "Quay lại giao diện bán hàng",
-        icon: "bi bi-house-door",
-      },
-      {
-        to: "/dashboard",
-        label: "Bảng điều khiển",
-        caption: "Tổng quan vận hành",
-        icon: "bi bi-grid-1x2-fill",
-      },
-      {
         to: "/hoa-dons",
         label: "Hóa đơn",
         caption: "Doanh thu và đơn hàng",
         icon: "bi bi-receipt",
+      },
+      {
+        to: "/ho-tro-khach-hang",
+        label: "Hỗ trợ khách hàng",
+        caption: "Chat trực tiếp với khách",
+        icon: "bi bi-chat-dots",
       },
       {
         to: "/ton-kho",
@@ -120,23 +103,6 @@ const menuSections = computed(() => [
             },
           ]
         : []),
-    ],
-  },
-  {
-    label: "Công cụ",
-    items: [
-      {
-        to: "/sample",
-        label: "Trang mẫu",
-        caption: "Kiểm tra trang kế thừa",
-        icon: "bi bi-window-stack",
-      },
-      {
-        to: "/api-playground",
-        label: "Kết nối API",
-        caption: "Kiểm tra đăng nhập và gọi backend",
-        icon: "bi bi-plug-fill",
-      },
     ],
   },
 ]);

@@ -9,12 +9,15 @@ export function searchThuocList(keyword) {
   return apiClient(`/thuocs/search?${query.toString()}`);
 }
 
-export function getLoaiThuocOptions() {
-  return apiClient("/loai-thuocs");
-}
-
 export function getNhaSanXuatOptions() {
   return apiClient("/nha-san-xuats");
+}
+
+export function createNhaSanXuat(payload) {
+  return apiClient("/admin/nha-san-xuats", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
 }
 
 export function createThuoc(payload) {

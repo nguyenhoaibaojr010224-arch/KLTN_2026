@@ -218,6 +218,112 @@ export default {
     font-weight: 500;
   }
 
+  .master-topstrip__right {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+  }
+
+  .master-topstrip__notification {
+    position: relative;
+  }
+
+  .master-topstrip__icon-btn {
+    position: relative;
+    width: 46px;
+    height: 46px;
+    display: inline-grid;
+    place-items: center;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+    box-shadow: 0 12px 24px rgba(8, 26, 73, 0.16);
+  }
+
+  .master-topstrip__badge {
+    position: absolute;
+    top: -4px;
+    right: -3px;
+    min-width: 18px;
+    height: 18px;
+    display: inline-grid;
+    place-items: center;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: #ef4444;
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 800;
+    line-height: 1;
+  }
+
+  .master-topstrip__notification-menu {
+    position: absolute;
+    top: calc(100% + 12px);
+    right: 0;
+    width: 360px;
+    background: #fff;
+    border: 1px solid rgba(20, 63, 148, 0.08);
+    border-radius: 20px;
+    padding: 16px;
+    color: #19335e;
+    z-index: 1080;
+  }
+
+  .master-topstrip__notification-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .master-topstrip__notification-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 420px;
+    overflow-y: auto;
+  }
+
+  .master-topstrip__notification-item {
+    width: 100%;
+    text-align: left;
+    border: 1px solid rgba(20, 63, 148, 0.08);
+    background: #f6f9ff;
+    border-radius: 16px;
+    padding: 12px 14px;
+  }
+
+  .master-topstrip__notification-title {
+    font-weight: 800;
+    color: #19335e;
+  }
+
+  .master-topstrip__notification-copy {
+    margin-top: 4px;
+    color: #526887;
+    font-size: 0.95rem;
+  }
+
+  .master-topstrip__notification-meta {
+    margin-top: 8px;
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    color: #1c4db3;
+    font-size: 0.84rem;
+    font-weight: 700;
+  }
+
+  .master-topstrip__notification-empty {
+    color: #6d7f98;
+    font-size: 0.95rem;
+    padding: 12px 4px;
+  }
+
   .master-topstrip__brand {
     display: inline-flex;
     align-items: center;
@@ -2213,7 +2319,7 @@ export default {
 }
 
   .pc-catalog-page .pc-product-grid {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 14px;
   }
 
@@ -2273,6 +2379,18 @@ export default {
     font-size: 0.84rem;
   }
 
+  .pc-catalog-page .pc-product-card__stock--prescription {
+    display: inline-flex;
+    align-self: flex-start;
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: #fff1de;
+    color: #b85a00;
+    font-size: 0.98rem;
+    font-weight: 800;
+    line-height: 1.25;
+  }
+
   .pc-catalog-page .pc-product-card__actions {
     gap: 8px;
     margin-top: 12px;
@@ -2319,7 +2437,7 @@ export default {
 
   .pc-product-grid {
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 18px;
   }
 
@@ -2415,6 +2533,20 @@ export default {
     color: #4d6987;
     font-size: 0.9rem;
     font-weight: 600;
+  }
+
+  .pc-product-card__stock--prescription {
+    display: inline-flex;
+    align-self: flex-start;
+    padding: 10px 14px;
+    border: 1px solid rgba(236, 134, 0, 0.12);
+    border-radius: 999px;
+    background: linear-gradient(180deg, #fff4e2 0%, #ffedd3 100%);
+    color: #b85a00;
+    font-size: 1rem;
+    font-weight: 800;
+    letter-spacing: 0.01em;
+    line-height: 1.25;
   }
 
   .pc-product-card__actions {
@@ -2681,6 +2813,7 @@ export default {
   .pc-gift-item__thumb {
     border-radius: 18px;
     background: linear-gradient(145deg, #ffe3f1, #f3f8ff);
+    overflow: hidden;
     box-shadow: inset 0 0 0 1px rgba(22, 82, 197, 0.08);
   }
 
@@ -3238,6 +3371,14 @@ export default {
   }
 
   @media (max-width: 991.98px) {
+    .master-topstrip__right {
+      justify-content: space-between;
+    }
+
+    .master-topstrip__notification-menu {
+      width: min(360px, calc(100vw - 32px));
+    }
+
     .master-header__actions {
       justify-content: stretch;
     }

@@ -13,8 +13,6 @@
         <main class="master-content">
           <slot />
         </main>
-
-        <AppFooter />
       </div>
     </div>
 
@@ -30,7 +28,6 @@
 </template>
 
 <script setup>
-import AppFooter from "../components/AppFooter.vue";
 import AppHeader from "../components/AppHeader.vue";
 import AppSidebar from "../components/AppSidebar.vue";
 import AppTopStrip from "../components/AppTopStrip.vue";

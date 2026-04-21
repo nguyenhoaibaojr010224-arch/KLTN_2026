@@ -109,12 +109,12 @@
               <div v-if="showNotificationMenu" class="pc-notification-menu">
                 <div class="pc-notification-menu__head">
                   <strong>Thông báo</strong>
-                  <button v-if="loggedIn" type="button" class="pc-notification-menu__link" @click="goToNotifications">
+                  <button v-if="isCustomerLoggedIn" type="button" class="pc-notification-menu__link" @click="goToNotifications">
                     Xem tất cả
                   </button>
                 </div>
 
-                <div v-if="loggedIn && recentNotifications.length" class="pc-notification-menu__list">
+                <div v-if="isCustomerLoggedIn && recentNotifications.length" class="pc-notification-menu__list">
                   <button
                     v-for="item in recentNotifications"
                     :key="item.id"
@@ -130,7 +130,7 @@
                   </button>
                 </div>
 
-                <p v-else-if="loggedIn" class="pc-notification-menu__empty">Chưa có thông báo nào.</p>
+                <p v-else-if="isCustomerLoggedIn" class="pc-notification-menu__empty">Chưa có thông báo nào.</p>
 
                 <div v-else class="pc-notification-menu__guest">
                   <p>Đăng nhập để xem thông báo của bạn.</p>
@@ -201,7 +201,15 @@ import { clearRecentSearches, getRecentSearches, saveRecentSearch } from "../../
 
 const route = useRoute();
 const router = useRouter();
-const { cartCount, state, markNotificationRead, markNotificationsReadByGroup, markAllNotificationsRead, syncOrdersFromApi } = useCustomerStore();
+const {
+  cartCount,
+  state,
+  markNotificationRead,
+  markNotificationsReadByGroup,
+  markAllNotificationsRead,
+  syncOrdersFromApi,
+  syncSharedNotificationsFromApi,
+} = useCustomerStore();
 const searchQuery = ref(route.query.q || "");
 const searchContainerRef = ref(null);
 const categoryRef = ref(null);
@@ -230,6 +238,8 @@ let isDeletingPlaceholder = false;
 
 const loggedIn = isAuthenticatedState;
 const isSystemAccount = isSystemUserState;
+const authType = computed(() => getAuthType());
+const isCustomerLoggedIn = computed(() => loggedIn.value && authType.value === "customer");
 const displayName = computed(() => authState.user?.ten_khach_hang || authState.user?.ho_ten || "Khách hàng");
 const avatarUrl = computed(() => authState.user?.avatar_url || "");
 const avatarLoadFailed = ref(false);
@@ -237,8 +247,10 @@ const avatarInitials = computed(() => {
   const name = displayName.value.trim();
   return name ? name.slice(0, 2).toUpperCase() : "KH";
 });
-const recentNotifications = computed(() => [...state.notifications].slice(0, 5));
-const unreadNotificationCount = computed(() => state.notifications.filter((item) => !item.daDoc).length);
+const recentNotifications = computed(() => (isCustomerLoggedIn.value ? [...state.notifications].slice(0, 5) : []));
+const unreadNotificationCount = computed(() =>
+  isCustomerLoggedIn.value ? state.notifications.filter((item) => !item.daDoc).length : 0
+);
 const showSearchDropdown = computed(() => searchDropdownOpen.value);
 const showAnimatedPlaceholder = computed(() => !searchQuery.value);
 const activeMegaItems = computed(
@@ -266,8 +278,8 @@ watch(
 
 onMounted(async () => {
   document.addEventListener("click", handleDocumentClick);
-  if (loggedIn.value && getAuthType() === "customer") {
-    await syncOrdersFromApi();
+  if (isCustomerLoggedIn.value) {
+    await Promise.all([syncOrdersFromApi(), syncSharedNotificationsFromApi()]);
     startOrderSyncPolling();
   }
   runPlaceholderAnimation();
@@ -280,12 +292,13 @@ onBeforeUnmount(() => {
 });
 
 watch(
-  () => [loggedIn.value, getAuthType()],
-  async ([isLoggedIn, authType]) => {
+  () => [loggedIn.value, authType.value],
+  async ([isLoggedIn, nextAuthType]) => {
     stopOrderSyncPolling();
+    showNotificationMenu.value = false;
 
-    if (isLoggedIn && authType === "customer") {
-      await syncOrdersFromApi();
+    if (isLoggedIn && nextAuthType === "customer") {
+      await Promise.all([syncOrdersFromApi(), syncSharedNotificationsFromApi()]);
       startOrderSyncPolling();
     }
   }
@@ -362,15 +375,12 @@ function clearRecentSearchHistory() {
 }
 
 async function toggleNotificationMenu() {
-  if (!loggedIn.value) {
+  if (!isCustomerLoggedIn.value) {
     router.push("/login");
     return;
   }
 
-  if (getAuthType() === "customer") {
-    await syncOrdersFromApi();
-  }
-
+  await Promise.all([syncOrdersFromApi(), syncSharedNotificationsFromApi()]);
   showNotificationMenu.value = !showNotificationMenu.value;
   showUserMenu.value = false;
 }
@@ -379,14 +389,18 @@ function closeNotificationMenu() {
   showNotificationMenu.value = false;
 }
 
-function goToNotifications() {
+async function goToNotifications() {
+  if (isCustomerLoggedIn.value) {
+    await markAllNotificationsRead();
+  }
+
   closeNotificationMenu();
   router.push("/tai-khoan/thong-bao");
 }
 
-function openNotification(item) {
+async function openNotification(item) {
   closeNotificationMenu();
-  markNotificationRead(item.id);
+  await markNotificationRead(item.id);
   router.push({
     path: "/tai-khoan/thong-bao",
     query: {
@@ -409,12 +423,12 @@ function startOrderSyncPolling() {
   stopOrderSyncPolling();
 
   orderSyncTimer = window.setInterval(async () => {
-    if (!loggedIn.value || getAuthType() !== "customer") {
+    if (!isCustomerLoggedIn.value) {
       stopOrderSyncPolling();
       return;
     }
 
-    await syncOrdersFromApi();
+    await Promise.all([syncOrdersFromApi(), syncSharedNotificationsFromApi()]);
   }, 15000);
 }
 

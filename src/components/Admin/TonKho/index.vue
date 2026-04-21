@@ -8,8 +8,7 @@
         </div>
         <h2 class="page-section-title">Theo dõi tồn kho và lô thuốc</h2>
         <p class="page-section-copy mb-0">
-          Theo dõi tổng tồn theo thuốc, danh sách lô, hạn sử dụng và số lượng còn lại. Có thể nhập lô mới trực tiếp
-          tại đây.
+          Theo dõi tổng tồn theo đơn vị kho chuẩn, danh sách lô, hạn sử dụng và số lượng còn lại.
         </p>
       </div>
 
@@ -34,7 +33,7 @@
 
       <div class="col-lg-6">
         <div class="d-flex flex-wrap gap-2">
-          <button class="btn btn-primary" @click="loadInventory" :disabled="loading.inventory">
+          <button class="btn btn-primary" @click="loadInventory({ showSuccessToast: true })" :disabled="loading.inventory">
             <span v-if="loading.inventory" class="spinner-border spinner-border-sm me-2"></span>
             Đồng bộ dữ liệu
           </button>
@@ -50,12 +49,6 @@
         </div>
       </div>
     </div>
-
-    <div v-if="!isAdminUser" class="alert alert-warning mt-4 mb-0">
-      Tài khoản nhân viên chỉ có quyền xem. Thêm hoặc chỉnh sửa lô thuốc yêu cầu quyền quản trị.
-    </div>
-    <div v-if="message" class="alert alert-info mt-4 mb-0">{{ message }}</div>
-    <div v-if="error" class="alert alert-danger mt-4 mb-0">{{ error }}</div>
   </section>
 
   <section class="row g-4">
@@ -81,7 +74,7 @@
         <div class="d-flex justify-content-between align-items-center gap-3 mb-4">
           <div>
             <h3 class="panel-title">Tổng tồn theo thuốc</h3>
-            <p class="panel-subtitle mb-0">Bấm vào nút chi tiết để xem danh sách lô của từng thuốc.</p>
+            <p class="panel-subtitle mb-0">Tồn kho được quy về đơn vị kho chuẩn của từng thuốc.</p>
           </div>
           <span class="soft-badge soft-badge--blue">{{ thuocRows.length }} thuốc</span>
         </div>
@@ -102,27 +95,21 @@
                 <td>
                   <div class="fw-semibold">{{ thuoc.ten_thuoc }}</div>
                   <div class="small text-secondary">{{ thuoc.ma_thuoc }}</div>
+                  <div class="small text-secondary">Đơn vị kho: {{ thuoc.don_vi_co_so || thuoc.don_vi_tinh || "-" }}</div>
                 </td>
+                <td>{{ getLoaiThuocName(thuoc) }}</td>
+                <td>{{ formatCurrency(thuoc.gia_ban) }} / {{ thuoc.don_vi_tinh || "-" }}</td>
                 <td>
-                  {{
-                    thuoc.loaiThuoc?.ten_loai ||
-                    thuoc.loaiThuoc?.ten_loai_thuoc ||
-                    thuoc.loai_thuoc?.ten_loai ||
-                    thuoc.loai_thuoc?.ten_loai_thuoc ||
-                    thuoc.loai_thuoc ||
-                    "-"
-                  }}
+                  <div class="fw-semibold">{{ formatQuantity(thuoc.so_luong_con, thuoc.don_vi_co_so || thuoc.don_vi_tinh) }}</div>
+                  <div class="small text-secondary">
+                    Bán mặc định: {{ Math.floor(Number(thuoc.so_luong_con || 0) / Math.max(1, Number(thuoc.he_so_quy_doi || 1))) }}
+                    {{ thuoc.don_vi_tinh || "" }}
+                  </div>
                 </td>
-                <td>{{ formatCurrency(thuoc.gia_ban) }}</td>
-                <td>{{ thuoc.so_luong_con }}</td>
                 <td class="text-end">
                   <div class="d-flex justify-content-end gap-2">
                     <button class="btn btn-sm btn-outline-primary" @click="openLotModal(thuoc)">Chi tiết lô</button>
-                    <button
-                      class="btn btn-sm btn-outline-success"
-                      :disabled="!isAdminUser"
-                      @click="openLotForm({ id_thuoc: thuoc.ma_thuoc })"
-                    >
+                    <button class="btn btn-sm btn-outline-success" :disabled="!isAdminUser" @click="openLotForm({ id_thuoc: thuoc.ma_thuoc })">
                       Nhập lô
                     </button>
                   </div>
@@ -140,7 +127,6 @@
     </div>
   </section>
 
-  <!-- Modal: Danh sách lô -->
   <div ref="lotModalEl" class="modal fade" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered">
       <div class="modal-content border-0 shadow-lg">
@@ -170,12 +156,20 @@
 
                 <div class="row g-3 small">
                   <div class="col-6">
-                    <div class="text-secondary mb-1">Số lượng nhập</div>
-                    <div class="fw-semibold">{{ lo.so_luong_nhap }}</div>
+                    <div class="text-secondary mb-1">Nhập gốc</div>
+                    <div class="fw-semibold">{{ formatQuantity(lo.so_luong_nhap_goc || lo.so_luong_nhap, lo.don_vi_nhap || selectedThuoc?.don_vi_tinh) }}</div>
+                  </div>
+                  <div class="col-6">
+                    <div class="text-secondary mb-1">Quy về kho</div>
+                    <div class="fw-semibold">{{ formatQuantity(lo.so_luong_nhap, lo.don_vi_co_so || selectedThuoc?.don_vi_co_so || selectedThuoc?.don_vi_tinh) }}</div>
                   </div>
                   <div class="col-6">
                     <div class="text-secondary mb-1">Số lượng còn</div>
-                    <div class="fw-semibold">{{ lo.so_luong_con }}</div>
+                    <div class="fw-semibold">{{ formatQuantity(lo.so_luong_con, lo.don_vi_co_so || selectedThuoc?.don_vi_co_so || selectedThuoc?.don_vi_tinh) }}</div>
+                  </div>
+                  <div class="col-6">
+                    <div class="text-secondary mb-1">Quy đổi</div>
+                    <div class="fw-semibold">{{ formatLotConversion(lo) }}</div>
                   </div>
                   <div class="col-6">
                     <div class="text-secondary mb-1">Ngày sản xuất</div>
@@ -185,9 +179,13 @@
                     <div class="text-secondary mb-1">Hạn sử dụng</div>
                     <div class="fw-semibold">{{ formatDate(lo.han_su_dung) }}</div>
                   </div>
-                  <div class="col-12">
+                  <div class="col-6">
                     <div class="text-secondary mb-1">Giá nhập</div>
-                    <div class="fw-semibold">{{ formatCurrency(lo.gia_nhap) }}</div>
+                    <div class="fw-semibold">{{ formatCurrency(lo.gia_nhap) }} / {{ lo.don_vi_nhap || "-" }}</div>
+                  </div>
+                  <div class="col-6">
+                    <div class="text-secondary mb-1">Giá quy đổi</div>
+                    <div class="fw-semibold">{{ formatCurrency(lo.gia_nhap_quy_doi || 0) }} / {{ lo.don_vi_co_so || "-" }}</div>
                   </div>
                 </div>
 
@@ -211,7 +209,6 @@
     </div>
   </div>
 
-  <!-- Modal: Nhập/Sửa lô -->
   <div ref="lotFormModalEl" class="modal fade" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable modal-dialog-centered">
       <div class="modal-content border-0 shadow-lg">
@@ -219,7 +216,7 @@
           <div>
             <h5 class="modal-title fw-bold mb-1">{{ lotForm.id_lo ? "Cập nhật lô thuốc" : "Nhập lô thuốc" }}</h5>
             <p class="mb-0 text-secondary small">
-              {{ lotForm.id_lo ? "Cập nhật số lượng hoặc thông tin lô." : "Nhập lô thuốc mới vào kho." }}
+              {{ lotForm.id_lo ? "Cập nhật thông tin và nhập thêm theo đúng đơn vị của lô." : "Nhập lô mới và quy đổi về đơn vị kho chuẩn." }}
             </p>
           </div>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
@@ -229,7 +226,7 @@
           <div class="row g-3">
             <div class="col-md-6">
               <label class="form-label fw-semibold">Thuốc áp dụng</label>
-              <select v-model="lotForm.id_thuoc" class="form-select" :disabled="lockThuocSelect">
+              <select v-model="lotForm.id_thuoc" class="form-select" :disabled="lockThuocSelect" @change="handleLotThuocChange">
                 <option value="">Chọn thuốc</option>
                 <option v-for="thuoc in thuocRows" :key="thuoc.ma_thuoc" :value="thuoc.ma_thuoc">
                   {{ thuoc.ten_thuoc }} ({{ thuoc.ma_thuoc }})
@@ -254,26 +251,57 @@
           </div>
 
           <div class="row g-3 mt-1">
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Đơn vị nhập</label>
+              <select v-model="lotForm.don_vi_nhap" class="form-select" :disabled="Boolean(lotForm.id_lo)">
+                <option value="">Chọn đơn vị nhập</option>
+                <option v-for="option in lotUnitOptions" :key="option.lookup_key" :value="option.ten_don_vi">
+                  {{ option.ten_don_vi }}
+                </option>
+              </select>
+            </div>
             <div class="col-md-4" v-if="!lotForm.id_lo">
               <label class="form-label fw-semibold">Số lượng nhập</label>
-              <input v-model.number="lotForm.so_luong_nhap" type="number" min="1" class="form-control" />
-              <div class="form-text">Số lượng còn sẽ tự bằng số lượng nhập.</div>
+              <input v-model.number="lotForm.so_luong_nhap_goc" type="number" min="1" class="form-control" />
+              <div class="form-text">Nhập theo đơn vị đang chọn.</div>
             </div>
-            <div class="col-md-4" v-if="!lotForm.id_lo">
-              <label class="form-label fw-semibold">Số lượng còn (tự động)</label>
-              <input :value="lotForm.so_luong_nhap || 0" type="number" class="form-control" disabled />
-            </div>
-            <div class="col-md-4" v-if="lotForm.id_lo">
-              <label class="form-label fw-semibold">Số lượng còn (tự động)</label>
-              <input :value="lotForm.so_luong_con ?? 0" type="number" class="form-control" disabled />
-            </div>
-            <div class="col-md-4" v-if="lotForm.id_lo">
-              <label class="form-label fw-semibold">Số lượng nhập thêm</label>
-              <input v-model.number="lotForm.so_luong_nhap_them" type="number" min="1" class="form-control" />
+            <div class="col-md-4" v-else>
+              <label class="form-label fw-semibold">Tổng đã nhập</label>
+              <input :value="formatQuantity(lotForm.so_luong_nhap_goc || 0, lotForm.don_vi_nhap)" class="form-control" disabled />
             </div>
             <div class="col-md-4">
-              <label class="form-label fw-semibold">Giá nhập</label>
+              <label class="form-label fw-semibold">Giá nhập / {{ lotForm.don_vi_nhap || "đơn vị nhập" }}</label>
               <input v-model.number="lotForm.gia_nhap" type="number" min="1" class="form-control" />
+            </div>
+          </div>
+
+          <div class="row g-3 mt-1">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Quy đổi kho</label>
+              <input :value="lotConversionPreview" class="form-control" disabled />
+            </div>
+            <div class="col-md-6" v-if="!lotForm.id_lo">
+              <label class="form-label fw-semibold">Tồn kho sẽ tăng</label>
+              <input :value="formatQuantity(lotConvertedQuantity, lotBaseUnitName)" class="form-control" disabled />
+            </div>
+            <div class="col-md-6" v-else>
+              <label class="form-label fw-semibold">Số lượng còn hiện tại</label>
+              <input :value="formatQuantity(lotForm.so_luong_con || 0, lotBaseUnitName)" class="form-control" disabled />
+            </div>
+          </div>
+
+          <div class="row g-3 mt-1" v-if="lotForm.id_lo">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Số lượng nhập thêm</label>
+              <input v-model.number="lotForm.so_luong_nhap_them_goc" type="number" min="1" class="form-control" />
+              <div class="form-text">Hệ thống sẽ tự quy đổi số lượng nhập thêm về {{ lotBaseUnitName || "đơn vị kho" }}.</div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Tồn kho tăng thêm</label>
+              <input :value="formatQuantity(lotConvertedQuantity, lotBaseUnitName)" class="form-control" disabled />
+              <div class="form-text" v-if="lotSelectedUnitOption">
+                Giá quy đổi: {{ formatCurrency(lotUnitBasePrice) }} / {{ lotBaseUnitName || "đơn vị kho" }}
+              </div>
             </div>
           </div>
         </div>
@@ -296,6 +324,58 @@ import { createLoThuoc, getLoThuocs, getThuocs, searchLoThuocs, searchThuocs, up
 import { getStoredUser, isAdminUser } from "../../../lib/authStorage";
 import { showToast } from "../../../lib/toast";
 
+function normalizeUnitName(value) {
+  return String(value || "").trim();
+}
+
+function normalizeUnitKey(value) {
+  return normalizeUnitName(value).toLowerCase();
+}
+
+function buildThuocUnitOptions(thuoc) {
+  const mainUnit = normalizeUnitName(thuoc?.don_vi_tinh);
+  const baseUnit = normalizeUnitName(thuoc?.don_vi_co_so || thuoc?.don_vi_tinh);
+  const options = [];
+
+  if (mainUnit) {
+    options.push({
+      ten_don_vi: mainUnit,
+      so_luong_quy_doi: Math.max(1, Number(thuoc?.he_so_quy_doi || 1)),
+      lookup_key: normalizeUnitKey(mainUnit),
+      mac_dinh: true,
+      don_vi_co_so: baseUnit,
+    });
+  }
+
+  if (Array.isArray(thuoc?.quy_cach_don_vi)) {
+    for (const entry of thuoc.quy_cach_don_vi) {
+      const unitName = normalizeUnitName(entry?.ten_don_vi);
+      if (!unitName) {
+        continue;
+      }
+
+      options.push({
+        ten_don_vi: unitName,
+        so_luong_quy_doi: Math.max(1, Number(entry?.so_luong_quy_doi || 1)),
+        lookup_key: normalizeUnitKey(unitName),
+        mac_dinh: false,
+        don_vi_co_so: baseUnit,
+      });
+    }
+  }
+
+  const seen = new Set();
+
+  return options.filter((item) => {
+    if (seen.has(item.lookup_key)) {
+      return false;
+    }
+
+    seen.add(item.lookup_key);
+    return true;
+  });
+}
+
 export default {
   data() {
     return {
@@ -306,8 +386,6 @@ export default {
       selectedThuoc: null,
       lotModal: null,
       lotFormModal: null,
-      message: "",
-      error: "",
       loading: {
         inventory: false,
         search: false,
@@ -319,9 +397,10 @@ export default {
         so_lo: "",
         ngay_san_xuat: "",
         han_su_dung: "",
-        so_luong_nhap: null,
+        don_vi_nhap: "",
+        so_luong_nhap_goc: null,
         so_luong_con: null,
-        so_luong_nhap_them: null,
+        so_luong_nhap_them_goc: null,
         gia_nhap: null,
       },
       lockThuocSelect: false,
@@ -330,6 +409,38 @@ export default {
   computed: {
     isAdminUser() {
       return isAdminUser();
+    },
+    selectedLotThuoc() {
+      return this.thuocs.find((thuoc) => thuoc.ma_thuoc === this.lotForm.id_thuoc) || null;
+    },
+    lotUnitOptions() {
+      return buildThuocUnitOptions(this.selectedLotThuoc);
+    },
+    lotSelectedUnitOption() {
+      if (!this.lotForm.don_vi_nhap) {
+        return this.lotUnitOptions[0] || null;
+      }
+
+      return this.lotUnitOptions.find((item) => item.lookup_key === normalizeUnitKey(this.lotForm.don_vi_nhap)) || this.lotUnitOptions[0] || null;
+    },
+    lotBaseUnitName() {
+      return normalizeUnitName(this.lotSelectedUnitOption?.don_vi_co_so || this.selectedLotThuoc?.don_vi_co_so || this.selectedLotThuoc?.don_vi_tinh);
+    },
+    lotConvertedQuantity() {
+      const quantity = this.lotForm.id_lo ? Number(this.lotForm.so_luong_nhap_them_goc || 0) : Number(this.lotForm.so_luong_nhap_goc || 0);
+      const factor = Math.max(1, Number(this.lotSelectedUnitOption?.so_luong_quy_doi || 1));
+      return quantity * factor;
+    },
+    lotConversionPreview() {
+      if (!this.lotSelectedUnitOption) {
+        return "Chọn thuốc và đơn vị nhập để xem quy đổi.";
+      }
+
+      return `1 ${this.lotSelectedUnitOption.ten_don_vi} = ${this.lotSelectedUnitOption.so_luong_quy_doi} ${this.lotBaseUnitName || "đơn vị kho"}`;
+    },
+    lotUnitBasePrice() {
+      const factor = Math.max(1, Number(this.lotSelectedUnitOption?.so_luong_quy_doi || 1));
+      return Number(this.lotForm.gia_nhap || 0) / factor;
     },
     thuocRows() {
       return this.thuocs
@@ -369,7 +480,7 @@ export default {
         {
           label: "Tổng tồn",
           value: totalTon,
-          note: "Cộng dồn từ các lô",
+          note: "Quy về đơn vị kho",
           deltaClass: "is-positive",
           icon: "bi bi-box-seam",
           iconClass: "metric-card__icon--teal",
@@ -401,6 +512,16 @@ export default {
 
       return err?.message || "Không thể tải dữ liệu tồn kho.";
     },
+    getLoaiThuocName(thuoc) {
+      return (
+        thuoc?.loaiThuoc?.ten_loai ||
+        thuoc?.loaiThuoc?.ten_loai_thuoc ||
+        thuoc?.loai_thuoc?.ten_loai ||
+        thuoc?.loai_thuoc?.ten_loai_thuoc ||
+        thuoc?.loai_thuoc ||
+        "-"
+      );
+    },
     formatCurrency(value) {
       return new Intl.NumberFormat("vi-VN", {
         style: "currency",
@@ -408,12 +529,29 @@ export default {
         maximumFractionDigits: 0,
       }).format(Number(value || 0));
     },
+    formatQuantity(value, unitName = "") {
+      const quantity = Number(value || 0);
+      const formatted = Number.isInteger(quantity) ? quantity : Number(quantity.toFixed(2));
+      const normalizedUnit = normalizeUnitName(unitName);
+      return normalizedUnit ? `${formatted} ${normalizedUnit}` : String(formatted);
+    },
     formatDate(value) {
       if (!value) {
         return "-";
       }
 
       return new Intl.DateTimeFormat("vi-VN", { dateStyle: "short" }).format(new Date(value));
+    },
+    formatLotConversion(lo) {
+      const donViNhap = normalizeUnitName(lo?.don_vi_nhap);
+      const donViCoSo = normalizeUnitName(lo?.don_vi_co_so);
+      const factor = Math.max(1, Number(lo?.he_so_quy_doi_nhap || 1));
+
+      if (!donViNhap || !donViCoSo) {
+        return "-";
+      }
+
+      return `1 ${donViNhap} = ${factor} ${donViCoSo}`;
     },
     lotStatus(lo) {
       const today = new Date();
@@ -451,33 +589,46 @@ export default {
         this.lotFormModal = new Modal(this.$refs.lotFormModalEl);
       }
     },
+    findThuocById(idThuoc) {
+      return this.thuocs.find((item) => item.ma_thuoc === idThuoc) || null;
+    },
+    defaultUnitForThuoc(thuoc) {
+      return buildThuocUnitOptions(thuoc)[0]?.ten_don_vi || "";
+    },
+    handleLotThuocChange() {
+      if (this.lotForm.id_lo) {
+        return;
+      }
+
+      const thuoc = this.findThuocById(this.lotForm.id_thuoc);
+      this.lotForm.don_vi_nhap = this.defaultUnitForThuoc(thuoc);
+    },
     openLotModal(thuoc) {
       this.selectedThuoc = thuoc;
-      this.message = `Đang hiển thị ${this.selectedThuocLots.length} lô của ${thuoc.ten_thuoc}.`;
-      this.error = "";
       this.ensureModal();
-
-      if (this.lotModal) {
-        this.lotModal.show();
-      }
+      this.lotModal?.show();
     },
     openLotForm(lot = {}) {
+      const resolvedThuocId = lot.id_thuoc || this.selectedThuoc?.ma_thuoc || "";
+      const thuoc = this.findThuocById(resolvedThuocId);
+      const defaultUnit = this.defaultUnitForThuoc(thuoc);
+
       this.lotForm = {
         id_lo: lot.id_lo || null,
-        id_thuoc: lot.id_thuoc || this.selectedThuoc?.ma_thuoc || "",
+        id_thuoc: resolvedThuocId,
         so_lo: lot.so_lo || "",
         ngay_san_xuat: lot.ngay_san_xuat || "",
         han_su_dung: lot.han_su_dung || "",
-        so_luong_nhap: lot.so_luong_nhap || null,
+        don_vi_nhap: lot.don_vi_nhap || defaultUnit,
+        so_luong_nhap_goc: lot.so_luong_nhap_goc || null,
         so_luong_con: lot.so_luong_con ?? lot.so_luong_nhap ?? null,
-        so_luong_nhap_them: null,
+        so_luong_nhap_them_goc: null,
         gia_nhap: lot.gia_nhap || null,
       };
+
       this.lockThuocSelect = Boolean(lot.id_thuoc || lot.id_lo);
       this.ensureModal();
-      if (this.lotFormModal) {
-        this.lotFormModal.show();
-      }
+      this.lotFormModal?.show();
     },
     async saveLot() {
       if (!this.isAdminUser) {
@@ -500,17 +651,22 @@ export default {
         return;
       }
 
-      if (!this.lotForm.gia_nhap) {
-        showToast("Vui lòng nhập giá nhập.", "error");
+      if (!this.lotForm.don_vi_nhap) {
+        showToast("Vui lòng chọn đơn vị nhập.", "error");
         return;
       }
 
-      if (!this.lotForm.id_lo && !this.lotForm.so_luong_nhap) {
+      if (!this.lotForm.gia_nhap || Number(this.lotForm.gia_nhap) < 1) {
+        showToast("Vui lòng nhập giá nhập hợp lệ.", "error");
+        return;
+      }
+
+      if (!this.lotForm.id_lo && (!this.lotForm.so_luong_nhap_goc || Number(this.lotForm.so_luong_nhap_goc) < 1)) {
         showToast("Vui lòng nhập số lượng nhập.", "error");
         return;
       }
 
-      if (this.lotForm.id_lo && !this.lotForm.so_luong_nhap_them) {
+      if (this.lotForm.id_lo && (!this.lotForm.so_luong_nhap_them_goc || Number(this.lotForm.so_luong_nhap_them_goc) < 1)) {
         showToast("Vui lòng nhập số lượng nhập thêm.", "error");
         return;
       }
@@ -520,21 +676,17 @@ export default {
         so_lo: this.lotForm.so_lo,
         ngay_san_xuat: this.lotForm.ngay_san_xuat,
         han_su_dung: this.lotForm.han_su_dung,
-        so_luong_nhap: this.lotForm.so_luong_nhap,
-        so_luong_con:
-          this.lotForm.id_lo
-            ? this.lotForm.so_luong_con
-            : this.lotForm.so_luong_nhap,
-        so_luong_nhap_them: this.lotForm.so_luong_nhap_them,
-        gia_nhap: this.lotForm.gia_nhap,
+        don_vi_nhap: this.lotForm.don_vi_nhap,
+        gia_nhap: Number(this.lotForm.gia_nhap),
       };
 
-      if (!this.lotForm.id_lo || !this.lotForm.so_luong_nhap_them) {
-        delete payload.so_luong_nhap_them;
+      if (this.lotForm.id_lo) {
+        payload.so_luong_nhap_them_goc = Number(this.lotForm.so_luong_nhap_them_goc);
+      } else {
+        payload.so_luong_nhap_goc = Number(this.lotForm.so_luong_nhap_goc);
       }
 
       this.loading.saveLot = true;
-      this.error = "";
 
       try {
         if (this.lotForm.id_lo) {
@@ -546,20 +698,18 @@ export default {
         }
 
         await this.loadInventory();
-        if (this.lotFormModal) {
-          this.lotFormModal.hide();
-        }
+        this.lotFormModal?.hide();
         this.lockThuocSelect = false;
       } catch (err) {
-        this.error = this.normalizeError(err);
-        showToast(this.error, "error");
+        showToast(this.normalizeError(err), "error");
       } finally {
         this.loading.saveLot = false;
       }
     },
-    async loadInventory() {
+    async loadInventory(options = {}) {
+      const { showSuccessToast = false } = options;
+
       this.loading.inventory = true;
-      this.error = "";
 
       try {
         const [thuocData, loData] = await Promise.all([getThuocs(), getLoThuocs()]);
@@ -571,9 +721,11 @@ export default {
           this.selectedThuoc = refreshed || null;
         }
 
-        this.message = `Đã đồng bộ ${this.thuocs.length} thuốc và ${this.loThuocs.length} lô thuốc.`;
+        if (showSuccessToast) {
+          showToast(`Đã đồng bộ ${this.thuocs.length} thuốc và ${this.loThuocs.length} lô thuốc.`, "success");
+        }
       } catch (err) {
-        this.error = this.normalizeError(err);
+        showToast(this.normalizeError(err), "error");
       } finally {
         this.loading.inventory = false;
       }
@@ -584,16 +736,15 @@ export default {
       }
 
       this.loading.search = true;
-      this.error = "";
 
       try {
         const [thuocData, loData] = await Promise.all([searchThuocs(this.keyword), searchLoThuocs(this.keyword)]);
         this.thuocs = thuocData;
         this.loThuocs = loData;
         this.selectedThuoc = null;
-        this.message = `Tìm thấy ${this.thuocs.length} thuốc và ${this.loThuocs.length} lô phù hợp.`;
+        showToast(`Tìm thấy ${this.thuocs.length} thuốc và ${this.loThuocs.length} lô phù hợp.`, "success");
       } catch (err) {
-        this.error = this.normalizeError(err);
+        showToast(this.normalizeError(err), "error");
       } finally {
         this.loading.search = false;
       }
@@ -601,8 +752,6 @@ export default {
     resetView() {
       this.keyword = "";
       this.selectedThuoc = null;
-      this.message = "";
-      this.error = "";
       this.loadInventory();
     },
   },

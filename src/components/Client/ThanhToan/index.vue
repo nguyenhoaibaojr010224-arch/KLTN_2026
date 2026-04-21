@@ -9,7 +9,14 @@
 
           <section class="pc-order-card">
             <article v-for="item in selectedItems" :key="item.id" class="pc-checkout-item">
-              <div class="pc-checkout-item__thumb" :class="item.imageTone || 'pink'"></div>
+              <div class="pc-checkout-item__thumb" :class="item.imageTone || 'pink'">
+                <img
+                  v-if="item.hinhAnhUrl"
+                  :src="item.hinhAnhUrl"
+                  :alt="item.ten"
+                  style="width: 100%; height: 100%; object-fit: cover; display: block; border-radius: inherit"
+                />
+              </div>
               <div class="pc-checkout-item__content">
                 <h3>{{ item.ten }}</h3>
                 <p>Phân loại: {{ item.donVi }}</p>
@@ -175,6 +182,10 @@
               <div class="pc-summary-card__line" v-if="orderPromotionDiscount > 0">
                 <span>Giảm giá mã khuyến mãi</span>
                 <strong class="text-success">-{{ formatCurrency(orderPromotionDiscount) }}</strong>
+              </div>
+              <div class="pc-summary-card__line">
+                <span>VAT (10%)</span>
+                <strong>{{ formatCurrency(vatAmount) }}</strong>
               </div>
               <div class="pc-summary-card__total">
                 <span>Tổng tiền</span>
@@ -398,6 +409,9 @@ export default {
     orderPromotionDiscount() {
       return this.customerStore.orderPromotionDiscount;
     },
+    vatAmount() {
+      return this.customerStore.vatAmount;
+    },
     orderTotal() {
       return this.customerStore.orderTotal;
     },
@@ -589,6 +603,7 @@ export default {
           items: this.selectedItems.map((item) => ({
             ma_thuoc: item.maThuoc || item.id,
             so_luong: Number(item.soLuong || 1),
+            don_vi: item.donVi || null,
           })),
           phuong_thuc_thanh_toan: this.state.paymentMethod,
           ma_giam_gia: this.state.appliedPromotion?.maGiamGia || null,

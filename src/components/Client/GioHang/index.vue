@@ -39,7 +39,14 @@
                     <i class="bi" :class="item.selected ? 'bi-check-square-fill' : 'bi-square'"></i>
                   </button>
 
-                  <div class="pc-cart-item__thumb" :class="item.imageTone || 'pink'"></div>
+                  <div class="pc-cart-item__thumb" :class="item.imageTone || 'pink'">
+                    <img
+                      v-if="item.hinhAnhUrl"
+                      :src="item.hinhAnhUrl"
+                      :alt="item.ten"
+                      style="width: 100%; height: 100%; object-fit: cover; display: block; border-radius: inherit"
+                    />
+                  </div>
 
                   <div class="pc-cart-item__content">
                     <h3>{{ item.ten }}</h3>
@@ -102,6 +109,10 @@
               <div class="pc-summary-card__line" v-if="orderPromotionDiscount > 0">
                 <span>Giảm giá mã</span>
                 <strong class="text-success">-{{ formatCurrency(orderPromotionDiscount) }}</strong>
+              </div>
+              <div class="pc-summary-card__line">
+                <span>VAT (10%)</span>
+                <strong>{{ formatCurrency(vatAmount) }}</strong>
               </div>
               <div class="pc-summary-card__total">
                 <span>Tổng tiền</span>
@@ -167,6 +178,9 @@ export default {
     },
     orderPromotionDiscount() {
       return this.customerStore.orderPromotionDiscount;
+    },
+    vatAmount() {
+      return this.customerStore.vatAmount;
     },
     orderTotal() {
       return this.customerStore.orderTotal;

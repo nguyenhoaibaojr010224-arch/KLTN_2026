@@ -3,7 +3,13 @@ import { authState, getAuthType, getStoredUser, isAuthenticatedState, setAuthSes
 import { watch } from "vue";
 import { getProfile, updateProfileApi } from "../api/profileApi";
 import { getCatalogThuocs } from "../api/catalogApi";
+import {
+  getCustomerBroadcastNotifications,
+  markAllCustomerNotificationsRead,
+  markCustomerNotificationRead,
+} from "../api/customerNotificationApi";
 import { getCustomerOrders } from "../api/orderApi";
+import { applyProductUnitSelection, buildProductUnitCartKey } from "./productUnits";
 
 const CART_KEY = "pharmacity_customer_cart";
 const PROFILE_KEY = "pharmacity_customer_profile";
@@ -12,7 +18,6 @@ const ORDER_KEY = "pharmacity_customer_orders_v2";
 const HIDDEN_ORDER_KEY = "pharmacity_customer_hidden_orders_v1";
 const PROMOTION_KEY = "pharmacity_customer_applied_promotion";
 const NOTIFICATION_KEY = "pharmacity_customer_notifications";
-const SHARED_NOTIFICATION_KEY = "pharmacity_customer_shared_notifications_v2";
 
 function readJson(key, fallback) {
   try {
@@ -165,6 +170,99 @@ function buildDefaultAddresses(profileData = buildProfile()) {
   ];
 }
 
+function normalizeAddressValue(value) {
+  return String(value || "").trim();
+}
+
+function createAddressFingerprint(address) {
+  return [
+    normalizeAddressValue(address?.hoTen).toLowerCase(),
+    normalizeAddressValue(address?.soDienThoai),
+    normalizeAddressValue(address?.tinhThanh),
+    normalizeAddressValue(address?.quanHuyen),
+    normalizeAddressValue(address?.phuongXa),
+    normalizeAddressValue(address?.soNha),
+    normalizeAddressValue(address?.loaiDiaChi).toLowerCase(),
+  ].join("|");
+}
+
+function normalizeAddressRecord(address, profileData = buildProfile(), index = 0) {
+  const fallbackFingerprint = createAddressFingerprint({
+    ...address,
+    hoTen: address?.hoTen || profileData?.hoTen || "Khách hàng",
+    soDienThoai: address?.soDienThoai || String(profileData?.soDienThoai || "").replaceAll("*", "0"),
+    loaiDiaChi: address?.loaiDiaChi || "Nhà riêng",
+  });
+
+  return {
+    ...address,
+    id: address?.id || `addr-${getStorageScopeId()}-${fallbackFingerprint || index}`,
+    hoTen: address?.hoTen || profileData?.hoTen || "Khách hàng",
+    soDienThoai: address?.soDienThoai || String(profileData?.soDienThoai || "").replaceAll("*", "0"),
+    tinhThanh: address?.tinhThanh || "",
+    quanHuyen: address?.quanHuyen || "",
+    phuongXa: address?.phuongXa || "",
+    soNha: address?.soNha || "",
+    loaiDiaChi: address?.loaiDiaChi || "Nhà riêng",
+    macDinh: Boolean(address?.macDinh),
+  };
+}
+
+function dedupeAddresses(addresses, profileData = buildProfile()) {
+  const uniqueMap = new Map();
+
+  addresses.forEach((address, index) => {
+    const normalized = normalizeAddressRecord(address, profileData, index);
+    const fingerprint = createAddressFingerprint(normalized);
+    const existing = uniqueMap.get(fingerprint);
+
+    if (!existing) {
+      uniqueMap.set(fingerprint, normalized);
+      return;
+    }
+
+    if (normalized.macDinh && !existing.macDinh) {
+      uniqueMap.set(fingerprint, normalized);
+      return;
+    }
+
+    if (existing?.__seededFromProfile && !normalized?.__seededFromProfile) {
+      uniqueMap.set(fingerprint, normalized);
+    }
+  });
+
+  const normalizedAddresses = Array.from(uniqueMap.values());
+
+  if (!normalizedAddresses.length) {
+    return [];
+  }
+
+  const hasDefault = normalizedAddresses.some((address) => address.macDinh);
+  if (!hasDefault) {
+    normalizedAddresses[0] = {
+      ...normalizedAddresses[0],
+      macDinh: true,
+    };
+  } else {
+    let foundDefault = false;
+    for (let index = 0; index < normalizedAddresses.length; index += 1) {
+      if (normalizedAddresses[index].macDinh && !foundDefault) {
+        foundDefault = true;
+        continue;
+      }
+
+      if (normalizedAddresses[index].macDinh) {
+        normalizedAddresses[index] = {
+          ...normalizedAddresses[index],
+          macDinh: false,
+        };
+      }
+    }
+  }
+
+  return normalizedAddresses;
+}
+
 function isLegacySharedAddress(address) {
   return (
     String(address?.hoTen || "").trim() === "Khách hàng" &&
@@ -185,21 +283,60 @@ function normalizeAddresses(addresses, profileData = buildProfile()) {
     return buildDefaultAddresses(profileData);
   }
 
-  return addresses;
+  return dedupeAddresses(addresses, profileData);
+}
+
+function normalizeOrderStatus(value) {
+  const raw = String(value || "").trim();
+
+  if (!raw) {
+    return "Hoàn thành";
+  }
+
+  const normalized = raw
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+  if (["thanh cong", "hoan thanh", "completed", "complete", "success", "succeeded"].includes(normalized)) {
+    return "Hoàn thành";
+  }
+
+  if (["dang xu ly", "cho xu ly", "pending", "processing", "in progress"].includes(normalized)) {
+    return "Đang xử lý";
+  }
+
+  if (["dang giao", "shipping", "delivering"].includes(normalized)) {
+    return "Đang giao";
+  }
+
+  if (["da huy", "huy", "cancelled", "canceled"].includes(normalized)) {
+    return "Đã hủy";
+  }
+
+  if (["that bai", "failed", "failure"].includes(normalized)) {
+    return "Thất bại";
+  }
+
+  return raw;
+}
+
+function enrichOrderItemsWithCatalog(items, catalogMap = new Map()) {
+  return (Array.isArray(items) ? items : []).map((item) => {
+    const maThuoc = item.maThuoc || item.ma_thuoc || item.id || "";
+    const catalogItem = catalogMap.get(maThuoc);
+
+    return {
+      ...item,
+      hinhAnhUrl: item.hinhAnhUrl || item.hinh_anh_url || catalogItem?.hinh_anh_url || "",
+      imageTone: item.imageTone || "pink",
+      loai: item.loai || item.loai_thuoc || catalogItem?.loai_thuoc || "",
+      moTa: item.moTa || item.mo_ta || catalogItem?.mo_ta || "",
+    };
+  });
 }
 
 const defaultOrders = [];
-
-const defaultSharedNotifications = [
-  {
-    id: "shared-promo-20260404",
-    scope: "shared",
-    group: "Ưu đãi",
-    tieuDe: "Mua 1 tặng 1 cho một số sản phẩm chăm sóc cá nhân",
-    daDocScopes: [],
-    createdAt: "2026-04-04T09:00:00+07:00",
-  },
-];
 
 const defaultVouchers = [
   {
@@ -228,8 +365,10 @@ function normalizeNotificationItem(item, scope = "account") {
   return {
     id: String(item?.id ?? `${scope}-${Date.now()}`),
     scope,
+    remoteId: item?.remoteId ?? item?.remote_id ?? null,
     group: item?.group || "Hệ thống",
     tieuDe: item?.tieuDe || "Thông báo mới",
+    noiDung: item?.noiDung || item?.noi_dung || "",
     daDoc: Boolean(item?.daDoc),
     daDocScopes: Array.isArray(item?.daDocScopes) ? item.daDocScopes.filter(Boolean).map(String) : [],
     createdAt: item?.createdAt || new Date().toISOString(),
@@ -249,15 +388,10 @@ function sanitizeAccountNotifications(list) {
 }
 
 function sanitizeSharedNotifications(list) {
-  if (list == null) {
-    return defaultSharedNotifications.map((item) => normalizeNotificationItem(item, "shared"));
-  }
-
   return Array.isArray(list) ? list.map((item) => normalizeNotificationItem(item, "shared")) : [];
 }
 
 function buildMergedNotifications() {
-  const readScope = getNotificationReadScope();
   const accountNotifications = accountNotificationsSource.map((item) => ({
     ...item,
     scope: "account",
@@ -266,7 +400,7 @@ function buildMergedNotifications() {
   const sharedNotifications = sharedNotificationsSource.map((item) => ({
     ...item,
     scope: "shared",
-    daDoc: item.daDocScopes.includes(readScope),
+    daDoc: Boolean(item.daDoc),
   }));
 
   return [...accountNotifications, ...sharedNotifications].sort(
@@ -283,7 +417,7 @@ function persistAccountNotifications() {
 }
 
 function persistSharedNotifications() {
-  writeJson(SHARED_NOTIFICATION_KEY, sharedNotificationsSource);
+  return sharedNotificationsSource;
 }
 
 function addAccountNotification(payload) {
@@ -315,40 +449,78 @@ function addOrderNotification(order) {
   return addAccountNotification({
     id: `order-${order.id}`,
     group: "Đơn hàng",
-    tieuDe: `Đơn hàng ${order.id} đang chờ xác nhận.`,
+    tieuDe: `Đơn hàng ${order.id} đã được đặt thành công.`,
     createdAt: new Date().toISOString(),
   });
 }
 
+function formatOrderDisplayDate(value) {
+  if (!value) {
+    return new Date().toLocaleDateString("vi-VN");
+  }
+
+  const parsedDate = new Date(value);
+  if (!Number.isNaN(parsedDate.getTime())) {
+    return new Intl.DateTimeFormat("vi-VN").format(parsedDate);
+  }
+
+  const rawValue = String(value || "").trim();
+  return rawValue || new Date().toLocaleDateString("vi-VN");
+}
+
 function normalizeOrderHistoryItem(orderPayload) {
   const orderDate = orderPayload?.ngay_ban || orderPayload?.ngay;
+  const tongTienGoc = Number(orderPayload?.tong_tien || orderPayload?.tongTien || 0);
+  const giamGia = Number(orderPayload?.giam_gia || orderPayload?.giamGia || 0);
+  const thueVat = Number(orderPayload?.thue_vat || orderPayload?.thueVat || 0);
   const purchasedItems = Array.isArray(orderPayload?.items)
-    ? orderPayload.items.map((item) => ({
-        id: item.id || item.maThuoc || item.ma_thuoc,
-        maThuoc: item.maThuoc || item.ma_thuoc || "",
-        ten: item.ten || item.ten_thuoc || "",
-        donVi: item.donVi || item.don_vi || item.don_vi_tinh || "",
-        gia: Number(item.gia || item.gia_ban || 0),
-        giaGoc: Number(item.giaGoc || item.gia_goc || item.gia || item.gia_ban || 0),
-        soLuong: Number(item.soLuong || item.so_luong || 1),
-        imageTone: item.imageTone || "pink",
-        loai: item.loai || item.loai_thuoc || "",
-        moTa: item.moTa || item.mo_ta || "",
-      }))
+      ? orderPayload.items.map((item) => ({
+          id: item.id || item.maThuoc || item.ma_thuoc,
+          maThuoc: item.maThuoc || item.ma_thuoc || "",
+          ten: item.ten || item.ten_thuoc || "",
+          donVi: item.donVi || item.don_vi || item.don_vi_tinh || "",
+          gia: Number(item.gia || item.gia_ban || 0),
+          giaGoc: Number(item.giaGoc || item.gia_goc || item.gia || item.gia_ban || 0),
+          thanhTien: Number(item.thanhTien || item.thanh_tien || 0),
+          soLuong: Number(item.soLuong || item.so_luong || 1),
+          imageTone: item.imageTone || "pink",
+          hinhAnhUrl: item.hinhAnhUrl || item.hinh_anh_url || "",
+          loai: item.loai || item.loai_thuoc || "",
+          moTa: item.moTa || item.mo_ta || "",
+        }))
     : [];
 
   return {
     id: String(orderPayload?.ma_hoa_don || orderPayload?.id || orderPayload?.id_hoa_don || `DH-${Date.now()}`),
-    ngay: orderDate
-      ? new Intl.DateTimeFormat("vi-VN").format(new Date(orderDate))
-      : new Date().toLocaleDateString("vi-VN"),
+    ngay: formatOrderDisplayDate(orderDate),
     ngayBan: orderPayload?.ngay_ban || null,
-    trangThai: orderPayload?.trang_thai || "Chờ xác nhận",
-    tongTien: Number(orderPayload?.tien_thanh_toan || orderPayload?.tongTien || 0),
+    trangThai: normalizeOrderStatus(orderPayload?.trang_thai || orderPayload?.trangThai || orderPayload?.status),
+    thueVat,
+    tongTien: Number(orderPayload?.tien_thanh_toan || orderPayload?.tienThanhToan || tongTienGoc - giamGia + thueVat || 0),
+    tamTinh: tongTienGoc,
+    giamGia,
+    tienThanhToan: Number(orderPayload?.tien_thanh_toan || orderPayload?.tienThanhToan || tongTienGoc - giamGia + thueVat || 0),
     sanPham:
       Number(orderPayload?.tong_so_san_pham || 0) ||
       purchasedItems.reduce((total, item) => total + Number(item.soLuong || 0), 0),
     items: purchasedItems,
+    nguoiNhan: orderPayload?.nguoi_nhan || "",
+    soDienThoaiNhan: orderPayload?.so_dien_thoai_nhan || "",
+    diaChiGiaoHang: orderPayload?.dia_chi_giao_hang || "",
+    ghiChu: orderPayload?.ghi_chu || "",
+    ghiChuHeThong: orderPayload?.ghi_chu_he_thong || "",
+    phuongThucThanhToan: orderPayload?.phuong_thuc_thanh_toan || "",
+    phuongThucThanhToanLabel: orderPayload?.phuong_thuc_thanh_toan_label || "",
+    maGiaoDich: orderPayload?.ma_giao_dich || "",
+    thoiGianThanhToan: orderPayload?.thoi_gian_thanh_toan || null,
+    timeline: Array.isArray(orderPayload?.timeline)
+      ? orderPayload.timeline.map((item, index) => ({
+          id: item.id || `timeline-${index}`,
+          label: item.label || "",
+          thoiGian: item.thoi_gian || item.thoiGian || null,
+          moTa: item.mo_ta || item.moTa || "",
+        }))
+      : [],
     statusUpdatedAt: orderPayload?.thoi_gian_cap_nhat_trang_thai || null,
   };
 }
@@ -358,15 +530,17 @@ function persistHiddenOrders() {
 }
 
 accountNotificationsSource = sanitizeAccountNotifications(readScopedJson(NOTIFICATION_KEY, []));
-sharedNotificationsSource = sanitizeSharedNotifications(readJson(SHARED_NOTIFICATION_KEY, null));
+sharedNotificationsSource = [];
 persistAccountNotifications();
 persistSharedNotifications();
 
 const state = reactive({
   profile: readScopedJson(PROFILE_KEY, buildProfile()),
   addresses: normalizeAddresses(readScopedJson(ADDRESS_KEY, []), readScopedJson(PROFILE_KEY, buildProfile())),
-  cart: readScopedJson(CART_KEY, []),
-  orders: readScopedJson(ORDER_KEY, defaultOrders).filter((order) => !hiddenOrderIds.includes(String(order?.id || ""))),
+  cart: sanitizeCartItems(readScopedJson(CART_KEY, [])),
+  orders: readScopedJson(ORDER_KEY, defaultOrders)
+    .map((order) => normalizeOrderHistoryItem(order))
+    .filter((order) => !hiddenOrderIds.includes(String(order?.id || ""))),
   appliedPromotion: readScopedJson(PROMOTION_KEY, null),
   note: "",
   paymentMethod: "cod",
@@ -380,6 +554,7 @@ function persistCart() {
 }
 
 function persistAddresses() {
+  state.addresses = normalizeAddresses(state.addresses, state.profile);
   writeScopedJson(ADDRESS_KEY, state.addresses);
 }
 
@@ -416,12 +591,14 @@ function hydrateScopedState() {
   currentStorageScope = nextScope;
   state.profile = readScopedJson(PROFILE_KEY, buildProfile());
   state.addresses = normalizeAddresses(readScopedJson(ADDRESS_KEY, []), state.profile);
-  state.cart = readScopedJson(CART_KEY, []);
+  state.cart = sanitizeCartItems(readScopedJson(CART_KEY, []));
   hiddenOrderIds = readScopedJson(HIDDEN_ORDER_KEY, []).map((item) => String(item));
-  state.orders = readScopedJson(ORDER_KEY, defaultOrders).filter((order) => !hiddenOrderIds.includes(String(order?.id || "")));
+  state.orders = readScopedJson(ORDER_KEY, defaultOrders)
+    .map((order) => normalizeOrderHistoryItem(order))
+    .filter((order) => !hiddenOrderIds.includes(String(order?.id || "")));
   state.appliedPromotion = readScopedJson(PROMOTION_KEY, null);
   accountNotificationsSource = sanitizeAccountNotifications(readScopedJson(NOTIFICATION_KEY, []));
-  sharedNotificationsSource = sanitizeSharedNotifications(readJson(SHARED_NOTIFICATION_KEY, null));
+  sharedNotificationsSource = [];
   persistAccountNotifications();
   persistSharedNotifications();
   syncNotificationsState();
@@ -463,28 +640,90 @@ function syncProfileFromAuth() {
   persistAddresses();
 }
 
+function sanitizeCartItems(items) {
+  if (!Array.isArray(items)) {
+    return [];
+  }
+
+  return items
+    .map((item) => {
+      const maThuoc = item.maThuoc || item.ma_thuoc || item.id || "";
+      const normalizedProduct = applyProductUnitSelection(
+        {
+          ...item,
+          ma_thuoc: maThuoc,
+          ten_thuoc: item.ten || item.ten_thuoc || "",
+          loai_thuoc: item.loai || item.loai_thuoc || "",
+          don_vi_tinh: item.selectedDonVi || item.selected_don_vi || item.donVi || item.don_vi || item.don_vi_tinh || "",
+          nha_san_xuat: item.nhaSanXuat || item.nha_san_xuat || "",
+          mo_ta: item.moTa || item.mo_ta || "",
+          gia_ban: item.gia || item.gia_ban || 0,
+          gia_niem_yet: item.giaGoc || item.gia_goc || item.gia || item.gia_ban || 0,
+          don_vi_options: item.don_vi_options || item.donViOptions || [],
+        },
+        item.selectedDonVi || item.selected_don_vi || item.donVi || item.don_vi || item.don_vi_tinh || ""
+      );
+      const selectedUnit = normalizedProduct.selected_don_vi || normalizedProduct.don_vi_tinh || "";
+
+      if (!maThuoc) {
+        return null;
+      }
+
+      return {
+        id: item.id || buildProductUnitCartKey(maThuoc, selectedUnit),
+        maThuoc,
+        ten: item.ten || item.ten_thuoc || "",
+        donVi: selectedUnit,
+        selectedDonVi: selectedUnit,
+        gia: Number(normalizedProduct.gia_ban || item.gia || item.gia_ban || 0),
+        giaGoc: Number(normalizedProduct.gia_niem_yet || item.giaGoc || item.gia_goc || item.gia || item.gia_ban || 0),
+        soLuong: Number(item.soLuong || item.so_luong || 1),
+        imageTone: item.imageTone || "pink",
+        hinhAnhUrl: item.hinhAnhUrl || item.hinh_anh_url || normalizedProduct.hinh_anh_url || "",
+        loai: item.loai || item.loai_thuoc || "",
+        moTa: item.moTa || item.mo_ta || "",
+        tonKho: Number(item.tonKho || item.so_luong_ton || 0),
+        selected: item.selected !== false,
+        nhaSanXuat: item.nhaSanXuat || item.nha_san_xuat || "PharmaGo Care",
+        promoTags: Array.isArray(item.promoTags) ? item.promoTags : [],
+        coKhuyenMai: Boolean(item.coKhuyenMai ?? item.co_khuyen_mai),
+      };
+    })
+    .filter(Boolean);
+}
+
 function normalizeCartItem(product) {
-  const basePrice = Number(product.gia_ban || product.price || 0);
-  const originalPrice = Number(product.gia_niem_yet || product.originalPrice || basePrice);
-  const stockQuantity = Number(product.so_luong_ton || product.tonKho || 0);
+  const normalizedProduct = applyProductUnitSelection(
+    product,
+    product.selected_don_vi || product.selectedDonVi || product.donVi || product.don_vi || product.don_vi_tinh || ""
+  );
+  const selectedUnit = normalizedProduct.selected_don_vi || normalizedProduct.don_vi_tinh || "Hộp";
+  const basePrice = Number(normalizedProduct.gia_ban || normalizedProduct.price || product.gia_ban || product.price || 0);
+  const originalPrice = Number(
+    normalizedProduct.gia_niem_yet || normalizedProduct.originalPrice || product.gia_niem_yet || product.originalPrice || basePrice
+  );
+  const stockQuantity = Number(normalizedProduct.so_luong_ton || normalizedProduct.tonKho || product.so_luong_ton || product.tonKho || 0);
   const promoTags = product.co_khuyen_mai && product.khuyen_mai
     ? [product.khuyen_mai.nhan_hien_thi || product.khuyen_mai.ten_khuyen_mai].filter(Boolean)
     : [];
+  const maThuoc = normalizedProduct.ma_thuoc || normalizedProduct.id;
 
   return {
-    id: product.ma_thuoc || product.id,
-    maThuoc: product.ma_thuoc || product.id,
-    ten: product.ten_thuoc || product.ten,
-    loai: product.loai_thuoc || "Thuá»‘c",
-    donVi: product.don_vi_tinh || "Hộp",
-    moTa: product.mo_ta || product.moTa || product.description || "",
+    id: buildProductUnitCartKey(maThuoc, selectedUnit),
+    maThuoc,
+    ten: normalizedProduct.ten_thuoc || normalizedProduct.ten,
+    loai: normalizedProduct.loai_thuoc || product.loai_thuoc || "Thuá»‘c",
+    donVi: selectedUnit,
+    selectedDonVi: selectedUnit,
+    moTa: normalizedProduct.mo_ta || normalizedProduct.moTa || product.mo_ta || product.moTa || product.description || "",
     gia: basePrice,
     giaGoc: originalPrice,
     tonKho: stockQuantity,
     soLuong: 1,
     selected: stockQuantity > 0,
     imageTone: product.imageTone || "pink",
-    nhaSanXuat: product.nha_san_xuat || "PharmaGo Care",
+    hinhAnhUrl: normalizedProduct.hinh_anh_url || product.hinh_anh_url || "",
+    nhaSanXuat: normalizedProduct.nha_san_xuat || product.nha_san_xuat || "PharmaGo Care",
     promoTags: product.promoTags || promoTags,
     coKhuyenMai: Boolean(product.co_khuyen_mai),
   };
@@ -509,16 +748,21 @@ async function syncCartPricesWithCatalog() {
       }
 
       changed = true;
+      const latestWithUnit = applyProductUnitSelection(latest, item.selectedDonVi || item.donVi);
+      const selectedUnit = latestWithUnit.selected_don_vi || latestWithUnit.don_vi_tinh || item.donVi;
 
       return {
         ...item,
+        id: buildProductUnitCartKey(item.maThuoc || item.id, selectedUnit),
         loai: latest.loai_thuoc || item.loai,
-        donVi: latest.don_vi_tinh || item.donVi,
+        donVi: selectedUnit,
+        selectedDonVi: selectedUnit,
         moTa: latest.mo_ta || item.moTa || "",
+        hinhAnhUrl: latest.hinh_anh_url || item.hinhAnhUrl || "",
         tonKho: Number(latest.so_luong_ton || item.tonKho || 0),
         selected: Number(latest.so_luong_ton || item.tonKho || 0) > 0 ? item.selected !== false : false,
-        gia: Number(latest.gia_ban || item.gia || 0),
-        giaGoc: Number(latest.gia_niem_yet || latest.gia_ban || item.giaGoc || item.gia || 0),
+        gia: Number(latestWithUnit.gia_ban || item.gia || 0),
+        giaGoc: Number(latestWithUnit.gia_niem_yet || latestWithUnit.gia_ban || item.giaGoc || item.gia || 0),
         nhaSanXuat: latest.nha_san_xuat || item.nhaSanXuat,
         promoTags: latest.co_khuyen_mai && latest.khuyen_mai
           ? [latest.khuyen_mai.nhan_hien_thi || latest.khuyen_mai.ten_khuyen_mai].filter(Boolean)
@@ -536,9 +780,10 @@ async function syncCartPricesWithCatalog() {
 }
 
 function addToCart(product) {
-  const itemId = product.ma_thuoc || product.id;
+  const normalizedItem = normalizeCartItem(product);
+  const itemId = normalizedItem.id;
   const existing = state.cart.find((item) => item.id === itemId);
-  const incomingStock = Number(product.so_luong_ton || product.tonKho || existing?.tonKho || 0);
+  const incomingStock = Number(normalizedItem.tonKho || existing?.tonKho || 0);
 
   if (incomingStock <= 0) {
     return false;
@@ -551,7 +796,7 @@ function addToCart(product) {
 
     existing.soLuong = Math.min(existing.soLuong + 1, quantityLimit);
   } else {
-    state.cart.push(normalizeCartItem(product));
+    state.cart.push(normalizedItem);
   }
 
   persistCart();
@@ -608,20 +853,48 @@ function clearCart() {
 
 function saveAddress(payload) {
   const isEditing = Boolean(payload.id);
-  const item = {
+  const item = normalizeAddressRecord({
     id: payload.id || Date.now(),
     ...payload,
     macDinh: payload.macDinh ?? state.addresses.length === 0,
-  };
+  }, state.profile, state.addresses.length);
 
   if (item.macDinh) {
     state.addresses = state.addresses.map((address) => ({ ...address, macDinh: false }));
   }
 
   state.addresses = isEditing
-    ? state.addresses.map((address) => (address.id === item.id ? item : address))
+    ? state.addresses.map((address) => (address.id === item.id ? { ...address, ...item } : address))
     : [...state.addresses, item];
   persistAddresses();
+}
+
+function setDefaultAddress(addressId) {
+  const targetId = String(addressId || "").trim();
+
+  if (!targetId) {
+    return false;
+  }
+
+  let found = false;
+  state.addresses = state.addresses.map((address) => {
+    const isTarget = String(address.id) === targetId;
+    if (isTarget) {
+      found = true;
+    }
+
+    return {
+      ...address,
+      macDinh: isTarget,
+    };
+  });
+
+  if (!found) {
+    return false;
+  }
+
+  persistAddresses();
+  return true;
 }
 
 async function refreshProfileFromApi() {
@@ -686,9 +959,19 @@ async function syncOrdersFromApi(options = {}) {
 
   try {
     const previousOrders = new Map(state.orders.map((order) => [String(order.id), order]));
-    const response = await getCustomerOrders();
+    const [response, catalogResponse] = await Promise.all([
+      getCustomerOrders(),
+      getCatalogThuocs(),
+    ]);
+    const catalogItems = Array.isArray(catalogResponse?.data) ? catalogResponse.data : [];
+    const catalogMap = new Map(catalogItems.map((item) => [item.ma_thuoc, item]));
     const normalizedOrders = (Array.isArray(response?.data) ? response.data : [])
-      .map((item) => normalizeOrderHistoryItem(item))
+      .map((item) =>
+        normalizeOrderHistoryItem({
+          ...item,
+          items: enrichOrderItemsWithCatalog(item?.items, catalogMap),
+        })
+      )
       .filter((order) => !hiddenOrderIds.includes(String(order.id)));
 
     normalizedOrders.forEach((order) => {
@@ -696,21 +979,9 @@ async function syncOrdersFromApi(options = {}) {
       const hasCreatedNotification = accountNotificationsSource.some(
         (item) => String(item.id) === `order-${order.id}`
       );
-      const hasConfirmedNotification = accountNotificationsSource.some(
-        (item) => String(item.id) === `order-confirmed-${order.id}`
-      );
 
-      if (
-        order.trangThai === "Thành công" &&
-        !hasConfirmedNotification &&
-        (previousOrder?.trangThai === "Chờ xác nhận" || hasCreatedNotification)
-      ) {
-        addAccountNotification({
-          id: `order-confirmed-${order.id}`,
-          group: "Đơn hàng",
-          tieuDe: `Đơn hàng ${order.id} đã được xác nhận.`,
-          createdAt: order.statusUpdatedAt || new Date().toISOString(),
-        });
+      if (!previousOrder && !hasCreatedNotification) {
+        addOrderNotification(order);
       }
     });
 
@@ -724,6 +995,30 @@ async function syncOrdersFromApi(options = {}) {
     }
 
     return state.orders;
+  }
+}
+
+async function syncSharedNotificationsFromApi(options = {}) {
+  const { silent = true } = options;
+  hydrateScopedState();
+
+  if (!isAuthenticatedState.value || getAuthType() !== "customer") {
+    sharedNotificationsSource = [];
+    syncNotificationsState();
+    return sharedNotificationsSource;
+  }
+
+  try {
+    const response = await getCustomerBroadcastNotifications();
+    sharedNotificationsSource = sanitizeSharedNotifications(Array.isArray(response?.data) ? response.data : []);
+    syncNotificationsState();
+    return sharedNotificationsSource;
+  } catch (error) {
+    if (!silent) {
+      throw error;
+    }
+
+    return sharedNotificationsSource;
   }
 }
 
@@ -767,8 +1062,10 @@ function placeOrder(orderPayload) {
     donVi: item.donVi || "",
     gia: Number(item.gia || 0),
     giaGoc: Number(item.giaGoc || item.gia || 0),
+    thanhTien: Number(item.gia || 0) * Number(item.soLuong || 1),
     soLuong: Number(item.soLuong || 1),
     imageTone: item.imageTone || "pink",
+    hinhAnhUrl: item.hinhAnhUrl || item.hinh_anh_url || "",
     loai: item.loai || "",
     moTa: item.moTa || "",
   }));
@@ -790,6 +1087,73 @@ function placeOrder(orderPayload) {
   return historyItem.id;
 }
 
+async function reorderOrder(order) {
+  const orderItems = Array.isArray(order?.items) ? order.items : [];
+
+  if (!orderItems.length) {
+    return { added: 0, skipped: [] };
+  }
+
+  let catalogItems = [];
+  try {
+    const response = await getCatalogThuocs();
+    catalogItems = Array.isArray(response?.data) ? response.data : [];
+  } catch {
+    return {
+      added: 0,
+      skipped: orderItems.map((item) => item.ten || item.maThuoc || "Sản phẩm"),
+    };
+  }
+
+  const catalogMap = new Map(catalogItems.map((item) => [item.ma_thuoc, item]));
+  const skipped = [];
+  let added = 0;
+
+  orderItems.forEach((item) => {
+    const maThuoc = item.maThuoc || item.ma_thuoc || "";
+    const selectedUnit = item.donVi || item.don_vi || "";
+    const latestProduct = catalogMap.get(maThuoc);
+
+    if (!latestProduct) {
+      skipped.push(item.ten || maThuoc || "Sản phẩm");
+      return;
+    }
+
+    const latestWithUnit = applyProductUnitSelection(latestProduct, selectedUnit);
+    const quantityToAdd = Math.max(1, Number(item.soLuong || item.so_luong || 1));
+    const normalizedItem = normalizeCartItem({
+      ...latestWithUnit,
+      selected_don_vi: selectedUnit || latestWithUnit.selected_don_vi || latestWithUnit.don_vi_tinh || "",
+    });
+    const itemId = normalizedItem.id;
+    const existing = state.cart.find((entry) => entry.id === itemId);
+    const stockLimit = Number(normalizedItem.tonKho || existing?.tonKho || 0);
+
+    if (stockLimit <= 0) {
+      skipped.push(item.ten || latestProduct.ten_thuoc || maThuoc || "Sản phẩm");
+      return;
+    }
+
+    if (existing) {
+      existing.soLuong = Math.min(existing.soLuong + quantityToAdd, stockLimit);
+      existing.tonKho = stockLimit;
+      existing.gia = normalizedItem.gia;
+      existing.giaGoc = normalizedItem.giaGoc;
+      existing.hinhAnhUrl = normalizedItem.hinhAnhUrl;
+    } else {
+      state.cart.push({
+        ...normalizedItem,
+        soLuong: Math.min(quantityToAdd, stockLimit),
+      });
+    }
+
+    added += 1;
+  });
+
+  persistCart();
+  return { added, skipped };
+}
+
 function removeOrder(orderId) {
   const normalizedId = String(orderId || "").trim();
   if (!normalizedId) {
@@ -805,7 +1169,7 @@ function removeOrder(orderId) {
   persistOrders();
 }
 
-function markNotificationRead(notificationId) {
+async function markNotificationRead(notificationId) {
   const targetId = String(notificationId || "").trim();
   if (!targetId) {
     return;
@@ -828,26 +1192,34 @@ function markNotificationRead(notificationId) {
     return;
   }
 
-  const readScope = getNotificationReadScope();
+  const targetNotification = sharedNotificationsSource.find((notification) => String(notification.id) === targetId);
+  if (!targetNotification || targetNotification.daDoc) {
+    return;
+  }
+
   sharedNotificationsSource = sharedNotificationsSource.map((notification) => {
-    if (String(notification.id) !== targetId || notification.daDocScopes.includes(readScope)) {
+    if (String(notification.id) !== targetId) {
       return notification;
     }
 
     changed = true;
-    return {
-      ...notification,
-      daDocScopes: [...notification.daDocScopes, readScope],
-    };
+    return { ...notification, daDoc: true };
   });
 
   if (changed) {
-    persistSharedNotifications();
     syncNotificationsState();
+
+    if (isAuthenticatedState.value && getAuthType() === "customer" && targetNotification.remoteId) {
+      try {
+        await markCustomerNotificationRead(targetNotification.remoteId);
+      } catch {
+        // Giữ trạng thái local, lần đồng bộ sau sẽ lấy lại dữ liệu chuẩn từ server.
+      }
+    }
   }
 }
 
-function markNotificationsReadByGroup(group) {
+async function markNotificationsReadByGroup(group) {
   if (!group) {
     return;
   }
@@ -867,26 +1239,30 @@ function markNotificationsReadByGroup(group) {
     persistAccountNotifications();
   }
 
-  const readScope = getNotificationReadScope();
+  let sharedChanged = false;
   sharedNotificationsSource = sharedNotificationsSource.map((notification) => {
-    if (notification.group !== group || notification.daDocScopes.includes(readScope)) {
+    if (notification.group !== group || notification.daDoc) {
       return notification;
     }
 
-    changed = true;
-    return {
-      ...notification,
-      daDocScopes: [...notification.daDocScopes, readScope],
-    };
+    sharedChanged = true;
+    return { ...notification, daDoc: true };
   });
 
-  if (changed) {
-    persistSharedNotifications();
+  if (changed || sharedChanged) {
     syncNotificationsState();
+  }
+
+  if (sharedChanged && isAuthenticatedState.value && getAuthType() === "customer") {
+    try {
+      await markAllCustomerNotificationsRead(group);
+    } catch {
+      // Giữ trạng thái local, lần đồng bộ sau sẽ lấy lại dữ liệu chuẩn từ server.
+    }
   }
 }
 
-function markAllNotificationsRead() {
+async function markAllNotificationsRead() {
   let changed = false;
 
   accountNotificationsSource = accountNotificationsSource.map((notification) => {
@@ -902,22 +1278,26 @@ function markAllNotificationsRead() {
     persistAccountNotifications();
   }
 
-  const readScope = getNotificationReadScope();
+  let sharedChanged = false;
   sharedNotificationsSource = sharedNotificationsSource.map((notification) => {
-    if (notification.daDocScopes.includes(readScope)) {
+    if (notification.daDoc) {
       return notification;
     }
 
-    changed = true;
-    return {
-      ...notification,
-      daDocScopes: [...notification.daDocScopes, readScope],
-    };
+    sharedChanged = true;
+    return { ...notification, daDoc: true };
   });
 
-  if (changed) {
-    persistSharedNotifications();
+  if (changed || sharedChanged) {
     syncNotificationsState();
+  }
+
+  if (sharedChanged && isAuthenticatedState.value && getAuthType() === "customer") {
+    try {
+      await markAllCustomerNotificationsRead();
+    } catch {
+      // Giữ trạng thái local, lần đồng bộ sau sẽ lấy lại dữ liệu chuẩn từ server.
+    }
   }
 }
 
@@ -950,7 +1330,9 @@ const orderPromotionDiscount = computed(() => {
 
   return Math.min(discountValue, payableSubtotal.value);
 });
-const orderTotal = computed(() => Math.max(payableSubtotal.value - orderPromotionDiscount.value, 0));
+const discountedSubtotal = computed(() => Math.max(payableSubtotal.value - orderPromotionDiscount.value, 0));
+const vatAmount = computed(() => Math.round(discountedSubtotal.value * 0.1));
+const orderTotal = computed(() => Math.max(discountedSubtotal.value + vatAmount.value, 0));
 const defaultAddress = computed(() => state.addresses.find((item) => item.macDinh) || state.addresses[0] || null);
 const giftItems = computed(() => {
   if (!selectedItems.value.length) {
@@ -1002,6 +1384,8 @@ export function useCustomerStore() {
     subtotal,
     productDiscount,
     payableSubtotal,
+    discountedSubtotal,
+    vatAmount,
     orderPromotionDiscount,
     orderTotal,
     canUsePromotionCode: isAuthenticatedState,
@@ -1014,11 +1398,13 @@ export function useCustomerStore() {
     removeCartItem,
     clearCart,
     saveAddress,
+    setDefaultAddress,
     updateProfile,
     refreshProfileFromApi,
     applyPromotionCode,
     clearAppliedPromotion,
     placeOrder,
+    reorderOrder,
     removeOrder,
     addOrderNotification,
     markNotificationRead,
@@ -1026,6 +1412,7 @@ export function useCustomerStore() {
     markAllNotificationsRead,
     syncProfileFromAuth,
     syncOrdersFromApi,
+    syncSharedNotificationsFromApi,
   };
 }
 

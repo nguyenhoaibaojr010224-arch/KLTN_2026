@@ -85,49 +85,55 @@
         <span class="soft-badge soft-badge--teal">{{ filteredThuocs.length }} thuốc</span>
       </div>
 
-      <div v-if="filteredThuocs.length" class="table-responsive">
-        <table class="table table-master align-middle mb-0">
-          <thead>
-            <tr>
-              <th>Thuốc</th>
-              <th>Loại</th>
-              <th>Giá bán</th>
-              <th>Khuyến mãi thuốc</th>
-              <th class="text-end">Tác vụ</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="thuoc in filteredThuocs" :key="thuoc.ma_thuoc">
-              <td>
-                <div class="fw-semibold">{{ thuoc.ten_thuoc }}</div>
-                <div class="small text-secondary">{{ thuoc.ma_thuoc }}</div>
-              </td>
-              <td>{{ thuoc.loaiThuoc?.ten_loai || "-" }}</td>
-              <td>{{ formatCurrency(thuoc.gia_ban) }}</td>
-              <td>
-                <div v-if="promotionCountForThuoc(thuoc.ma_thuoc)" class="vstack gap-1">
-                  <span
-                    v-for="item in promotionsForThuoc(thuoc.ma_thuoc).slice(0, 2)"
-                    :key="item.id"
-                    class="soft-badge soft-badge--blue justify-content-start"
-                  >
-                    {{ item.ten_khuyen_mai }} - {{ promotionValueLabel(item) }}
-                  </span>
-                  <span v-if="promotionCountForThuoc(thuoc.ma_thuoc) > 2" class="small text-secondary">
-                    +{{ promotionCountForThuoc(thuoc.ma_thuoc) - 2 }} khuyến mãi khác
-                  </span>
-                </div>
-                <span v-else class="text-secondary small">Chưa có khuyến mãi</span>
-              </td>
-              <td class="text-end">
-                <div class="d-flex justify-content-end flex-wrap gap-2">
-                  <button class="btn btn-sm btn-outline-primary" @click="openPriceModal(thuoc)">Cập nhật giá</button>
-                  <button class="btn btn-sm btn-outline-success" @click="openPromotionModal(thuoc)">Tạo khuyến mãi</button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <div v-if="filteredThuocs.length">
+        <div class="table-responsive">
+          <table class="table table-master align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Thuốc</th>
+                <th>Loại</th>
+                <th>Giá bán</th>
+                <th>Khuyến mãi thuốc</th>
+                <th class="text-end">Tác vụ</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="thuoc in visibleThuocs" :key="thuoc.ma_thuoc">
+                <td>
+                  <div class="fw-semibold">{{ thuoc.ten_thuoc }}</div>
+                  <div class="small text-secondary">{{ thuoc.ma_thuoc }}</div>
+                </td>
+                <td>{{ thuoc.loaiThuoc?.ten_loai || "-" }}</td>
+                <td>{{ formatCurrency(thuoc.gia_ban) }}</td>
+                <td>
+                  <div v-if="promotionCountForThuoc(thuoc.ma_thuoc)" class="vstack gap-1">
+                    <span
+                      v-for="item in promotionsForThuoc(thuoc.ma_thuoc).slice(0, 2)"
+                      :key="item.id"
+                      class="soft-badge soft-badge--blue justify-content-start"
+                    >
+                      {{ item.ten_khuyen_mai }} - {{ promotionValueLabel(item) }}
+                    </span>
+                    <span v-if="promotionCountForThuoc(thuoc.ma_thuoc) > 2" class="small text-secondary">
+                      +{{ promotionCountForThuoc(thuoc.ma_thuoc) - 2 }} khuyến mãi khác
+                    </span>
+                  </div>
+                  <span v-else class="text-secondary small">Chưa có khuyến mãi</span>
+                </td>
+                <td class="text-end">
+                  <div class="d-flex justify-content-end flex-wrap gap-2">
+                    <button class="btn btn-sm btn-outline-primary" @click="openPriceModal(thuoc)">Cập nhật giá</button>
+                    <button class="btn btn-sm btn-outline-success" @click="openPromotionModal(thuoc)">Tạo khuyến mãi</button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div v-if="canLoadMoreThuocs" class="d-flex justify-content-center mt-4 pt-4 border-top">
+          <button class="btn btn-outline-primary px-4" @click="showMoreThuocs">Xem thêm</button>
+        </div>
       </div>
 
       <div v-else class="master-empty">
@@ -466,6 +472,8 @@ function toInputDateTime(value) {
   return localDate.toISOString().slice(0, 16);
 }
 
+const THUOC_TABLE_BATCH_SIZE = 15;
+
 export default {
   name: "GiaKhuyenMaiAdmin",
   data() {
@@ -476,6 +484,7 @@ export default {
       khuyenMais: [],
       orderCodes: [],
       error: "",
+      visibleThuocCount: THUOC_TABLE_BATCH_SIZE,
       loading: {
         sync: false,
         savePrice: false,
@@ -513,6 +522,12 @@ export default {
           .includes(keyword);
       });
     },
+    visibleThuocs() {
+      return this.filteredThuocs.slice(0, this.visibleThuocCount);
+    },
+    canLoadMoreThuocs() {
+      return this.filteredThuocs.length > this.visibleThuocCount;
+    },
     filteredKhuyenMais() {
       const keyword = this.keyword.toLowerCase();
       if (!keyword) return this.khuyenMais;
@@ -541,6 +556,11 @@ export default {
         { label: "Mã giảm giá đơn hàng", value: maDangApDung, note: "Áp trên tổng hóa đơn", deltaClass: "is-positive", icon: "bi bi-ticket-perforated", iconClass: "metric-card__icon--orange" },
         { label: "Mã có điều kiện tối thiểu", value: maCoDieuKien, note: "Yêu cầu giá trị đơn hàng", deltaClass: "is-warning", icon: "bi bi-shield-check", iconClass: "metric-card__icon--violet" },
       ];
+    },
+  },
+  watch: {
+    keyword() {
+      this.resetThuocPagination();
     },
   },
   mounted() {
@@ -588,6 +608,12 @@ export default {
     createCodeForm() {
       return { id: null, ma_giam_gia: "", ten_ma: "", mo_ta: "", loai_ap_dung: "so_tien", gia_tri: "", gia_tri_don_toi_thieu: 0, gioi_han_moi_khach: "", ngay_bat_dau: nowAsInput(), ngay_ket_thuc: "", trang_thai: "active" };
     },
+    resetThuocPagination() {
+      this.visibleThuocCount = THUOC_TABLE_BATCH_SIZE;
+    },
+    showMoreThuocs() {
+      this.visibleThuocCount += THUOC_TABLE_BATCH_SIZE;
+    },
     async loadData() {
       this.loading.sync = true;
       this.error = "";
@@ -596,6 +622,7 @@ export default {
         this.thuocs = Array.isArray(thuocs) ? thuocs : [];
         this.khuyenMais = Array.isArray(khuyenMaisResponse?.data) ? khuyenMaisResponse.data : [];
         this.orderCodes = Array.isArray(orderCodesResponse?.data) ? orderCodesResponse.data : [];
+        this.resetThuocPagination();
       } catch (error) {
         this.error = error?.message || "Không thể tải dữ liệu giá và khuyến mãi.";
       } finally {

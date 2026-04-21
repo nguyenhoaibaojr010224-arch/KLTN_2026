@@ -1,0 +1,235 @@
+{
+  "generated_at": "2026-04-04T02:52:38",
+  "project_root": "C:/Users/ACER/Downloads/Pharmacity FE",
+  "stats": {
+    "total_files": 22,
+    "total_edges": 19,
+    "modules": 7,
+    "routes": 0,
+    "models": 0,
+    "circular_dependencies": 1
+  },
+  "file_dependencies": {
+    "src/App.vue": {
+      "imports": [],
+      "imported_by": [
+        "src/main.js"
+      ]
+    },
+    "src/api/authApi.js": {
+      "imports": [
+        "src/lib/apiClient.js"
+      ],
+      "imported_by": []
+    },
+    "src/api/catalogApi.js": {
+      "imports": [
+        "src/lib/apiClient.js"
+      ],
+      "imported_by": [
+        "src/lib/customerStore.js"
+      ]
+    },
+    "src/api/hoaDonApi.js": {
+      "imports": [
+        "src/lib/apiClient.js"
+      ],
+      "imported_by": []
+    },
+    "src/api/inventoryApi.js": {
+      "imports": [
+        "src/lib/apiClient.js"
+      ],
+      "imported_by": []
+    },
+    "src/api/nhanVienApi.js": {
+      "imports": [
+        "src/lib/apiClient.js"
+      ],
+      "imported_by": []
+    },
+    "src/api/pricingApi.js": {
+      "imports": [
+        "src/lib/apiClient.js"
+      ],
+      "imported_by": []
+    },
+    "src/api/profileApi.js": {
+      "imports": [
+        "src/lib/apiClient.js"
+      ],
+      "imported_by": [
+        "src/lib/customerStore.js"
+      ]
+    },
+    "src/api/referenceApi.js": {
+      "imports": [
+        "src/lib/apiClient.js"
+      ],
+      "imported_by": []
+    },
+    "src/api/thuocManagementApi.js": {
+      "imports": [
+        "src/lib/apiClient.js"
+      ],
+      "imported_by": []
+    },
+    "src/assets/spike-tailwind-1.0.0/gulpfile.js": {
+      "imports": [],
+      "imported_by": []
+    },
+    "src/assets/spike-tailwind-1.0.0/src/assets/js/dashboard.js": {
+      "imports": [],
+      "imported_by": []
+    },
+    "src/assets/spike-tailwind-1.0.0/src/assets/js/sidebarmenu.js": {
+      "imports": [],
+      "imported_by": []
+    },
+    "src/assets/spike-tailwind-1.0.0/tailwind.config.js": {
+      "imports": [],
+      "imported_by": []
+    },
+    "src/data/catalogSections.js": {
+      "imports": [],
+      "imported_by": []
+    },
+    "src/layout/wrapper/customer.vue": {
+      "imports": [],
+      "imported_by": [
+        "src/main.js"
+      ]
+    },
+    "src/layout/wrapper/empty.vue": {
+      "imports": [],
+      "imported_by": [
+        "src/main.js"
+      ]
+    },
+    "src/layout/wrapper/index.vue": {
+      "imports": [],
+      "imported_by": [
+        "src/main.js"
+      ]
+    },
+    "src/lib/apiClient.js": {
+      "imports": [
+        "src/lib/authStorage.js"
+      ],
+      "imported_by": [
+        "src/api/authApi.js",
+        "src/api/catalogApi.js",
+        "src/api/hoaDonApi.js",
+        "src/api/inventoryApi.js",
+        "src/api/nhanVienApi.js",
+        "src/api/pricingApi.js",
+        "src/api/profileApi.js",
+        "src/api/referenceApi.js",
+        "src/api/thuocManagementApi.js"
+      ]
+    },
+    "src/lib/authStorage.js": {
+      "imports": [],
+      "imported_by": [
+        "src/lib/apiClient.js",
+        "src/lib/customerStore.js",
+        "src/router/index.js"
+      ]
+    },
+    "src/lib/customerStore.js": {
+      "imports": [
+        "src/api/catalogApi.js",
+        "src/api/profileApi.js",
+        "src/lib/authStorage.js"
+      ],
+      "imported_by": []
+    },
+    "src/lib/recentSearches.js": {
+      "imports": [],
+      "imported_by": []
+    },
+    "src/lib/toast.js": {
+      "imports": [],
+      "imported_by": []
+    },
+    "src/main.js": {
+      "imports": [
+        "src/App.vue",
+        "src/layout/wrapper/customer.vue",
+        "src/layout/wrapper/empty.vue",
+        "src/layout/wrapper/index.vue",
+        "src/router/index.js"
+      ],
+      "imported_by": []
+    },
+    "src/router/index.js": {
+      "imports": [
+        "src/lib/authStorage.js"
+      ],
+      "imported_by": [
+        "src/main.js"
+      ]
+    },
+    "vite.config.js": {
+      "imports": [],
+      "imported_by": []
+    }
+  },
+  "module_boundaries": {
+    "api": {
+      "imports_from": [
+        "lib"
+      ],
+      "imported_by": [
+        "lib"
+      ]
+    },
+    "assets": {
+      "imports_from": [],
+      "imported_by": []
+    },
+    "data": {
+      "imports_from": [],
+      "imported_by": []
+    },
+    "layout": {
+      "imports_from": [],
+      "imported_by": [
+        "root"
+      ]
+    },
+    "lib": {
+      "imports_from": [
+        "api"
+      ],
+      "imported_by": [
+        "api",
+        "router"
+      ]
+    },
+    "root": {
+      "imports_from": [
+        "layout",
+        "router"
+      ],
+      "imported_by": []
+    },
+    "router": {
+      "imports_from": [
+        "lib"
+      ],
+      "imported_by": [
+        "root"
+      ]
+    }
+  },
+  "api_routes": [],
+  "data_models": {},
+  "circular_dependencies": [
+    [
+      "api",
+      "lib"
+    ]
+  ],
+  "warnings": []
+}
