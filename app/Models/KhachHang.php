@@ -1,0 +1,79 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Support\Facades\Storage;
+use Laravel\Sanctum\HasApiTokens;
+
+class KhachHang extends Authenticatable
+{
+    /** @use HasFactory<\Database\Factories\KhachHangFactory> */
+    use HasFactory, HasApiTokens;
+
+    protected $primaryKey = 'id_khach_hang';
+
+    protected $fillable = [
+        'ten_khach_hang',
+        'so_dien_thoai',
+        'email',
+        'dia_chi',
+        'ngay_sinh',
+        'gioi_tinh',
+        'avatar',
+        'diem_tich_luy',
+        'mat_khau',
+        'email_verified',
+        'email_verified_at'
+    ];
+
+    protected $appends = [
+        'avatar_url',
+    ];
+
+    protected $hidden = [
+        'mat_khau',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'email_verified_at' => 'datetime',
+            'email_verified' => 'boolean',
+            'ngay_sinh' => 'date',
+            'mat_khau' => 'hashed',
+        ];
+    }
+
+    public function hoaDons(): HasMany
+    {
+        return $this->hasMany(HoaDon::class, 'id_khach_hang', 'id_khach_hang');
+    }
+
+    public function hoTroHoiThoai(): HasOne
+    {
+        return $this->hasOne(HoTroHoiThoai::class, 'id_khach_hang', 'id_khach_hang');
+    }
+
+    public function hoTroTinNhans(): HasMany
+    {
+        return $this->hasMany(HoTroTinNhan::class, 'id_khach_hang', 'id_khach_hang');
+    }
+
+    public function diaChiNhanHangs(): HasMany
+    {
+        return $this->hasMany(DiaChiKhachHang::class, 'id_khach_hang', 'id_khach_hang');
+    }
+
+    public function getAvatarUrlAttribute(): ?string
+    {
+        if (! $this->avatar) {
+            return null;
+        }
+
+        return Storage::disk('public')->url($this->avatar);
+    }
+}
