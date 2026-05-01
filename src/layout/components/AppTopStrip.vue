@@ -21,7 +21,7 @@
 
         <div class="master-topstrip__right">
           <div
-            v-if="showOrderNotifications"
+            v-if="showSystemNotifications"
             ref="notificationMenuRef"
             class="master-topstrip__notification"
           >
@@ -29,7 +29,7 @@
               type="button"
               class="master-topstrip__icon-btn"
               @click="toggleNotificationMenu"
-              aria-label="Thông báo đơn hàng"
+              aria-label="Thông báo khách hàng"
             >
               <i class="bi bi-bell fs-5"></i>
               <span v-if="notificationCount" class="master-topstrip__badge">
@@ -39,8 +39,8 @@
 
             <div v-if="notificationMenuOpen" class="master-topstrip__notification-menu shadow-lg">
               <div class="master-topstrip__notification-head">
-                <strong>Thông báo đơn hàng</strong>
-                <button type="button" class="btn btn-link btn-sm p-0" @click="openAllInvoiceNotifications()">
+                <strong>Thông báo khách hàng</strong>
+                <button type="button" class="btn btn-link btn-sm p-0" @click="openPriorityNotifications">
                   Xem tất cả
                 </button>
               </div>
@@ -49,27 +49,110 @@
                 Đang tải thông báo...
               </div>
 
-              <div v-else-if="notifications.length" class="master-topstrip__notification-list">
-                <button
-                  v-for="item in notifications"
-                  :key="item.id_hoa_don"
-                  type="button"
-                  class="master-topstrip__notification-item"
-                  @click="openInvoiceNotification(item)"
-                >
-                  <div class="master-topstrip__notification-title">{{ item.ma_hoa_don }}</div>
-                  <div class="master-topstrip__notification-copy">
-                    {{ item.khach_hang?.ten_khach_hang || "Khách hàng" }} đã đặt hàng thành công
-                  </div>
-                  <div class="master-topstrip__notification-meta">
-                    <span>{{ formatCurrency(item.tong_tien) }}</span>
-                    <span>{{ formatDate(item.ngay_ban) }}</span>
-                  </div>
-                </button>
+              <div
+                v-else-if="supportNotifications.length || invoiceNotifications.length"
+                class="master-topstrip__notification-list"
+              >
+                <div v-if="supportNotifications.length" class="master-topstrip__notification-section">
+                  <div class="master-topstrip__notification-section-title">Hỗ trợ khách hàng</div>
+                  <button
+                    v-for="item in supportNotifications"
+                    :key="`support-${item.id_hoi_thoai}`"
+                    type="button"
+                    class="master-topstrip__notification-item"
+                    @click="openSupportNotification(item)"
+                  >
+                    <div class="master-topstrip__notification-title">
+                      {{ item.khach_hang?.ten_khach_hang || "Khách hàng" }}
+                    </div>
+                    <div class="master-topstrip__notification-copy">
+                      {{ item.tin_nhan_cuoi?.noi_dung || "Khách hàng vừa gửi tin nhắn hỗ trợ." }}
+                    </div>
+                    <div class="master-topstrip__notification-meta">
+                      <span>{{ item.so_tin_chua_doc || 0 }} tin nhắn mới</span>
+                      <span>{{ formatDate(item.thoi_gian_tin_nhan_cuoi) }}</span>
+                    </div>
+                  </button>
+                </div>
+
+                <div v-if="invoiceNotifications.length" class="master-topstrip__notification-section">
+                  <div class="master-topstrip__notification-section-title">Đơn hàng mới</div>
+                  <button
+                    v-for="item in invoiceNotifications"
+                    :key="`invoice-${item.id_hoa_don}`"
+                    type="button"
+                    class="master-topstrip__notification-item"
+                    @click="openInvoiceNotification(item)"
+                  >
+                    <div class="master-topstrip__notification-title">{{ item.ma_hoa_don }}</div>
+                    <div class="master-topstrip__notification-copy">
+                      {{ item.khach_hang?.ten_khach_hang || "Khách hàng" }} đã đặt hàng thành công
+                    </div>
+                    <div class="master-topstrip__notification-meta">
+                      <span>{{ formatCurrency(item.tong_tien) }}</span>
+                      <span>{{ formatDate(item.ngay_ban) }}</span>
+                    </div>
+                  </button>
+                </div>
               </div>
 
               <div v-else class="master-topstrip__notification-empty">
-                Chưa có đơn hàng mới.
+                Chưa có thông báo khách hàng mới.
+              </div>
+            </div>
+          </div>
+
+          <div
+            v-if="showSystemNotifications"
+            ref="inventoryMenuRef"
+            class="master-topstrip__notification"
+          >
+            <button
+              type="button"
+              class="master-topstrip__icon-btn master-topstrip__icon-btn--warning"
+              @click="toggleInventoryAlertMenu"
+              aria-label="Cảnh báo tồn kho"
+            >
+              <span class="master-topstrip__alert-symbol">!</span>
+              <span v-if="inventoryNotificationCount" class="master-topstrip__badge">
+                {{ inventoryNotificationCount }}
+              </span>
+            </button>
+
+            <div v-if="inventoryMenuOpen" class="master-topstrip__notification-menu shadow-lg">
+              <div class="master-topstrip__notification-head">
+                <strong>Cảnh báo tồn kho</strong>
+                <button type="button" class="btn btn-link btn-sm p-0" @click="openAllInventoryNotifications">
+                  Xem tất cả
+                </button>
+              </div>
+
+              <div v-if="notificationLoading" class="master-topstrip__notification-empty">
+                Đang tải cảnh báo...
+              </div>
+
+              <div v-else-if="inventoryAlertNotifications.length" class="master-topstrip__notification-list">
+                <div class="master-topstrip__notification-section">
+                  <div class="master-topstrip__notification-section-title">Tồn kho cần chú ý</div>
+                  <button
+                    v-for="item in inventoryAlertNotifications"
+                    :key="item.id"
+                    type="button"
+                    class="master-topstrip__notification-item master-topstrip__notification-item--warning"
+                    @click="openInventoryNotification(item)"
+                  >
+                    <div class="master-topstrip__notification-title">{{ item.title }}</div>
+                    <div class="master-topstrip__notification-copy">{{ item.copy }}</div>
+                    <div class="master-topstrip__notification-meta">
+                      <span>{{ item.badge }}</span>
+                      <span>{{ item.meta }}</span>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              <div v-else class="master-topstrip__notification-empty">
+                Chưa có cảnh báo tồn kho.
               </div>
             </div>
           </div>
@@ -88,6 +171,8 @@
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { getPendingHoaDonNotifications } from "../../api/hoaDonApi";
+import { getInventoryAlerts } from "../../api/inventoryApi";
+import { getSupportConversations } from "../../api/supportApi";
 import { authState } from "../../lib/authStorage";
 
 const router = useRouter();
@@ -99,13 +184,39 @@ const todayLabel = new Intl.DateTimeFormat("vi-VN", {
 }).format(new Date());
 
 const notificationMenuRef = ref(null);
+const inventoryMenuRef = ref(null);
 const notificationMenuOpen = ref(false);
+const inventoryMenuOpen = ref(false);
 const notificationLoading = ref(false);
-const notifications = ref([]);
+const invoiceNotifications = ref([]);
+const supportNotifications = ref([]);
+const expiringLotNotifications = ref([]);
+const lowStockNotifications = ref([]);
 const notificationCount = ref(0);
-const showOrderNotifications = computed(() =>
+const inventoryNotificationCount = ref(0);
+
+const showSystemNotifications = computed(() =>
   ["admin", "staff", "nhan_vien", "nhanvien"].includes(authState.type)
 );
+
+const inventoryAlertNotifications = computed(() => [
+  ...expiringLotNotifications.value.map((item) => ({
+    id: item.id || `expiring-lot-${item.id_lo}`,
+    alertType: "expiring",
+    title: `Lô ${item.so_lo} sắp hết hạn`,
+    copy: item.message || `${item.ten_thuoc || "Thuốc"} cần kiểm tra hạn sử dụng.`,
+    badge: `${Number(item.so_ngay_con_lai || 0)} ngày còn lại`,
+    meta: formatAlertQuantity(item.so_luong_con, item.don_vi_ton_kho),
+  })),
+  ...lowStockNotifications.value.map((item) => ({
+    id: item.id || `low-stock-${item.ma_thuoc}`,
+    alertType: "low-stock",
+    title: `${item.ten_thuoc || item.ma_thuoc} gần hết hàng`,
+    copy: item.message || "Thuốc đang dưới ngưỡng tồn kho, cần nhập hàng sớm.",
+    badge: `Còn ${formatAlertQuantity(item.so_luong_con, item.don_vi_ton_kho)}`,
+    meta: `Ngưỡng ${Number(item.nguong_canh_bao || 20)}`,
+  })),
+]);
 
 let notificationTimer = null;
 
@@ -131,9 +242,18 @@ function persistReadNotificationIds(ids) {
 
 function syncNotificationCount() {
   const readIds = new Set(readStoredNotificationIds());
-  notificationCount.value = notifications.value.filter(
+  const unreadInvoices = invoiceNotifications.value.filter(
     (item) => !readIds.has(String(item.id_hoa_don))
   ).length;
+  const unreadSupportMessages = supportNotifications.value.reduce(
+    (total, item) => total + Number(item.so_tin_chua_doc || 0),
+    0
+  );
+  const unreadInventoryAlerts = inventoryAlertNotifications.value.filter(
+    (item) => !readIds.has(String(item.id))
+  ).length;
+  notificationCount.value = unreadInvoices + unreadSupportMessages;
+  inventoryNotificationCount.value = unreadInventoryAlerts;
 }
 
 function markInvoiceNotificationRead(item) {
@@ -149,14 +269,35 @@ function markInvoiceNotificationRead(item) {
 }
 
 function markAllInvoiceNotificationsRead() {
-  persistReadNotificationIds(notifications.value.map((item) => String(item.id_hoa_don)));
+  const nextIds = new Set(readStoredNotificationIds());
+  invoiceNotifications.value.forEach((item) => nextIds.add(String(item.id_hoa_don)));
+  persistReadNotificationIds(Array.from(nextIds));
+  syncNotificationCount();
+}
+
+function markInventoryNotificationRead(item) {
+  const notificationId = String(item?.id || "").trim();
+  if (!notificationId) {
+    return;
+  }
+
+  const nextIds = new Set(readStoredNotificationIds());
+  nextIds.add(notificationId);
+  persistReadNotificationIds(Array.from(nextIds));
+  syncNotificationCount();
+}
+
+function markAllInventoryNotificationsRead() {
+  const nextIds = new Set(readStoredNotificationIds());
+  inventoryAlertNotifications.value.forEach((item) => nextIds.add(String(item.id)));
+  persistReadNotificationIds(Array.from(nextIds));
   syncNotificationCount();
 }
 
 onMounted(() => {
   document.addEventListener("click", handleDocumentClick);
 
-  if (showOrderNotifications.value) {
+  if (showSystemNotifications.value) {
     loadNotifications();
     notificationTimer = window.setInterval(() => {
       loadNotifications(true);
@@ -174,7 +315,7 @@ onBeforeUnmount(() => {
 });
 
 async function loadNotifications(silent = false) {
-  if (!showOrderNotifications.value) {
+  if (!showSystemNotifications.value) {
     return;
   }
 
@@ -183,13 +324,39 @@ async function loadNotifications(silent = false) {
   }
 
   try {
-    const response = await getPendingHoaDonNotifications();
-    notifications.value = Array.isArray(response?.data) ? response.data : [];
+    const [invoiceResponse, supportResponse, inventoryResponse] = await Promise.allSettled([
+      getPendingHoaDonNotifications(),
+      getSupportConversations(),
+      getInventoryAlerts(),
+    ]);
+
+    invoiceNotifications.value =
+      invoiceResponse.status === "fulfilled" && Array.isArray(invoiceResponse.value?.data)
+        ? invoiceResponse.value.data
+        : [];
+
+    supportNotifications.value =
+      supportResponse.status === "fulfilled" && Array.isArray(supportResponse.value?.data)
+        ? supportResponse.value.data.filter((item) => Number(item.so_tin_chua_doc || 0) > 0)
+        : [];
+
+    const inventoryData = inventoryResponse.status === "fulfilled" ? inventoryResponse.value?.data : null;
+    expiringLotNotifications.value = Array.isArray(inventoryData?.lo_sap_het_han)
+      ? inventoryData.lo_sap_het_han
+      : [];
+    lowStockNotifications.value = Array.isArray(inventoryData?.thuoc_gan_het_ton)
+      ? inventoryData.thuoc_gan_het_ton
+      : [];
+
     syncNotificationCount();
   } catch {
     if (!silent) {
-      notifications.value = [];
+      invoiceNotifications.value = [];
+      supportNotifications.value = [];
+      expiringLotNotifications.value = [];
+      lowStockNotifications.value = [];
       notificationCount.value = 0;
+      inventoryNotificationCount.value = 0;
     }
   } finally {
     if (!silent) {
@@ -200,8 +367,18 @@ async function loadNotifications(silent = false) {
 
 async function toggleNotificationMenu() {
   notificationMenuOpen.value = !notificationMenuOpen.value;
+  inventoryMenuOpen.value = false;
 
   if (notificationMenuOpen.value) {
+    await loadNotifications();
+  }
+}
+
+async function toggleInventoryAlertMenu() {
+  inventoryMenuOpen.value = !inventoryMenuOpen.value;
+  notificationMenuOpen.value = false;
+
+  if (inventoryMenuOpen.value) {
     await loadNotifications();
   }
 }
@@ -210,10 +387,15 @@ function handleDocumentClick(event) {
   if (!notificationMenuRef.value?.contains(event.target)) {
     notificationMenuOpen.value = false;
   }
+
+  if (!inventoryMenuRef.value?.contains(event.target)) {
+    inventoryMenuOpen.value = false;
+  }
 }
 
 function goToInvoices(query = {}) {
   notificationMenuOpen.value = false;
+  inventoryMenuOpen.value = false;
   router.push({
     path: "/hoa-dons",
     query,
@@ -232,12 +414,75 @@ function openAllInvoiceNotifications() {
   goToInvoices();
 }
 
+function openSupportNotification(item) {
+  const conversationId = Number(item?.id_hoi_thoai || 0);
+  if (conversationId > 0) {
+    supportNotifications.value = supportNotifications.value.filter(
+      (entry) => Number(entry.id_hoi_thoai || 0) !== conversationId
+    );
+    syncNotificationCount();
+  }
+
+  notificationMenuOpen.value = false;
+  inventoryMenuOpen.value = false;
+  router.push({
+    path: "/ho-tro-khach-hang",
+    query: {
+      hoi_thoai: item.id_hoi_thoai,
+    },
+  });
+}
+
+function openInventoryNotification(item) {
+  markInventoryNotificationRead(item);
+  notificationMenuOpen.value = false;
+  inventoryMenuOpen.value = false;
+  router.push({
+    path: "/ton-kho",
+    query: {
+      alert: item.alertType || "expiring",
+    },
+  });
+}
+
+function openAllInventoryNotifications() {
+  markAllInventoryNotificationsRead();
+  notificationMenuOpen.value = false;
+  inventoryMenuOpen.value = false;
+  const firstAlert = inventoryAlertNotifications.value[0];
+  router.push({
+    path: "/ton-kho",
+    query: {
+      alert: firstAlert?.alertType || "expiring",
+    },
+  });
+}
+
+function openPriorityNotifications() {
+  if (supportNotifications.value.length) {
+    openSupportNotification(supportNotifications.value[0]);
+    return;
+  }
+
+  openAllInvoiceNotifications();
+}
+
 function formatCurrency(value) {
   return new Intl.NumberFormat("vi-VN", {
     style: "currency",
     currency: "VND",
     maximumFractionDigits: 0,
   }).format(Number(value || 0));
+}
+
+function formatAlertQuantity(value, unit = "") {
+  const quantity = Number(value || 0);
+  const formatted = new Intl.NumberFormat("vi-VN", {
+    maximumFractionDigits: 2,
+  }).format(quantity);
+  const normalizedUnit = String(unit || "").trim();
+
+  return normalizedUnit ? `${formatted} ${normalizedUnit}` : formatted;
 }
 
 function formatDate(value) {

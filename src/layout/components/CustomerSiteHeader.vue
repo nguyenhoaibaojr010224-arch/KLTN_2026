@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <header class="pc-site-header">
 
     <div class="pc-mainbar">
@@ -171,7 +171,7 @@
                   <li><RouterLink class="dropdown-item" to="/tai-khoan/lich-su-don-hang" @click="closeUserMenu">Lịch sử đơn hàng</RouterLink></li>
                   <li><RouterLink class="dropdown-item" to="/tai-khoan/thong-bao" @click="closeUserMenu">Thông báo của tôi</RouterLink></li>
                   <li v-if="isSystemAccount"><hr class="dropdown-divider" /></li>
-                  <li v-if="isSystemAccount"><RouterLink class="dropdown-item" to="/dashboard" @click="closeUserMenu">Quản lý hệ thống</RouterLink></li>
+                  <li v-if="isSystemAccount"><RouterLink class="dropdown-item" to="/thong-ke" @click="closeUserMenu">Quản lý hệ thống</RouterLink></li>
                   <li><hr class="dropdown-divider" /></li>
                   <li><button class="dropdown-item text-danger" type="button" @click="handleLogout">Đăng xuất</button></li>
                 </ul>

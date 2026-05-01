@@ -100,10 +100,39 @@
               <div class="pc-form-field">
                 <label>Mật khẩu</label>
                 <div class="pc-password-row">
-                  <input type="password" value="123456789" disabled />
-                  <button type="button" @click="showPasswordHint = !showPasswordHint">Cập nhật</button>
+                  <input type="text" value="Mật khẩu đã được bảo mật" disabled />
+                  <button type="button" @click="togglePasswordForm">
+                    {{ showPasswordForm ? "Đóng" : "Cập nhật" }}
+                  </button>
                 </div>
-                <small v-if="showPasswordHint">Chức năng đổi mật khẩu sẽ dùng API riêng ở bước sau.</small>
+                <div v-if="showPasswordForm" class="pc-password-form">
+                  <div class="pc-password-form__grid">
+                    <div class="pc-form-field">
+                      <label>Mật khẩu hiện tại</label>
+                      <input v-model="passwordDraft.currentPassword" type="password" autocomplete="current-password" />
+                    </div>
+                    <div class="pc-form-field">
+                      <label>Mật khẩu mới</label>
+                      <input v-model="passwordDraft.newPassword" type="password" autocomplete="new-password" />
+                    </div>
+                    <div class="pc-form-field">
+                      <label>Xác nhận mật khẩu mới</label>
+                      <input
+                        v-model="passwordDraft.confirmPassword"
+                        type="password"
+                        autocomplete="new-password"
+                      />
+                    </div>
+                  </div>
+                  <div class="pc-password-form__actions">
+                    <button type="button" class="btn btn-outline-secondary rounded-pill px-4" @click="cancelPasswordForm">
+                      Hủy
+                    </button>
+                    <button type="button" class="btn btn-primary rounded-pill px-4" @click="submitPasswordChange">
+                      Đổi mật khẩu
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -450,6 +479,7 @@
 <script>
 import { getAuthType } from "../../../lib/authStorage";
 import { getCustomerOrderDiscountCodes } from "../../../api/pricingApi";
+import { changePasswordApi } from "../../../api/profileApi";
 import { useCustomerStore } from "../../../lib/customerStore";
 import { showToast } from "../../../lib/toast";
 
@@ -517,7 +547,7 @@ export default {
       customerStore,
       state,
       showAddressModal: false,
-      showPasswordHint: false,
+      showPasswordForm: false,
       activeTab: "Đơn hàng",
       avatarFile: null,
       avatarLoadFailed: false,
@@ -534,7 +564,6 @@ export default {
         { section: "ma-giam-gia", label: "Mã giảm giá", icon: "bi bi-ticket-perforated", to: "/tai-khoan/ma-giam-gia" },
         { section: "thong-bao", label: "Thông báo của tôi", icon: "bi bi-bell", to: "/tai-khoan/thong-bao" },
         { section: "thanh-toan", label: "Quản lý thanh toán", icon: "bi bi-credit-card", to: "/tai-khoan/thanh-toan" },
-        { section: "gia-dinh", label: "Hồ sơ gia đình", icon: "bi bi-people", to: "/tai-khoan/gia-dinh" },
       ],
       profileDraft: {
         hoTen: state.profile.hoTen,
@@ -543,6 +572,11 @@ export default {
         diaChi: state.profile.diaChi,
         ngaySinh: state.profile.ngaySinh,
         gioiTinh: state.profile.gioiTinh,
+      },
+      passwordDraft: {
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
       },
       addressDraft: createEmptyAddressDraft(state.profile),
     };
@@ -602,6 +636,11 @@ export default {
     section: {
       immediate: true,
       handler(nextSection) {
+        if (!this.isValidSection(nextSection)) {
+          this.$router.replace("/tai-khoan/thong-tin");
+          return;
+        }
+
         if (nextSection === "ma-giam-gia") {
           this.loadDiscountCodes();
         }
@@ -643,6 +682,7 @@ export default {
 
   mounted() {
     this.customerStore.refreshProfileFromApi();
+    this.customerStore.syncAddressesFromApi();
     this.customerStore.syncOrdersFromApi();
     this.syncNotificationRouteState();
   },
@@ -654,6 +694,9 @@ export default {
   },
 
   methods: {
+    isValidSection(section) {
+      return this.menuItems.some((item) => item.section === section);
+    },
     formatCurrency(value) {
       return new Intl.NumberFormat("vi-VN", {
         style: "currency",
@@ -733,6 +776,24 @@ export default {
     handleAvatarError() {
       this.avatarLoadFailed = true;
     },
+    togglePasswordForm() {
+      this.showPasswordForm = !this.showPasswordForm;
+
+      if (!this.showPasswordForm) {
+        this.resetPasswordDraft();
+      }
+    },
+    cancelPasswordForm() {
+      this.showPasswordForm = false;
+      this.resetPasswordDraft();
+    },
+    resetPasswordDraft() {
+      this.passwordDraft = {
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      };
+    },
     async saveProfile() {
       try {
         const payload = new FormData();
@@ -767,6 +828,30 @@ export default {
         showToast("Đã cập nhật thông tin cá nhân.");
       } catch (error) {
         showToast(this.extractErrorMessage(error, "Không thể cập nhật thông tin cá nhân."), "error");
+      }
+    },
+    async submitPasswordChange() {
+      if (!this.passwordDraft.currentPassword || !this.passwordDraft.newPassword || !this.passwordDraft.confirmPassword) {
+        showToast("Vui lòng nhập đầy đủ thông tin đổi mật khẩu.", "error");
+        return;
+      }
+
+      if (this.passwordDraft.newPassword !== this.passwordDraft.confirmPassword) {
+        showToast("Xác nhận mật khẩu mới không khớp.", "error");
+        return;
+      }
+
+      try {
+        const response = await changePasswordApi({
+          current_password: this.passwordDraft.currentPassword,
+          new_password: this.passwordDraft.newPassword,
+          new_password_confirmation: this.passwordDraft.confirmPassword,
+        });
+
+        this.cancelPasswordForm();
+        showToast(response?.message || "Đổi mật khẩu thành công.");
+      } catch (error) {
+        showToast(this.extractErrorMessage(error, "Không thể đổi mật khẩu."), "error");
       }
     },
     openAddAddressModal() {
@@ -840,7 +925,7 @@ export default {
       this.customerStore.markAllNotificationsRead();
       showToast("Đã đánh dấu tất cả thông báo là đã đọc.");
     },
-    submitAddress() {
+    async submitAddress() {
       const normalizedDraft = normalizeAddressDraft({ ...this.addressDraft });
 
       if (!normalizedDraft.tinhThanh || !normalizedDraft.quanHuyen || !normalizedDraft.phuongXa) {
@@ -848,10 +933,14 @@ export default {
         return;
       }
 
-      this.customerStore.saveAddress(normalizedDraft);
-      this.showAddressModal = false;
-      this.addressDraft = normalizeAddressDraft(createEmptyAddressDraft(this.state.profile));
-      showToast("Đã lưu địa chỉ nhận hàng.");
+      try {
+        await this.customerStore.saveAddress(normalizedDraft);
+        this.showAddressModal = false;
+        this.addressDraft = normalizeAddressDraft(createEmptyAddressDraft(this.state.profile));
+        showToast("Đã lưu địa chỉ nhận hàng.");
+      } catch (error) {
+        showToast(this.extractErrorMessage(error, "Không thể lưu địa chỉ nhận hàng."), "error");
+      }
     },
   },
 };
@@ -1021,6 +1110,27 @@ export default {
   margin-top: 0;
 }
 
+.pc-password-form {
+  margin-top: 14px;
+  padding: 18px;
+  border: 1px solid rgba(22, 82, 197, 0.12);
+  border-radius: 20px;
+  background: #f8fbff;
+}
+
+.pc-password-form__grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+
+.pc-password-form__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 14px;
+}
+
 @media (max-width: 767.98px) {
   .pc-account-profile {
     align-items: flex-start;
@@ -1039,6 +1149,15 @@ export default {
   .pc-address-card__actions {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .pc-password-form__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .pc-password-form__actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
   }
 }
 .pc-history-card {

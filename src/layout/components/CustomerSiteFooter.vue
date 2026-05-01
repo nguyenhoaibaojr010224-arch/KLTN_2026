@@ -50,7 +50,7 @@
 
 <style scoped>
 .pc-footer {
-  padding: 52px 0 58px;
+  padding: 34px 0 38px;
   background: #1f3f92;
   color: #fff;
 }
@@ -58,7 +58,7 @@
 .pc-footer__grid {
   display: grid;
   grid-template-columns: 1.45fr 0.7fr 0.8fr 1fr;
-  gap: 42px;
+  gap: 34px;
 }
 
 .pc-footer__logo {
@@ -84,14 +84,14 @@
 
 .pc-footer__copy {
   max-width: 31rem;
-  margin: 28px 0 0;
+  margin: 18px 0 0;
   color: rgba(255, 255, 255, 0.82);
   font-size: 1rem;
-  line-height: 1.6;
+  line-height: 1.5;
 }
 
 .pc-footer__title {
-  margin: 0 0 18px;
+  margin: 0 0 12px;
   font-size: 1.05rem;
   font-weight: 800;
 }
@@ -101,7 +101,7 @@
   padding: 0;
   list-style: none;
   display: grid;
-  gap: 14px;
+  gap: 10px;
   color: rgba(255, 255, 255, 0.86);
 }
 
@@ -124,12 +124,12 @@
 
 @media (max-width: 767.98px) {
   .pc-footer {
-    padding: 40px 0 44px;
+    padding: 30px 0 34px;
   }
 
   .pc-footer__grid {
     grid-template-columns: 1fr;
-    gap: 28px;
+    gap: 22px;
   }
 
   .pc-footer__copy {

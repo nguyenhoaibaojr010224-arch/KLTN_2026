@@ -78,6 +78,15 @@ export function setAuthSession({ token = "", user = null, type = "" }) {
   }
 }
 
+export function updateAuthUser(user = null) {
+  if (!user) {
+    return;
+  }
+
+  authState.user = user;
+  localStorage.setItem(USER_KEY, JSON.stringify(user));
+}
+
 export function clearAuthSession() {
   setAuthSession({
     token: "",

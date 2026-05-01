@@ -155,7 +155,14 @@
         </div>
         <div class="modal-body">
           <label class="form-label fw-semibold">Giá bán mới</label>
-          <input v-model.number="priceForm.gia_ban" type="number" min="1" class="form-control" placeholder="Nhập giá bán" />
+          <input
+            :value="formatPriceInput(priceForm.gia_ban)"
+            type="text"
+            inputmode="numeric"
+            class="form-control"
+            placeholder="Nhập giá bán"
+            @input="priceForm.gia_ban = parsePriceInput($event)"
+          />
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Đóng</button>
@@ -220,7 +227,14 @@
             </div>
             <div class="col-md-4">
               <label class="form-label fw-semibold">Giá trị áp dụng</label>
-              <input v-model.number="promotionForm.gia_tri" type="number" min="1" class="form-control" placeholder="Nhập giá trị" />
+              <input
+                :value="formatPriceInput(promotionForm.gia_tri)"
+                type="text"
+                inputmode="numeric"
+                class="form-control"
+                placeholder="Nhập giá trị"
+                @input="promotionForm.gia_tri = parsePriceInput($event)"
+              />
             </div>
             <div class="col-md-4">
               <label class="form-label fw-semibold">Trạng thái</label>
@@ -343,7 +357,14 @@
             </div>
             <div class="col-md-4">
               <label class="form-label fw-semibold">Giá trị giảm</label>
-              <input v-model.number="codeForm.gia_tri" type="number" min="1" class="form-control" placeholder="Nhập giá trị giảm" />
+              <input
+                :value="formatPriceInput(codeForm.gia_tri)"
+                type="text"
+                inputmode="numeric"
+                class="form-control"
+                placeholder="Nhập giá trị giảm"
+                @input="codeForm.gia_tri = parsePriceInput($event)"
+              />
             </div>
             <div class="col-md-4">
               <label class="form-label fw-semibold">Trạng thái</label>
@@ -355,7 +376,14 @@
             </div>
             <div class="col-md-6">
               <label class="form-label fw-semibold">Giá trị đơn tối thiểu</label>
-              <input v-model.number="codeForm.gia_tri_don_toi_thieu" type="number" min="0" class="form-control" placeholder="Ví dụ: 300000" />
+              <input
+                :value="formatPriceInput(codeForm.gia_tri_don_toi_thieu)"
+                type="text"
+                inputmode="numeric"
+                class="form-control"
+                placeholder="Ví dụ: 300,000"
+                @input="codeForm.gia_tri_don_toi_thieu = parsePriceInput($event)"
+              />
             </div>
             <div class="col-md-6">
               <label class="form-label fw-semibold">Số lần dùng tối đa mỗi khách</label>
@@ -456,6 +484,7 @@ import {
 } from "../../../api/pricingApi";
 import { getThuocList } from "../../../api/thuocManagementApi";
 import { getStoredUser } from "../../../lib/authStorage";
+import { formatIntegerInput, parseFormattedInteger } from "../../../lib/numberInput";
 import { showToast } from "../../../lib/toast";
 
 function nowAsInput() {
@@ -574,6 +603,14 @@ export default {
     this.loadData();
   },
   methods: {
+    formatPriceInput(value) {
+      return formatIntegerInput(value);
+    },
+
+    parsePriceInput(event) {
+      return parseFormattedInteger(event?.target?.value);
+    },
+
     createPromotionForm() {
       return { id: null, ma_thuoc: "", ma_khuyen_mai: "", ten_khuyen_mai: "", mo_ta: "", loai_ap_dung: "phan_tram", gia_tri: "", nhan_hien_thi: "", ngay_bat_dau: nowAsInput(), ngay_ket_thuc: "", trang_thai: "active" };
     },

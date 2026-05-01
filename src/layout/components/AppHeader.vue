@@ -45,9 +45,10 @@
 </template>
 
 <script setup>
-import { computed } from "vue";
+import { computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
-import { authState, clearAuthSession } from "../../lib/authStorage";
+import { getProfile } from "../../api/profileApi";
+import { authState, clearAuthSession, isSystemUser, updateAuthUser } from "../../lib/authStorage";
 
 const router = useRouter();
 const currentUser = computed(() => authState.user);
@@ -71,6 +72,23 @@ const roleLabel = computed(() => {
 
   return "Tài khoản";
 });
+
+onMounted(() => {
+  refreshCurrentProfile();
+});
+
+async function refreshCurrentProfile() {
+  if (!authState.token || !isSystemUser()) {
+    return;
+  }
+
+  try {
+    const profile = await getProfile();
+    updateAuthUser(profile);
+  } catch {
+    // Header vẫn dùng session hiện tại nếu profile tạm thời không tải được.
+  }
+}
 
 function handleLogout() {
   clearAuthSession();

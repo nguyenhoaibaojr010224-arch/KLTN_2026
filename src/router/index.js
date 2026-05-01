@@ -88,13 +88,13 @@ const routes = [
     },
   },
   {
-    path: "/dashboard",
-    name: "dashboard",
+    path: "/thong-ke",
+    name: "thong-ke",
     component: () => import("../components/Admin/Dashboard/index.vue"),
     meta: {
       layout: "default",
-      title: "Dashboard Dieu Phoi",
-      subtitle: "Theo doi van hanh cac chi nhanh va uu tien xu ly trong ngay.",
+      title: "Thống kê doanh thu",
+      subtitle: "Theo dõi đăng nhập nhân viên, hóa đơn và doanh thu theo ngày, theo tháng.",
       requiresAuth: true,
       requiresSystem: true,
     },
@@ -120,6 +120,18 @@ const routes = [
       layout: "default",
       title: "Danh Sach Hoa Don",
       subtitle: "Xem doanh thu va hoa don dong bo tu backend Laravel.",
+      requiresAuth: true,
+      requiresSystem: true,
+    },
+  },
+  {
+    path: "/khach-hangs",
+    name: "khach-hangs",
+    component: () => import("../components/Admin/KhachHang/index.vue"),
+    meta: {
+      layout: "default",
+      title: "Quản Lý Khách Hàng",
+      subtitle: "Xem thông tin khách hàng và lịch sử đơn hàng đã mua.",
       requiresAuth: true,
       requiresSystem: true,
     },
@@ -187,7 +199,10 @@ router.beforeEach((to) => {
   const loggedIn = isAuthenticated();
 
   if (to.meta.requiresAuth && !loggedIn) {
-    return { path: "/login" };
+    return {
+      path: "/login",
+      query: { redirect: to.fullPath },
+    };
   }
 
   if (to.meta.requiresSystem && !isSystemUser()) {
@@ -195,7 +210,7 @@ router.beforeEach((to) => {
   }
 
   if (to.meta.requiresAdmin && !isAdminUser()) {
-    return { path: "/dashboard" };
+    return { path: "/thong-ke" };
   }
 
   if (to.meta.guestOnly && loggedIn) {

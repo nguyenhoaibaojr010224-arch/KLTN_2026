@@ -33,7 +33,7 @@
           <input
             v-model.trim="keyword"
             class="form-control"
-            placeholder="Nhập tên đăng nhập hoặc họ tên"
+            placeholder="Nhập số điện thoại hoặc họ tên"
             @keyup.enter="handleSearch"
           />
         </div>
@@ -92,8 +92,8 @@
             <table class="table table-master align-middle mb-0">
               <thead>
                 <tr>
-                  <th>ID</th>
-                  <th>Tên đăng nhập</th>
+                  <th>STT</th>
+                  <th>Số điện thoại</th>
                   <th>Họ tên</th>
                   <th>Vai trò</th>
                   <th>Trạng thái</th>
@@ -102,15 +102,15 @@
               </thead>
               <tbody>
                 <tr
-                  v-for="nhanVien in nhanViens"
+                  v-for="(nhanVien, index) in nhanViens"
                   :key="nhanVien.id_nhan_vien"
                   :class="{ 'table-active': selectedId === nhanVien.id_nhan_vien }"
                   @click="setSelectedNhanVien(nhanVien)"
                   style="cursor: pointer;"
                 >
-                  <td>{{ nhanVien.id_nhan_vien }}</td>
+                  <td>{{ index + 1 }}</td>
                   <td>
-                    <div class="fw-semibold">{{ nhanVien.ten_dang_nhap }}</div>
+                    <div class="fw-semibold">{{ nhanVien.so_dien_thoai || nhanVien.ten_dang_nhap }}</div>
                     <div class="small text-secondary">{{ nhanVien.bang_cap?.ten_bang_cap || "Chưa cập nhật bằng cấp" }}</div>
                   </td>
                   <td>{{ nhanVien.ho_ten }}</td>
@@ -163,8 +163,13 @@
         <div class="modal-body">
           <form class="row g-3" @submit.prevent="handleSubmit">
             <div class="col-md-6">
-              <label class="form-label fw-semibold">Tên đăng nhập</label>
-              <input v-model.trim="form.ten_dang_nhap" class="form-control" />
+              <label class="form-label fw-semibold">Số điện thoại đăng nhập</label>
+              <input
+                v-model.trim="form.so_dien_thoai"
+                class="form-control"
+                maxlength="10"
+                placeholder="Ví dụ: 0901234567"
+              />
             </div>
 
             <div class="col-md-6">
@@ -305,12 +310,12 @@ import {
   searchNhanViens,
   updateNhanVien,
 } from "../../../api/nhanVienApi";
-import { getStoredUser } from "../../../lib/authStorage";
+import { getStoredUser, updateAuthUser } from "../../../lib/authStorage";
 import { showToast } from "../../../lib/toast";
 
 function createEmptyForm() {
   return {
-    ten_dang_nhap: "",
+    so_dien_thoai: "",
     ho_ten: "",
     id_vai_tro: "",
     id_bang_cap: "",
@@ -418,6 +423,8 @@ export default {
       const map = {
         admin: "Quản trị viên",
         staff: "Nhân viên",
+        nhan_vien: "Nhân viên",
+        nhanvien: "Nhân viên",
       };
       const key = String(value || "").toLowerCase();
       return map[key] || value || "Chưa phân quyền";
@@ -441,7 +448,7 @@ export default {
     },
     applySelectedToForm(nhanVien) {
       this.form = {
-        ten_dang_nhap: nhanVien.ten_dang_nhap || "",
+        so_dien_thoai: nhanVien.so_dien_thoai || nhanVien.ten_dang_nhap || "",
         ho_ten: nhanVien.ho_ten || "",
         id_vai_tro: nhanVien.id_vai_tro ? String(nhanVien.id_vai_tro) : "",
         id_bang_cap: nhanVien.id_bang_cap ? String(nhanVien.id_bang_cap) : "",
@@ -536,18 +543,27 @@ export default {
       this.loading.submit = true;
       try {
         if (this.isEditing) {
-          await updateNhanVien(this.selectedId, {
-            ten_dang_nhap: this.form.ten_dang_nhap,
+          const updatedNhanVien = await updateNhanVien(this.selectedId, {
+            so_dien_thoai: this.form.so_dien_thoai,
             ho_ten: this.form.ho_ten,
             id_vai_tro: Number(this.form.id_vai_tro),
             id_bang_cap: Number(this.form.id_bang_cap),
             trang_thai: this.form.trang_thai,
           });
+
+          if (Number(updatedNhanVien.id_nhan_vien) === Number(this.currentUser?.id_nhan_vien)) {
+            updateAuthUser({
+              ...this.currentUser,
+              ...updatedNhanVien,
+            });
+            this.currentUser = getStoredUser();
+          }
+
           this.formModal.hide();
           showToast("Cập nhật nhân viên thành công.");
         } else {
           await createNhanVien({
-            ten_dang_nhap: this.form.ten_dang_nhap,
+            so_dien_thoai: this.form.so_dien_thoai,
             mat_khau: this.form.mat_khau,
             mat_khau_confirmation: this.form.mat_khau_confirmation,
             ho_ten: this.form.ho_ten,

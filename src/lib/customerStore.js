@@ -2,6 +2,11 @@
 import { authState, getAuthType, getStoredUser, isAuthenticatedState, setAuthSession } from "./authStorage";
 import { watch } from "vue";
 import { getProfile, updateProfileApi } from "../api/profileApi";
+import {
+  createCustomerAddress,
+  getCustomerAddresses,
+  updateCustomerAddress,
+} from "../api/customerAddressApi";
 import { getCatalogThuocs } from "../api/catalogApi";
 import {
   getCustomerBroadcastNotifications,
@@ -36,6 +41,49 @@ function removeJson(key) {
   localStorage.removeItem(key);
 }
 
+function normalizeScopePart(value) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "")
+    .replace(/[^a-z0-9@._+-]/g, "_");
+}
+
+function getTokenScopeFallback() {
+  const token = normalizeScopePart(authState.token);
+  return token ? `token:${token.slice(-18)}` : "unknown";
+}
+
+function buildCustomerScope(user) {
+  const parts = [
+    ["id", user?.id_khach_hang || user?.id],
+    ["phone", user?.so_dien_thoai || user?.phone],
+    ["email", user?.email],
+  ]
+    .map(([label, value]) => {
+      const normalizedValue = normalizeScopePart(value);
+      return normalizedValue ? `${label}:${normalizedValue}` : "";
+    })
+    .filter(Boolean);
+
+  return parts.length ? parts.join("|") : getTokenScopeFallback();
+}
+
+function buildSystemScope(type, user) {
+  const parts = [
+    ["id", user?.id_nhan_vien || user?.id],
+    ["username", user?.ten_dang_nhap],
+    ["email", user?.email],
+  ]
+    .map(([label, value]) => {
+      const normalizedValue = normalizeScopePart(value);
+      return normalizedValue ? `${label}:${normalizedValue}` : "";
+    })
+    .filter(Boolean);
+
+  return parts.length ? parts.join("|") : getTokenScopeFallback();
+}
+
 function getStorageScopeId() {
   const type = getAuthType();
   const user = getStoredUser();
@@ -45,10 +93,10 @@ function getStorageScopeId() {
   }
 
   if (type === "customer") {
-    return `customer:${user.id_khach_hang || user.so_dien_thoai || user.email || "unknown"}`;
+    return `customer:${buildCustomerScope(user)}`;
   }
 
-  return `system:${type || "unknown"}:${user.id_nhan_vien || user.ten_dang_nhap || user.email || "unknown"}`;
+  return `system:${normalizeScopePart(type) || "unknown"}:${buildSystemScope(type, user)}`;
 }
 
 function getScopedKey(key) {
@@ -208,6 +256,37 @@ function normalizeAddressRecord(address, profileData = buildProfile(), index = 0
   };
 }
 
+function normalizeApiAddressRecord(address, profileData = buildProfile(), index = 0) {
+  return normalizeAddressRecord(
+    {
+      id: address?.id,
+      hoTen: address?.ho_ten,
+      soDienThoai: address?.so_dien_thoai,
+      tinhThanh: address?.tinh_thanh,
+      quanHuyen: address?.quan_huyen,
+      phuongXa: address?.phuong_xa,
+      soNha: address?.so_nha,
+      loaiDiaChi: address?.loai_dia_chi,
+      macDinh: address?.mac_dinh,
+    },
+    profileData,
+    index
+  );
+}
+
+function serializeAddressPayload(address) {
+  return {
+    ho_ten: address?.hoTen || "Khách hàng",
+    so_dien_thoai: String(address?.soDienThoai || "").replaceAll("*", "0"),
+    tinh_thanh: address?.tinhThanh || "",
+    quan_huyen: address?.quanHuyen || "",
+    phuong_xa: address?.phuongXa || "",
+    so_nha: address?.soNha || "",
+    loai_dia_chi: address?.loaiDiaChi || "Nhà riêng",
+    mac_dinh: Boolean(address?.macDinh),
+  };
+}
+
 function dedupeAddresses(addresses, profileData = buildProfile()) {
   const uniqueMap = new Map();
 
@@ -286,6 +365,76 @@ function normalizeAddresses(addresses, profileData = buildProfile()) {
   return dedupeAddresses(addresses, profileData);
 }
 
+function syncAddressesWithProfile(addresses, previousProfile = buildProfile(), nextProfile = buildProfile()) {
+  if (!Array.isArray(addresses) || !addresses.length) {
+    return normalizeAddresses(addresses, nextProfile);
+  }
+
+  const previousPhone = normalizeAddressValue(previousProfile?.soDienThoai).replaceAll("*", "0");
+  const nextPhone = normalizeAddressValue(nextProfile?.soDienThoai).replaceAll("*", "0");
+  const previousName = normalizeAddressValue(previousProfile?.hoTen);
+  const nextName = normalizeAddressValue(nextProfile?.hoTen);
+
+  const nonEmptyPhones = Array.from(
+    new Set(
+      addresses
+        .map((address) => normalizeAddressValue(address?.soDienThoai).replaceAll("*", "0"))
+        .filter(Boolean)
+    )
+  );
+
+  const addressesBelongToCurrentProfile = addresses.every((address) => {
+    const addressName = normalizeAddressValue(address?.hoTen);
+    return !addressName || !nextName || addressName === nextName;
+  });
+
+  const legacyPhoneToReplace =
+    nextPhone &&
+    addressesBelongToCurrentProfile &&
+    nonEmptyPhones.length === 1 &&
+    nonEmptyPhones[0] !== nextPhone
+      ? nonEmptyPhones[0]
+      : "";
+
+  const parsedNextProfileAddress = parseProfileAddress(nextProfile?.diaChi);
+
+  const syncedAddresses = addresses.map((address, index) => {
+    const normalized = normalizeAddressRecord(address, nextProfile, index);
+    const addressPhone = normalizeAddressValue(normalized.soDienThoai).replaceAll("*", "0");
+    const addressName = normalizeAddressValue(normalized.hoTen);
+
+    const shouldSyncPhone =
+      Boolean(nextPhone) &&
+      (!addressPhone ||
+        (previousPhone && addressPhone === previousPhone) ||
+        (legacyPhoneToReplace && addressPhone === legacyPhoneToReplace && (!addressName || addressName === nextName)));
+
+    const shouldSyncName =
+      Boolean(nextName) &&
+      (!addressName || (previousName && addressName === previousName));
+
+    if (normalized.__seededFromProfile) {
+      return {
+        ...normalized,
+        hoTen: nextName || normalized.hoTen,
+        soDienThoai: nextPhone || normalized.soDienThoai,
+        tinhThanh: parsedNextProfileAddress.tinhThanh || normalized.tinhThanh,
+        quanHuyen: parsedNextProfileAddress.quanHuyen || normalized.quanHuyen,
+        phuongXa: parsedNextProfileAddress.phuongXa || normalized.phuongXa,
+        soNha: parsedNextProfileAddress.soNha || normalized.soNha,
+      };
+    }
+
+    return {
+      ...normalized,
+      hoTen: shouldSyncName ? nextName : normalized.hoTen,
+      soDienThoai: shouldSyncPhone ? nextPhone : normalized.soDienThoai,
+    };
+  });
+
+  return normalizeAddresses(syncedAddresses, nextProfile);
+}
+
 function normalizeOrderStatus(value) {
   const raw = String(value || "").trim();
 
@@ -362,7 +511,7 @@ function isLegacySeedNotification(item) {
 }
 
 function normalizeNotificationItem(item, scope = "account") {
-  return {
+  const notification = {
     id: String(item?.id ?? `${scope}-${Date.now()}`),
     scope,
     remoteId: item?.remoteId ?? item?.remote_id ?? null,
@@ -373,6 +522,12 @@ function normalizeNotificationItem(item, scope = "account") {
     daDocScopes: Array.isArray(item?.daDocScopes) ? item.daDocScopes.filter(Boolean).map(String) : [],
     createdAt: item?.createdAt || new Date().toISOString(),
   };
+
+  if (scope === "account") {
+    notification.ownerScope = String(item?.ownerScope || item?.owner_scope || getStorageScopeId());
+  }
+
+  return notification;
 }
 
 function getNotificationReadScope() {
@@ -380,10 +535,13 @@ function getNotificationReadScope() {
 }
 
 function sanitizeAccountNotifications(list) {
+  const ownerScope = getStorageScopeId();
+
   return Array.isArray(list)
     ? list
         .filter((item) => !isLegacySeedNotification(item))
         .map((item) => normalizeNotificationItem(item, "account"))
+        .filter((item) => item.ownerScope === ownerScope)
     : [];
 }
 
@@ -392,11 +550,14 @@ function sanitizeSharedNotifications(list) {
 }
 
 function buildMergedNotifications() {
-  const accountNotifications = accountNotificationsSource.map((item) => ({
-    ...item,
-    scope: "account",
-    daDoc: Boolean(item.daDoc),
-  }));
+  const ownerScope = getStorageScopeId();
+  const accountNotifications = accountNotificationsSource
+    .filter((item) => item.ownerScope === ownerScope)
+    .map((item) => ({
+      ...item,
+      scope: "account",
+      daDoc: Boolean(item.daDoc),
+    }));
   const sharedNotifications = sharedNotificationsSource.map((item) => ({
     ...item,
     scope: "shared",
@@ -426,6 +587,8 @@ function addAccountNotification(payload) {
       id: payload?.id || `account-${Date.now()}`,
       group: payload?.group || "Hệ thống",
       tieuDe: payload?.tieuDe || "Thông báo mới",
+      noiDung: payload?.noiDung || payload?.noi_dung || "",
+      ownerScope: getStorageScopeId(),
       createdAt: payload?.createdAt || new Date().toISOString(),
       daDoc: false,
     },
@@ -558,6 +721,69 @@ function persistAddresses() {
   writeScopedJson(ADDRESS_KEY, state.addresses);
 }
 
+async function migrateLocalAddressesToApi(localAddresses) {
+  const normalizedLocalAddresses = normalizeAddresses(localAddresses, state.profile);
+
+  if (!normalizedLocalAddresses.length) {
+    return [];
+  }
+
+  const migrated = [];
+
+  for (const address of normalizedLocalAddresses) {
+    const response = await createCustomerAddress(serializeAddressPayload(address));
+    if (response?.data) {
+      migrated.push(response.data);
+    }
+  }
+
+  return migrated;
+}
+
+async function syncAddressesFromApi(options = {}) {
+  const { silent = true, migrateLegacy = true } = options;
+  hydrateScopedState();
+
+  if (!isAuthenticatedState.value || getAuthType() !== "customer") {
+    state.addresses = normalizeAddresses(state.addresses, state.profile);
+    persistAddresses();
+    return state.addresses;
+  }
+
+  try {
+    let response = await getCustomerAddresses();
+    let remoteAddresses = Array.isArray(response?.data) ? response.data : [];
+
+    if (!remoteAddresses.length && migrateLegacy) {
+      const localAddresses = normalizeAddresses(readScopedJson(ADDRESS_KEY, []), state.profile);
+
+      if (localAddresses.length) {
+        await migrateLocalAddressesToApi(localAddresses);
+        response = await getCustomerAddresses();
+        remoteAddresses = Array.isArray(response?.data) ? response.data : [];
+      }
+    }
+
+    state.addresses = remoteAddresses.length
+      ? normalizeAddresses(
+          remoteAddresses.map((address, index) => normalizeApiAddressRecord(address, state.profile, index)),
+          state.profile
+        )
+      : normalizeAddresses([], state.profile);
+
+    persistAddresses();
+    return state.addresses;
+  } catch (error) {
+    if (!silent) {
+      throw error;
+    }
+
+    state.addresses = normalizeAddresses(state.addresses, state.profile);
+    persistAddresses();
+    return state.addresses;
+  }
+}
+
 function persistProfile() {
   writeScopedJson(PROFILE_KEY, state.profile);
 }
@@ -618,6 +844,7 @@ function clearGuestPromotionState() {
 
 function syncProfileFromAuth() {
   hydrateScopedState();
+  const previousProfile = { ...state.profile };
   const nextProfile = buildProfile();
 
   state.profile = {
@@ -633,7 +860,7 @@ function syncProfileFromAuth() {
     pxu: state.profile.pxu || nextProfile.pxu,
   };
 
-  state.addresses = normalizeAddresses(state.addresses, state.profile);
+  state.addresses = syncAddressesWithProfile(state.addresses, previousProfile, state.profile);
 
   clearGuestPromotionState();
   persistProfile();
@@ -712,7 +939,7 @@ function normalizeCartItem(product) {
     id: buildProductUnitCartKey(maThuoc, selectedUnit),
     maThuoc,
     ten: normalizedProduct.ten_thuoc || normalizedProduct.ten,
-    loai: normalizedProduct.loai_thuoc || product.loai_thuoc || "Thuá»‘c",
+      loai: normalizedProduct.loai_thuoc || product.loai_thuoc || "Thuốc",
     donVi: selectedUnit,
     selectedDonVi: selectedUnit,
     moTa: normalizedProduct.mo_ta || normalizedProduct.moTa || product.mo_ta || product.moTa || product.description || "",
@@ -779,11 +1006,12 @@ async function syncCartPricesWithCatalog() {
   }
 }
 
-function addToCart(product) {
+function addToCart(product, quantity = 1) {
   const normalizedItem = normalizeCartItem(product);
   const itemId = normalizedItem.id;
   const existing = state.cart.find((item) => item.id === itemId);
   const incomingStock = Number(normalizedItem.tonKho || existing?.tonKho || 0);
+  const nextQuantity = Math.max(1, Number.parseInt(quantity, 10) || 1);
 
   if (incomingStock <= 0) {
     return false;
@@ -794,9 +1022,12 @@ function addToCart(product) {
       ? Number(existing.tonKho)
       : 99;
 
-    existing.soLuong = Math.min(existing.soLuong + 1, quantityLimit);
+    existing.soLuong = Math.min(existing.soLuong + nextQuantity, quantityLimit);
   } else {
-    state.cart.push(normalizedItem);
+    state.cart.push({
+      ...normalizedItem,
+      soLuong: Math.min(nextQuantity, incomingStock),
+    });
   }
 
   persistCart();
@@ -851,13 +1082,24 @@ function clearCart() {
   persistCart();
 }
 
-function saveAddress(payload) {
+async function saveAddress(payload) {
   const isEditing = Boolean(payload.id);
   const item = normalizeAddressRecord({
     id: payload.id || Date.now(),
     ...payload,
     macDinh: payload.macDinh ?? state.addresses.length === 0,
   }, state.profile, state.addresses.length);
+
+  if (isAuthenticatedState.value && getAuthType() === "customer") {
+    if (isEditing) {
+      await updateCustomerAddress(item.id, serializeAddressPayload(item));
+    } else {
+      await createCustomerAddress(serializeAddressPayload(item));
+    }
+
+    await syncAddressesFromApi({ silent: false, migrateLegacy: false });
+    return;
+  }
 
   if (item.macDinh) {
     state.addresses = state.addresses.map((address) => ({ ...address, macDinh: false }));
@@ -900,6 +1142,7 @@ function setDefaultAddress(addressId) {
 async function refreshProfileFromApi() {
   try {
     const user = await getProfile();
+    const previousProfile = { ...state.profile };
 
     state.profile = {
       ...state.profile,
@@ -912,6 +1155,8 @@ async function refreshProfileFromApi() {
       gioiTinh: user?.gioi_tinh || state.profile.gioiTinh || "",
     };
 
+    state.addresses = syncAddressesWithProfile(state.addresses, previousProfile, state.profile);
+
     setAuthSession({
       token: authState.token,
       user,
@@ -919,6 +1164,7 @@ async function refreshProfileFromApi() {
     });
 
     persistProfile();
+    await syncAddressesFromApi({ silent: true });
   } catch {
     // Keep local state when API is unavailable.
   }
@@ -927,6 +1173,7 @@ async function refreshProfileFromApi() {
 async function updateProfile(payload) {
   const response = await updateProfileApi(payload);
   const user = response?.user;
+  const previousProfile = { ...state.profile };
 
   state.profile = {
     ...state.profile,
@@ -939,6 +1186,8 @@ async function updateProfile(payload) {
     gioiTinh: user?.gioi_tinh || state.profile.gioiTinh || "",
   };
 
+  state.addresses = syncAddressesWithProfile(state.addresses, previousProfile, state.profile);
+
   setAuthSession({
     token: authState.token,
     user: user || authState.user,
@@ -946,6 +1195,7 @@ async function updateProfile(payload) {
   });
 
   persistProfile();
+  await syncAddressesFromApi({ silent: true });
   return response;
 }
 
@@ -1175,10 +1425,11 @@ async function markNotificationRead(notificationId) {
     return;
   }
 
+  const ownerScope = getStorageScopeId();
   let changed = false;
 
   accountNotificationsSource = accountNotificationsSource.map((notification) => {
-    if (String(notification.id) !== targetId || notification.daDoc) {
+    if (notification.ownerScope !== ownerScope || String(notification.id) !== targetId || notification.daDoc) {
       return notification;
     }
 
@@ -1224,10 +1475,11 @@ async function markNotificationsReadByGroup(group) {
     return;
   }
 
+  const ownerScope = getStorageScopeId();
   let changed = false;
 
   accountNotificationsSource = accountNotificationsSource.map((notification) => {
-    if (notification.group !== group || notification.daDoc) {
+    if (notification.ownerScope !== ownerScope || notification.group !== group || notification.daDoc) {
       return notification;
     }
 
@@ -1263,10 +1515,11 @@ async function markNotificationsReadByGroup(group) {
 }
 
 async function markAllNotificationsRead() {
+  const ownerScope = getStorageScopeId();
   let changed = false;
 
   accountNotificationsSource = accountNotificationsSource.map((notification) => {
-    if (notification.daDoc) {
+    if (notification.ownerScope !== ownerScope || notification.daDoc) {
       return notification;
     }
 
@@ -1363,6 +1616,7 @@ watch(
   [
     () => authState.token,
     () => authState.type,
+    () => authState.user?.id,
     () => authState.user?.id_khach_hang,
     () => authState.user?.id_nhan_vien,
     () => authState.user?.so_dien_thoai,
@@ -1401,6 +1655,7 @@ export function useCustomerStore() {
     setDefaultAddress,
     updateProfile,
     refreshProfileFromApi,
+    syncAddressesFromApi,
     applyPromotionCode,
     clearAppliedPromotion,
     placeOrder,

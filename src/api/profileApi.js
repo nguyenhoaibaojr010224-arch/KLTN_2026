@@ -15,3 +15,10 @@ export function updateProfileApi(payload) {
     })() : JSON.stringify(payload),
   });
 }
+
+export function changePasswordApi(payload) {
+  return apiClient("/profile/change-password", {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}

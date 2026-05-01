@@ -57,9 +57,9 @@
           >
             <div class="support-thread-list__main">
               <div class="support-thread-list__top">
-                <strong>{{ item.khach_hang?.ten_khach_hang || "Khách hàng" }}</strong>
+                <strong>{{ customerName(item) }}</strong>
                 <span class="support-thread-list__contact">
-                  {{ item.khach_hang?.so_dien_thoai || item.khach_hang?.email || "-" }}
+                  {{ customerContact(item) }}
                 </span>
               </div>
 
@@ -92,11 +92,10 @@
           <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 mb-4">
             <div>
               <h3 class="panel-title mb-2">
-                {{ activeConversation.khach_hang?.ten_khach_hang || "Khách hàng" }}
+                {{ customerName(activeConversation) }}
               </h3>
               <p class="panel-subtitle mb-1">
-                {{ activeConversation.khach_hang?.so_dien_thoai || "-" }} ·
-                {{ activeConversation.khach_hang?.email || "Không có email" }}
+                {{ customerContact(activeConversation) }}
               </p>
               <p class="panel-subtitle mb-0">
                 Phụ trách:
@@ -115,6 +114,10 @@
                 <span v-if="closingConversation" class="spinner-border spinner-border-sm me-2"></span>
                 Đóng hội thoại
               </button>
+              <button class="btn btn-danger" type="button" :disabled="deletingConversation" @click="handleDeleteConversation">
+                <span v-if="deletingConversation" class="spinner-border spinner-border-sm me-2"></span>
+                Xóa hội thoại
+              </button>
             </div>
           </div>
 
@@ -132,11 +135,51 @@
                 :class="{
                   'is-staff': message.nguoi_gui_loai === 'staff',
                   'is-customer': message.nguoi_gui_loai === 'customer',
+                  'is-ai': message.nguoi_gui_loai === 'ai',
                 }"
               >
                 <div class="support-chat__bubble">
-                  <strong>{{ senderLabel(message) }}</strong>
+                  <strong>{{ resolveSenderLabel(message) }}</strong>
+                  <div v-if="resolveIntentLabel(message)" class="support-chat__intent">
+                    {{ resolveIntentLabel(message) }}
+                  </div>
                   <p>{{ message.noi_dung }}</p>
+                  <div v-if="suggestedProducts(message).length" class="support-chat__suggestions">
+                    <article
+                      v-for="product in suggestedProducts(message)"
+                      :key="`${message.id_tin_nhan}-${product.ma_thuoc || product.ten_thuoc}`"
+                      class="support-chat__suggestion"
+                    >
+                      <div class="support-chat__suggestion-thumb">
+                        <span v-if="hasRealPromotion(product)" class="support-chat__suggestion-promo">
+                          {{ promotionLabel(product) }}
+                        </span>
+                        <img
+                          v-if="product.hinh_anh_url"
+                          :src="product.hinh_anh_url"
+                          :alt="product.ten_thuoc"
+                        />
+                        <i v-else class="bi bi-capsule"></i>
+                      </div>
+
+                      <div class="support-chat__suggestion-body">
+                        <div class="support-chat__suggestion-top">
+                          <strong>{{ product.ten_thuoc }}</strong>
+                          <span v-if="product.la_thuoc_ke_don" class="support-chat__suggestion-flag">
+                            Kê đơn
+                          </span>
+                        </div>
+                        <p v-if="product.nhan">{{ product.nhan }}</p>
+                        <div class="support-chat__suggestion-meta">
+                          <span class="support-chat__suggestion-price">
+                            <span>{{ formatCurrency(product.gia_ban) }}/{{ product.don_vi_hien_thi || "đơn vị" }}</span>
+                            <del v-if="hasRealPromotion(product)">{{ formatCurrency(product.gia_niem_yet) }}</del>
+                          </span>
+                          <span>Còn {{ product.so_luong_ton || 0 }} {{ product.don_vi_ton || product.don_vi_hien_thi || "đơn vị" }}</span>
+                        </div>
+                      </div>
+                    </article>
+                  </div>
                   <small>{{ formatDateTime(message.thoi_gian) }}</small>
                 </div>
               </article>
@@ -178,14 +221,18 @@
 
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import {
   closeSupportConversation,
+  deleteSupportConversation,
   getSupportConversation,
   getSupportConversations,
   sendSupportMessage,
 } from "../../../api/supportApi";
 import { showToast } from "../../../lib/toast";
 
+const route = useRoute();
+const router = useRouter();
 const keyword = ref("");
 const conversations = ref([]);
 const activeConversationId = ref(null);
@@ -194,10 +241,12 @@ const loadingList = ref(false);
 const loadingThread = ref(false);
 const sendingReply = ref(false);
 const closingConversation = ref(false);
+const deletingConversation = ref(false);
 const replyMessage = ref("");
 const messagesRef = ref(null);
 
 let pollTimer = null;
+let activeConversationRequestId = 0;
 
 const filteredConversations = computed(() => {
   if (!keyword.value) {
@@ -207,18 +256,23 @@ const filteredConversations = computed(() => {
   const normalized = keyword.value.toLowerCase();
 
   return conversations.value.filter((item) => {
-    const name = item.khach_hang?.ten_khach_hang || "";
+    const name = customerName(item);
     const phone = item.khach_hang?.so_dien_thoai || "";
     const email = item.khach_hang?.email || "";
+    const contact = customerContact(item);
     const preview = item.tin_nhan_cuoi?.noi_dung || "";
 
-    return [name, phone, email, preview].some((value) => value.toLowerCase().includes(normalized));
+    return [name, phone, email, contact, preview].some((value) => value.toLowerCase().includes(normalized));
   });
 });
 
 const unreadConversationCount = computed(
   () => conversations.value.filter((item) => Number(item.so_tin_chua_doc || 0) > 0).length
 );
+const requestedConversationId = computed(() => {
+  const raw = Number(route.query.hoi_thoai || 0);
+  return Number.isFinite(raw) && raw > 0 ? raw : null;
+});
 
 onMounted(async () => {
   await loadConversations();
@@ -241,6 +295,21 @@ watch(
   }
 );
 
+watch(
+  requestedConversationId,
+  async (value) => {
+    if (!value || value === activeConversationId.value) {
+      return;
+    }
+
+    const exists = conversations.value.some((item) => item.id_hoi_thoai === value);
+    if (exists) {
+      await openConversation(value, { preserveList: true, syncRoute: false });
+    }
+  },
+  { immediate: true }
+);
+
 async function loadConversations({ silent = false } = {}) {
   if (!silent) {
     loadingList.value = true;
@@ -254,7 +323,22 @@ async function loadConversations({ silent = false } = {}) {
     if (!nextConversations.length) {
       activeConversationId.value = null;
       activeConversation.value = null;
+      syncConversationQuery();
       return;
+    }
+
+    if (requestedConversationId.value) {
+      const requestedExists = nextConversations.some(
+        (item) => item.id_hoi_thoai === requestedConversationId.value
+      );
+
+      if (requestedExists && requestedConversationId.value !== activeConversationId.value) {
+        await openConversation(requestedConversationId.value, {
+          preserveList: true,
+          syncRoute: false,
+        });
+        return;
+      }
     }
 
     const stillExists = nextConversations.some((item) => item.id_hoi_thoai === activeConversationId.value);
@@ -273,12 +357,28 @@ async function loadConversations({ silent = false } = {}) {
   }
 }
 
-async function openConversation(id, { preserveList = false, silent = false } = {}) {
+async function openConversation(
+  id,
+  { preserveList = false, silent = false, syncRoute = true, force = false } = {}
+) {
   if (!id) {
     return;
   }
 
+  if (id === activeConversationId.value && activeConversation.value && preserveList && !force) {
+    if (syncRoute) {
+      syncConversationQuery(id);
+    }
+    return;
+  }
+
+  const requestId = ++activeConversationRequestId;
   activeConversationId.value = id;
+  markConversationReadLocally(id);
+
+  if (syncRoute) {
+    syncConversationQuery(id);
+  }
 
   if (!silent) {
     loadingThread.value = true;
@@ -286,24 +386,19 @@ async function openConversation(id, { preserveList = false, silent = false } = {
 
   try {
     const response = await getSupportConversation(id);
-    activeConversation.value = response?.data || null;
-
-    if (!preserveList) {
-      await loadConversations({ silent: true });
-    } else {
-      conversations.value = conversations.value.map((item) =>
-        item.id_hoi_thoai === id
-          ? {
-              ...item,
-              so_tin_chua_doc: 0,
-            }
-          : item
-      );
+    if (requestId !== activeConversationRequestId) {
+      return;
     }
+
+    activeConversation.value = response?.data || null;
+    replyMessage.value = "";
+    syncConversationSummary(activeConversation.value, { markRead: true });
   } catch (error) {
-    showToast(error?.message || "Không thể tải hội thoại chi tiết.", "error");
+    if (requestId === activeConversationRequestId) {
+      showToast(error?.message || "Không thể tải hội thoại chi tiết.", "error");
+    }
   } finally {
-    if (!silent) {
+    if (!silent && requestId === activeConversationRequestId) {
       loadingThread.value = false;
     }
   }
@@ -320,7 +415,7 @@ async function sendReply() {
     const response = await sendSupportMessage(activeConversationId.value, replyMessage.value);
     activeConversation.value = response?.data || null;
     replyMessage.value = "";
-    await loadConversations({ silent: true });
+    syncConversationSummary(activeConversation.value, { markRead: true });
     showToast("Đã gửi phản hồi cho khách hàng.");
   } catch (error) {
     showToast(error?.message || "Không thể gửi phản hồi.", "error");
@@ -339,7 +434,7 @@ async function handleCloseConversation() {
   try {
     const response = await closeSupportConversation(activeConversationId.value);
     activeConversation.value = response?.data || null;
-    await loadConversations({ silent: true });
+    syncConversationSummary(activeConversation.value, { markRead: true });
     showToast("Đã đóng hội thoại hỗ trợ.");
   } catch (error) {
     showToast(error?.message || "Không thể đóng hội thoại.", "error");
@@ -348,11 +443,51 @@ async function handleCloseConversation() {
   }
 }
 
+async function handleDeleteConversation() {
+  if (!activeConversationId.value || deletingConversation.value) {
+    return;
+  }
+
+  const confirmed = window.confirm("Bạn có chắc muốn xóa hội thoại này không?");
+
+  if (!confirmed) {
+    return;
+  }
+
+  deletingConversation.value = true;
+  const deletingId = activeConversationId.value;
+
+  try {
+    await deleteSupportConversation(deletingId);
+
+    const remaining = conversations.value.filter((item) => item.id_hoi_thoai !== deletingId);
+    conversations.value = remaining;
+    activeConversationId.value = null;
+    activeConversation.value = null;
+
+    if (remaining.length) {
+      await openConversation(remaining[0].id_hoi_thoai, { preserveList: true });
+    } else {
+      syncConversationQuery();
+    }
+
+    showToast("Đã xóa hội thoại hỗ trợ.");
+  } catch (error) {
+    showToast(error?.message || "Không thể xóa hội thoại.", "error");
+  } finally {
+    deletingConversation.value = false;
+  }
+}
+
 async function refreshData() {
   await loadConversations();
 
   if (activeConversationId.value) {
-    await openConversation(activeConversationId.value, { silent: true, preserveList: true });
+    await openConversation(activeConversationId.value, {
+      silent: true,
+      preserveList: true,
+      force: true,
+    });
   }
 }
 
@@ -368,12 +503,15 @@ function startPolling() {
   stopPolling();
 
   pollTimer = window.setInterval(async () => {
+    const previousActive = findConversationSummary(activeConversationId.value);
     await loadConversations({ silent: true });
+    const nextActive = findConversationSummary(activeConversationId.value);
 
-    if (activeConversationId.value) {
+    if (activeConversationId.value && shouldRefreshActiveConversation(previousActive, nextActive)) {
       await openConversation(activeConversationId.value, {
         silent: true,
         preserveList: true,
+        force: true,
       });
     }
   }, 10000);
@@ -384,6 +522,117 @@ function stopPolling() {
     clearInterval(pollTimer);
     pollTimer = null;
   }
+}
+
+function syncConversationQuery(id = null) {
+  const currentId = route.query.hoi_thoai ? String(route.query.hoi_thoai) : "";
+  const nextId = id ? String(id) : "";
+
+  if (currentId === nextId) {
+    return;
+  }
+
+  const nextQuery = { ...route.query };
+
+  if (id) {
+    nextQuery.hoi_thoai = id;
+  } else {
+    delete nextQuery.hoi_thoai;
+  }
+
+  router.replace({
+    path: route.path,
+    query: nextQuery,
+  });
+}
+
+function findConversationSummary(id) {
+  if (!id) {
+    return null;
+  }
+
+  return conversations.value.find((item) => item.id_hoi_thoai === id) || null;
+}
+
+function shouldRefreshActiveConversation(previous, next) {
+  if (!activeConversationId.value) {
+    return false;
+  }
+
+  if (!previous || !next) {
+    return true;
+  }
+
+  return (
+    previous.thoi_gian_tin_nhan_cuoi !== next.thoi_gian_tin_nhan_cuoi ||
+    Number(previous.so_tin_chua_doc || 0) !== Number(next.so_tin_chua_doc || 0) ||
+    previous.trang_thai !== next.trang_thai
+  );
+}
+
+function markConversationReadLocally(id) {
+  if (!id) {
+    return;
+  }
+
+  conversations.value = conversations.value.map((item) =>
+    item.id_hoi_thoai === id
+      ? {
+          ...item,
+          so_tin_chua_doc: 0,
+        }
+      : item
+  );
+}
+
+function syncConversationSummary(conversation, { markRead = false } = {}) {
+  if (!conversation?.id_hoi_thoai) {
+    return;
+  }
+
+  const summary = {
+    id_hoi_thoai: conversation.id_hoi_thoai,
+    trang_thai: conversation.trang_thai,
+    thoi_gian_tin_nhan_cuoi: conversation.thoi_gian_tin_nhan_cuoi,
+    so_tin_chua_doc: markRead ? 0 : Number(conversation.so_tin_chua_doc || 0),
+    khach_hang: conversation.khach_hang,
+    nhan_vien_phu_trach: conversation.nhan_vien_phu_trach,
+    tin_nhan_cuoi: conversation.messages?.length
+      ? conversation.messages[conversation.messages.length - 1]
+      : conversation.tin_nhan_cuoi,
+  };
+
+  const existingIndex = conversations.value.findIndex(
+    (item) => item.id_hoi_thoai === conversation.id_hoi_thoai
+  );
+
+  if (existingIndex === -1) {
+    conversations.value = [summary, ...conversations.value];
+    return;
+  }
+
+  conversations.value = conversations.value.map((item, index) =>
+    index === existingIndex
+      ? {
+          ...item,
+          ...summary,
+        }
+      : item
+  );
+}
+
+function customerName(conversation) {
+  return conversation?.khach_hang?.ten_khach_hang || "Khách Vãng Lai";
+}
+
+function customerContact(conversation) {
+  const customer = conversation?.khach_hang;
+
+  if (customer?.la_khach_vang_lai) {
+    return "Khách chưa đăng nhập";
+  }
+
+  return customer?.so_dien_thoai || customer?.email || "-";
 }
 
 function statusLabel(status) {
@@ -410,12 +659,65 @@ function statusBadgeClass(status) {
   return "soft-badge--teal";
 }
 
+function resolveSenderLabel(message) {
+  if (message.nguoi_gui_loai === "ai") {
+    return "Trợ lý AI";
+  }
+
+  return senderLabel(message);
+}
+
+function suggestedProducts(message) {
+  return Array.isArray(message?.du_lieu_bo_sung?.san_pham_goi_y)
+    ? message.du_lieu_bo_sung.san_pham_goi_y
+    : [];
+}
+
+function hasRealPromotion(product) {
+  const salePrice = Number(product?.gia_ban || 0);
+  const listPrice = Number(product?.gia_niem_yet || 0);
+
+  return Boolean(product?.co_khuyen_mai) && salePrice > 0 && listPrice > salePrice;
+}
+
+function promotionLabel(product) {
+  return product?.khuyen_mai_nhan_hien_thi || "Đang ưu đãi";
+}
+
+function resolveIntentLabel(message) {
+  const intent = message?.du_lieu_bo_sung?.intent;
+
+  if (intent === "tu_van_duoc_si") {
+    return "Tư vấn dược sĩ";
+  }
+
+  if (intent === "khuyen_mai") {
+    return "Khuyến mãi";
+  }
+
+  if (intent === "don_hang") {
+    return "Đơn hàng";
+  }
+
+  if (intent === "tra_cuu_thuoc") {
+    return "Tra cứu thuốc";
+  }
+
+  return "";
+}
+
 function senderLabel(message) {
   if (message.nguoi_gui_loai === "staff") {
     return message?.nhan_vien?.ho_ten || "Nhân viên";
   }
 
-  return message?.khach_hang?.ten_khach_hang || "Khách hàng";
+  return message?.khach_hang?.ten_khach_hang || "Khách Vãng Lai";
+}
+
+function formatCurrency(value) {
+  const amount = Number(value || 0);
+
+  return `${amount.toLocaleString("vi-VN")}đ`;
 }
 
 function formatDateTime(value) {
@@ -550,6 +852,10 @@ function scrollMessagesToBottom() {
   justify-content: flex-start;
 }
 
+.support-chat__message.is-ai {
+  justify-content: flex-start;
+}
+
 .support-chat__bubble {
   max-width: 78%;
   display: grid;
@@ -566,9 +872,27 @@ function scrollMessagesToBottom() {
   color: #fff;
 }
 
+.support-chat__message.is-ai .support-chat__bubble {
+  background: linear-gradient(135deg, #fff7e8, #ffe6bf);
+  color: #7b4a05;
+  border: 1px solid rgba(255, 173, 31, 0.24);
+}
+
 .support-chat__bubble strong {
   font-size: 0.84rem;
   font-weight: 800;
+}
+
+.support-chat__intent {
+  justify-self: start;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(22, 82, 197, 0.12);
+  color: #315794;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 
 .support-chat__bubble p {
@@ -580,6 +904,118 @@ function scrollMessagesToBottom() {
 .support-chat__bubble small {
   opacity: 0.76;
   font-size: 0.74rem;
+}
+
+.support-chat__suggestions {
+  display: grid;
+  gap: 8px;
+}
+
+.support-chat__suggestion {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid rgba(22, 82, 197, 0.1);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.support-chat__suggestion-thumb {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #eef5ff, #f8fbff);
+  overflow: hidden;
+  color: #1652c5;
+}
+
+.support-chat__suggestion-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.support-chat__suggestion-thumb i {
+  font-size: 1.25rem;
+}
+
+.support-chat__suggestion-promo {
+  position: absolute;
+  top: -6px;
+  left: -6px;
+  z-index: 2;
+  max-width: 68px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: #eb3030;
+  color: #fff;
+  font-size: 0.6rem;
+  font-weight: 900;
+  line-height: 1;
+  text-align: center;
+  box-shadow: 0 8px 18px rgba(235, 48, 48, 0.24);
+}
+
+.support-chat__suggestion-body {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.support-chat__suggestion-top {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.support-chat__suggestion-top strong {
+  min-width: 0;
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+
+.support-chat__suggestion-body p {
+  margin: 0;
+  color: inherit;
+  opacity: 0.86;
+  font-size: 0.77rem;
+  line-height: 1.35;
+}
+
+.support-chat__suggestion-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.support-chat__suggestion-price {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.support-chat__suggestion-price del {
+  color: #8b9ab5;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.support-chat__suggestion-flag {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(255, 132, 0, 0.16);
+  color: #b05a00;
+  font-size: 0.68rem;
+  font-weight: 800;
+  white-space: nowrap;
 }
 
 .support-chat__composer {

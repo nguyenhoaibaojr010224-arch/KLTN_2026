@@ -440,6 +440,7 @@ export default {
 
   async mounted() {
     await this.customerStore.syncCartPricesWithCatalog?.();
+    await this.customerStore.syncAddressesFromApi?.();
     this.promotionPickerModal = new Modal(this.$refs.promotionPickerModalEl);
     this.productInfoModal = new Modal(this.$refs.productInfoModalEl);
     this.promotionCode = this.state.appliedPromotion?.maGiamGia || "";
@@ -497,12 +498,16 @@ export default {
       this.selectedProductInfo = item;
       this.productInfoModal.show();
     },
-    selectAddress(address) {
-      this.customerStore.saveAddress({
-        ...address,
-        macDinh: true,
-      });
-      showToast("Đã chọn vị trí giao hàng.", "success");
+    async selectAddress(address) {
+      try {
+        await this.customerStore.saveAddress({
+          ...address,
+          macDinh: true,
+        });
+        showToast("Đã chọn vị trí giao hàng.", "success");
+      } catch (error) {
+        showToast(this.extractErrorMessage(error, "Không thể cập nhật địa chỉ giao hàng."), "error");
+      }
     },
     async loadAvailablePromotionCodes() {
       if (this.payableSubtotal <= 0) {

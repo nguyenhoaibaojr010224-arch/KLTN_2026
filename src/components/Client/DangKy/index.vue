@@ -120,19 +120,87 @@
         <div v-if="formError" class="alert alert-danger mt-3 mb-0">{{ formError }}</div>
       </div>
     </div>
+
+    <div v-if="showVerificationModal" class="verification-modal" role="dialog" aria-modal="true">
+      <div class="verification-modal__backdrop"></div>
+      <div class="verification-modal__panel">
+        <div class="verification-modal__icon">
+          <i class="bi bi-envelope-check"></i>
+        </div>
+
+        <div class="verification-modal__content">
+          <p class="verification-modal__eyebrow">Tài khoản đang chờ xác minh</p>
+          <h2 class="verification-modal__title">Nhập mã xác minh email</h2>
+          <p class="verification-modal__copy">
+            Mã gồm 6 chữ số đã được gửi đến Gmail
+            <strong>{{ verificationEmail }}</strong>. Vui lòng nhập mã để kích hoạt tài khoản.
+          </p>
+
+          <form class="verification-form" @submit.prevent="xacMinhEmail">
+            <label class="form-label fw-semibold" for="verification-code">Mã xác minh</label>
+            <input
+              id="verification-code"
+              v-model="verificationCode"
+              class="form-control form-control-lg verification-form__input"
+              :class="{ 'is-invalid': verificationError }"
+              inputmode="numeric"
+              maxlength="6"
+              autocomplete="one-time-code"
+              placeholder="000000"
+              @input="sanitizeVerificationCode"
+            >
+            <div v-if="verificationError" class="field-error">
+              {{ verificationError }}
+            </div>
+
+            <div v-if="verificationMessage" class="alert alert-info mt-3 mb-0">
+              {{ verificationMessage }}
+            </div>
+
+            <div class="verification-form__actions">
+              <button
+                class="btn btn-primary btn-lg verification-form__submit"
+                type="submit"
+                :disabled="verificationLoading || verificationCode.length !== 6"
+              >
+                <span v-if="verificationLoading" class="spinner-border spinner-border-sm me-2"></span>
+                Xác minh tài khoản
+              </button>
+
+              <button
+                class="btn btn-outline-primary btn-lg"
+                type="button"
+                :disabled="resendLoading"
+                @click="guiLaiMa"
+              >
+                <span v-if="resendLoading" class="spinner-border spinner-border-sm me-2"></span>
+                Gửi lại mã
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
   </section>
 </template>
 
 <script>
-import { register } from "../../../api/authApi";
+import { register, resendEmailVerification, verifyEmailCode } from "../../../api/authApi";
 import { setAuthSession } from "../../../lib/authStorage";
 
 export default {
   data() {
     return {
       loading: false,
+      verificationLoading: false,
+      resendLoading: false,
+      showVerificationModal: false,
       formError: "",
       message: "",
+      verificationEmail: "",
+      verificationCode: "",
+      verificationError: "",
+      verificationMessage: "",
       form: {
         ten_khach_hang: "",
         so_dien_thoai: "",
@@ -176,6 +244,13 @@ export default {
       }
 
       return message;
+    },
+    normalizeError(err, fallback = "Yêu cầu thất bại.") {
+      if (err?.payload?.errors) {
+        return Object.values(err.payload.errors).flat().map(this.translateServerMessage).join(" | ");
+      }
+
+      return this.translateServerMessage(err?.message) || fallback;
     },
     validateField(field) {
       const value = String(this.form[field] || "").trim();
@@ -237,6 +312,10 @@ export default {
       this.touchedFields[field] = true;
       this.fieldErrors[field] = this.validateField(field);
     },
+    sanitizeVerificationCode() {
+      this.verificationCode = String(this.verificationCode || "").replace(/\D/g, "").slice(0, 6);
+      this.verificationError = "";
+    },
     applyServerErrors(errors) {
       Object.keys(this.fieldErrors).forEach((field) => {
         if (errors?.[field]?.length) {
@@ -258,23 +337,78 @@ export default {
       try {
         const response = await register(this.form);
 
+        this.verificationEmail = response?.verification?.email || this.form.email;
+        this.verificationCode = "";
+        this.verificationError = "";
+        this.verificationMessage =
+          response.message || "Đăng ký thành công. Vui lòng kiểm tra Gmail và nhập mã xác minh.";
+        this.message = "Tài khoản đã được tạo và đang chờ xác minh email.";
+        this.showVerificationModal = true;
+      } catch (err) {
+        if (err?.payload?.errors) {
+          this.applyServerErrors(err.payload.errors);
+          this.formError = "Thông tin đăng ký chưa hợp lệ. Vui lòng kiểm tra lại.";
+        } else {
+          this.formError = this.normalizeError(err, "Đăng ký thất bại.");
+        }
+      } finally {
+        this.loading = false;
+      }
+    },
+    async xacMinhEmail() {
+      this.sanitizeVerificationCode();
+
+      if (this.verificationCode.length !== 6) {
+        this.verificationError = "Vui lòng nhập đủ 6 chữ số trong Gmail.";
+        return;
+      }
+
+      this.verificationLoading = true;
+      this.verificationError = "";
+      this.verificationMessage = "";
+
+      try {
+        const response = await verifyEmailCode({
+          email: this.verificationEmail,
+          code: this.verificationCode,
+        });
+
         setAuthSession({
           token: response.token,
           user: response.user,
           type: response.type,
         });
 
-        this.message = response.message || "Đăng ký thành công.";
+        this.verificationMessage = response.message || "Xác minh email thành công.";
+        this.showVerificationModal = false;
         this.$router.push("/");
       } catch (err) {
-        if (err?.payload?.errors) {
-          this.applyServerErrors(err.payload.errors);
-          this.formError = "Thông tin đăng ký chưa hợp lệ. Vui lòng kiểm tra lại.";
-        } else {
-          this.formError = this.translateServerMessage(err?.message) || "Đăng ký thất bại.";
-        }
+        this.verificationError = this.normalizeError(err, "Mã xác minh không hợp lệ.");
       } finally {
-        this.loading = false;
+        this.verificationLoading = false;
+      }
+    },
+    async guiLaiMa() {
+      if (!this.verificationEmail) {
+        this.verificationError = "Không tìm thấy email cần xác minh.";
+        return;
+      }
+
+      this.resendLoading = true;
+      this.verificationError = "";
+      this.verificationMessage = "";
+
+      try {
+        const response = await resendEmailVerification({
+          email: this.verificationEmail,
+        });
+
+        this.verificationCode = "";
+        this.verificationMessage = response.message || "Mã xác minh mới đã được gửi.";
+      } catch (err) {
+        this.verificationError = this.normalizeError(err, "Không thể gửi lại mã xác minh.");
+      } finally {
+        this.resendLoading = false;
       }
     },
   },
@@ -364,6 +498,89 @@ export default {
   font-weight: 500;
 }
 
+.verification-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1080;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+
+.verification-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.58);
+  backdrop-filter: blur(5px);
+}
+
+.verification-modal__panel {
+  position: relative;
+  z-index: 1;
+  width: min(520px, 100%);
+  display: grid;
+  gap: 18px;
+  padding: 28px;
+  border: 1px solid rgba(22, 82, 197, 0.12);
+  border-radius: 24px;
+  background: #fff;
+  box-shadow: 0 28px 80px rgba(15, 23, 42, 0.28);
+}
+
+.verification-modal__icon {
+  width: 58px;
+  height: 58px;
+  display: grid;
+  place-items: center;
+  border-radius: 18px;
+  background: #e8f7f3;
+  color: #0f9f7f;
+  font-size: 1.65rem;
+}
+
+.verification-modal__eyebrow {
+  margin: 0 0 8px;
+  color: #0f9f7f;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.verification-modal__title {
+  margin: 0;
+  color: #111827;
+  font-size: 1.55rem;
+  font-weight: 800;
+}
+
+.verification-modal__copy {
+  margin: 10px 0 0;
+  color: #475569;
+}
+
+.verification-form {
+  margin-top: 20px;
+}
+
+.verification-form__input {
+  font-size: 1.45rem;
+  font-weight: 800;
+  letter-spacing: 0.28em;
+  text-align: center;
+}
+
+.verification-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.verification-form__submit {
+  flex: 1 1 220px;
+}
+
 @media (max-width: 767.98px) {
   .register-card {
     padding: 20px;
@@ -376,6 +593,15 @@ export default {
   }
 
   .register-card__submit {
+    width: 100%;
+  }
+
+  .verification-modal__panel {
+    padding: 22px;
+    border-radius: 22px;
+  }
+
+  .verification-form__actions > .btn {
     width: 100%;
   }
 }

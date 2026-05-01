@@ -64,10 +64,22 @@ const menuSections = computed(() => [
     label: "Điều hành",
     items: [
       {
+        to: "/thong-ke",
+        label: "Thống kê doanh thu",
+        caption: "Chart doanh thu nhân viên",
+        icon: "bi bi-bar-chart-line",
+      },
+      {
         to: "/hoa-dons",
         label: "Hóa đơn",
         caption: "Doanh thu và đơn hàng",
         icon: "bi bi-receipt",
+      },
+      {
+        to: "/khach-hangs",
+        label: "Khách hàng",
+        caption: "Thông tin và lịch sử mua",
+        icon: "bi bi-person-lines-fill",
       },
       {
         to: "/ho-tro-khach-hang",

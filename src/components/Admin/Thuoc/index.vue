@@ -266,11 +266,12 @@
                   Thêm đơn vị
                 </button>
                 <input
-                  v-model.number="form.gia_ban"
-                  type="number"
-                  min="1"
+                  :value="formatPriceInput(form.gia_ban)"
+                  type="text"
+                  inputmode="numeric"
                   class="form-control"
                   placeholder="Nhập giá bán"
+                  @input="form.gia_ban = parsePriceInput($event)"
                 />
               </div>
             </div>
@@ -321,11 +322,12 @@
                     <div class="col-md-4">
                       <label class="form-label fw-semibold">Giá bán</label>
                       <input
-                        v-model.number="entry.gia_ban"
-                        type="number"
-                        min="1"
+                        :value="formatPriceInput(entry.gia_ban)"
+                        type="text"
+                        inputmode="numeric"
                         class="form-control"
                         placeholder="Nhập giá bán cho đơn vị này"
+                        @input="entry.gia_ban = parsePriceInput($event)"
                       />
                     </div>
                     <div class="col-md-4">
@@ -333,28 +335,6 @@
                         <button type="button" class="btn btn-outline-danger px-3" @click="removeAdditionalUnit(index)">
                           Xóa
                         </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="row g-3 mt-1">
-                    <div class="col-md-8">
-                      <label class="form-label fw-semibold">Quy đổi</label>
-                      <div class="input-group">
-                        <span class="input-group-text">1 {{ entry.ten_don_vi || "đơn vị" }} =</span>
-                        <input
-                          v-model.number="entry.so_luong_quy_doi"
-                          type="number"
-                          min="1"
-                          class="form-control"
-                          placeholder="Số lượng quy đổi"
-                        />
-                        <span class="input-group-text">{{ form.don_vi_co_so || "đơn vị tồn kho" }}</span>
-                      </div>
-                    </div>
-                    <div class="col-md-4 d-flex align-items-end">
-                      <div class="form-text mb-0">
-                        {{ formatUnitPreview(entry.ten_don_vi, entry.so_luong_quy_doi, form.don_vi_co_so) }}
                       </div>
                     </div>
                   </div>
@@ -503,6 +483,7 @@ import {
 } from "../../../api/thuocManagementApi";
 import { getCatalogSection } from "../../../data/catalogSections";
 import { authState, isAdminState } from "../../../lib/authStorage";
+import { formatIntegerInput, parseFormattedInteger } from "../../../lib/numberInput";
 import { showToast } from "../../../lib/toast";
 
 const THUOC_TABLE_BATCH_SIZE = 15;
@@ -688,6 +669,14 @@ export default {
       createDosageEntry,
       createAdditionalUnitEntry,
 
+      formatPriceInput(value) {
+        return formatIntegerInput(value);
+      },
+
+      parsePriceInput(event) {
+        return parseFormattedInteger(event?.target?.value);
+      },
+
       parseDosageText(value) {
         const lines = String(value || "")
           .split(/\r\n|\r|\n/)
@@ -793,9 +782,7 @@ export default {
           if (!entry.gia_ban || Number(entry.gia_ban) < 1) {
             throw new Error(`Vui lòng nhập giá bán hợp lệ cho đơn vị ${tenDonVi}.`);
           }
-          if (!entry.so_luong_quy_doi || Number(entry.so_luong_quy_doi) < 1) {
-            throw new Error(`Vui lòng nhập quy đổi hợp lệ cho đơn vị ${tenDonVi}.`);
-          }
+          entry.so_luong_quy_doi = Math.max(1, Number(entry.so_luong_quy_doi || 1));
 
           daDungDonVi.add(tenDonVi.toLowerCase());
         }
