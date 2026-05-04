@@ -81,6 +81,7 @@ class DashboardAnalyticsController extends Controller
     {
         return HoaDon::query()
             ->whereHas('chiTiets')
+            ->whereIn('trang_thai_xu_ly', ['da_xac_nhan', 'hoan_thanh'])
             ->whereBetween('ngay_ban', [$from, $to])
             ->when(
                 $employeeIds !== null,
@@ -100,6 +101,7 @@ class DashboardAnalyticsController extends Controller
 
         $rows = HoaDon::query()
             ->whereHas('chiTiets')
+            ->whereIn('trang_thai_xu_ly', ['da_xac_nhan', 'hoan_thanh'])
             ->whereBetween('ngay_ban', [$weekStart, $weekEnd])
             ->whereIn('id_nhan_vien', $loggedInEmployeeIds)
             ->selectRaw('date(ngay_ban) as ngay, count(*) as so_hoa_don, coalesce(sum(tien_thanh_toan), 0) as doanh_thu')

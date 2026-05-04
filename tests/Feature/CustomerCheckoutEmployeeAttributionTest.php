@@ -48,11 +48,14 @@ class CustomerCheckoutEmployeeAttributionTest extends TestCase
 
         NhanVienDangNhapLog::create([
             'id_nhan_vien' => $defaultStaff->id_nhan_vien,
+            'kenh_dang_nhap' => 'he_thong',
             'thoi_gian_dang_nhap' => now()->subHour(),
         ]);
         NhanVienDangNhapLog::create([
             'id_nhan_vien' => $loggedInStaff->id_nhan_vien,
+            'kenh_dang_nhap' => 'he_thong',
             'thoi_gian_dang_nhap' => now(),
+            'dang_hoat_dong' => true,
         ]);
 
         Sanctum::actingAs($customer, ['customer']);
@@ -80,6 +83,9 @@ class CustomerCheckoutEmployeeAttributionTest extends TestCase
         ]);
 
         Sanctum::actingAs($loggedInStaff, ['staff']);
+        $this->postJson("/api/hoa-dons/{$response->json('data.id_hoa_don')}/confirm")
+            ->assertOk()
+            ->assertJsonPath('data.trang_thai_xu_ly', 'da_xac_nhan');
 
         $dashboardResponse = $this->getJson('/api/dashboard/staff-performance?date=' . now()->toDateString() . '&month=' . now()->format('Y-m'));
 

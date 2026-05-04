@@ -24,6 +24,9 @@ class MaGiamGia extends Model
         'ngay_ket_thuc',
         'trang_thai',
         'id_nhan_vien',
+        'id_khach_hang',
+        'loai_ma',
+        'tu_dong_ap_dung',
     ];
 
     protected function casts(): array
@@ -31,12 +34,18 @@ class MaGiamGia extends Model
         return [
             'ngay_bat_dau' => 'datetime',
             'ngay_ket_thuc' => 'datetime',
+            'tu_dong_ap_dung' => 'boolean',
         ];
     }
 
     public function nhanVien(): BelongsTo
     {
         return $this->belongsTo(NhanVien::class, 'id_nhan_vien', 'id_nhan_vien');
+    }
+
+    public function khachHang(): BelongsTo
+    {
+        return $this->belongsTo(KhachHang::class, 'id_khach_hang', 'id_khach_hang');
     }
 
     public function luotDungs(): HasMany

@@ -81,7 +81,11 @@ class LoThuocController extends Controller
             'ngay_san_xuat' => 'sometimes|required|date',
             'han_su_dung' => 'sometimes|required|date',
             'don_vi_nhap' => 'sometimes|required|string|max:50',
-            'so_luong_nhap_them_goc' => 'sometimes|required|integer|min:1',
+            'so_luong_nhap_them_goc' => 'prohibited',
+            'so_luong_nhap_goc' => 'prohibited',
+            'so_luong_nhap' => 'prohibited',
+            'so_luong_con' => 'prohibited',
+            'he_so_quy_doi_nhap' => 'prohibited',
             'gia_nhap' => 'sometimes|required|numeric|min:1',
         ]);
 
@@ -99,15 +103,6 @@ class LoThuocController extends Controller
             throw ValidationException::withMessages([
                 'don_vi_nhap' => ['Không thể đổi đơn vị nhập của lô đã tồn tại.'],
             ]);
-        }
-
-        if (isset($validated['so_luong_nhap_them_goc'])) {
-            $soLuongNhapThemGoc = (int) $validated['so_luong_nhap_them_goc'];
-            $soLuongNhapThemQuyDoi = $soLuongNhapThemGoc * max(1, (int) $loThuoc->he_so_quy_doi_nhap);
-
-            $loThuoc->so_luong_nhap_goc += $soLuongNhapThemGoc;
-            $loThuoc->so_luong_nhap += $soLuongNhapThemQuyDoi;
-            $loThuoc->so_luong_con += $soLuongNhapThemQuyDoi;
         }
 
         if (isset($validated['gia_nhap'])) {

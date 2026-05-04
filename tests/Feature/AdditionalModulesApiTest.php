@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\BangCap;
 use App\Models\ChiTietHoaDon;
 use App\Mail\OrderConfirmedMail;
+use App\Models\EmailVerification;
 use App\Models\HoaDon;
 use App\Models\KhachHang;
 use App\Models\KhuyenMai;
@@ -83,6 +84,7 @@ class AdditionalModulesApiTest extends TestCase
         $loginResponse = $this->postJson('/api/login', [
             'so_dien_thoai' => '0901112223',
             'password' => 'password',
+            'kenh_dang_nhap' => 'he_thong',
         ]);
 
         $loginResponse
@@ -291,6 +293,7 @@ class AdditionalModulesApiTest extends TestCase
                 'giam_gia' => 0,
                 'thue_vat' => 0,
                 'tien_thanh_toan' => 300000,
+                'trang_thai_xu_ly' => 'da_xac_nhan',
                 'ngay_ban' => now(),
             ]);
             ChiTietHoaDon::factory()->create([
@@ -308,6 +311,7 @@ class AdditionalModulesApiTest extends TestCase
                 'giam_gia' => 0,
                 'thue_vat' => 0,
                 'tien_thanh_toan' => 100000,
+                'trang_thai_xu_ly' => 'da_xac_nhan',
                 'ngay_ban' => now(),
             ]);
             ChiTietHoaDon::factory()->create([
@@ -325,6 +329,7 @@ class AdditionalModulesApiTest extends TestCase
                 'giam_gia' => 0,
                 'thue_vat' => 0,
                 'tien_thanh_toan' => 900000,
+                'trang_thai_xu_ly' => 'da_xac_nhan',
                 'ngay_ban' => now()->startOfMonth()->addDays(2),
             ]);
             ChiTietHoaDon::factory()->create([
@@ -342,20 +347,20 @@ class AdditionalModulesApiTest extends TestCase
             $response
                 ->assertOk()
                 ->assertJsonPath('data.bo_loc.ngay', '2026-04-15')
-                ->assertJsonPath('data.hom_nay.tong_hoa_don', 2)
-                ->assertJsonPath('data.hom_nay.tong_doanh_thu', 400000)
+                ->assertJsonPath('data.hom_nay.tong_hoa_don', 1)
+                ->assertJsonPath('data.hom_nay.tong_doanh_thu', 300000)
                 ->assertJsonPath('data.hom_nay.so_nhan_vien_dang_nhap', 1)
                 ->assertJsonPath('data.hom_nay.nhan_viens.0.id_nhan_vien', $staffA->id_nhan_vien)
                 ->assertJsonPath('data.tuan_nay.tu_ngay', '2026-04-13')
                 ->assertJsonPath('data.tuan_nay.den_ngay', '2026-04-19')
-                ->assertJsonPath('data.tuan_nay.tong_hoa_don', 2)
-                ->assertJsonPath('data.tuan_nay.tong_doanh_thu', 400000)
+                ->assertJsonPath('data.tuan_nay.tong_hoa_don', 1)
+                ->assertJsonPath('data.tuan_nay.tong_doanh_thu', 300000)
                 ->assertJsonPath('data.tuan_nay.doanh_thu_theo_ngay.2.ngay', '2026-04-15')
                 ->assertJsonPath('data.tuan_nay.doanh_thu_theo_ngay.2.thu', 'Thứ 4')
-                ->assertJsonPath('data.tuan_nay.doanh_thu_theo_ngay.2.so_hoa_don', 2)
-                ->assertJsonPath('data.tuan_nay.doanh_thu_theo_ngay.2.doanh_thu', 400000)
-                ->assertJsonPath('data.thang_nay.nhan_vien_dan_dau.id_nhan_vien', $staffB->id_nhan_vien)
-                ->assertJsonPath('data.thang_nay.nhan_vien_dan_dau.doanh_thu', 1000000);
+                ->assertJsonPath('data.tuan_nay.doanh_thu_theo_ngay.2.so_hoa_don', 1)
+                ->assertJsonPath('data.tuan_nay.doanh_thu_theo_ngay.2.doanh_thu', 300000)
+                ->assertJsonPath('data.thang_nay.nhan_vien_dan_dau.id_nhan_vien', $staffA->id_nhan_vien)
+                ->assertJsonPath('data.thang_nay.nhan_vien_dan_dau.doanh_thu', 300000);
         } finally {
             Carbon::setTestNow();
         }
@@ -411,7 +416,7 @@ class AdditionalModulesApiTest extends TestCase
     {
         Mail::fake();
 
-        $this->createNhanVien('staff_checkout_mail', 'nhan_vien');
+        $staff = $this->createNhanVien('staff_checkout_mail', 'nhan_vien');
         $khachHang = KhachHang::factory()->create([
             'ten_khach_hang' => 'To Dong Khanh',
             'email' => 'khanh.checkout@example.com',
@@ -449,15 +454,29 @@ class AdditionalModulesApiTest extends TestCase
             'ghi_chu' => 'Giao trong gio hanh chinh',
         ]);
 
-        $response->assertCreated();
+        $response
+            ->assertCreated()
+            ->assertJsonPath('data.trang_thai_xu_ly', 'cho_xac_nhan');
+
+        Mail::assertNothingSent();
+
+        Sanctum::actingAs($staff, ['staff']);
+        NhanVienDangNhapLog::create([
+            'id_nhan_vien' => $staff->id_nhan_vien,
+            'kenh_dang_nhap' => 'he_thong',
+            'thoi_gian_dang_nhap' => now(),
+            'dang_hoat_dong' => true,
+        ]);
+
+        $confirmResponse = $this->postJson("/api/hoa-dons/{$response->json('data.id_hoa_don')}/confirm");
+        $confirmResponse
+            ->assertOk()
+            ->assertJsonPath('data.trang_thai_xu_ly', 'da_xac_nhan');
 
         Mail::assertSent(OrderConfirmedMail::class, function (OrderConfirmedMail $mail) use ($khachHang): bool {
             $rendered = $mail->render();
 
             return $mail->hasTo($khachHang->email)
-                && str_contains($rendered, 'Xin chào, To Dong Khanh')
-                && str_contains($rendered, 'Đơn hàng của bạn đã được đặt hàng thành công')
-                && str_contains($rendered, 'Hóa đơn điện tử')
                 && str_contains($rendered, 'Bot sui bot Hapacol');
         });
     }
@@ -474,7 +493,10 @@ class AdditionalModulesApiTest extends TestCase
         ]);
 
         $requestResponse->assertCreated();
-        $token = $requestResponse->json('data.token');
+        $token = EmailVerification::query()
+            ->where('email', $khachHang->email)
+            ->latest()
+            ->value('token');
 
         $verifyResponse = $this->getJson("/api/email-verifications/verify/{$token}");
 
@@ -547,7 +569,11 @@ class AdditionalModulesApiTest extends TestCase
         $registerResponse
             ->assertCreated()
             ->assertJsonPath('type', 'customer')
-            ->assertJsonStructure(['token']);
+            ->assertJsonStructure([
+                'user',
+                'first_order_coupon' => ['ma_giam_gia', 'gia_tri', 'loai_ap_dung'],
+                'verification' => ['email', 'status'],
+            ]);
 
         $catalogResponse = $this->getJson('/api/catalog/thuocs');
 

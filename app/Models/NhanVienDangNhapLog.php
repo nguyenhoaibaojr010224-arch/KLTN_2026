@@ -14,7 +14,14 @@ class NhanVienDangNhapLog extends Model
 
     protected $fillable = [
         'id_nhan_vien',
+        'token_id',
+        'kenh_dang_nhap',
         'thoi_gian_dang_nhap',
+        'thoi_gian_dang_xuat',
+        'het_han_luc',
+        'thoi_luong_giay',
+        'ly_do_dang_xuat',
+        'dang_hoat_dong',
         'dia_chi_ip',
         'user_agent',
     ];
@@ -23,6 +30,9 @@ class NhanVienDangNhapLog extends Model
     {
         return [
             'thoi_gian_dang_nhap' => 'datetime',
+            'thoi_gian_dang_xuat' => 'datetime',
+            'het_han_luc' => 'datetime',
+            'dang_hoat_dong' => 'boolean',
         ];
     }
 

@@ -23,10 +23,18 @@ class HoaDon extends Model
         'ma_hoa_don',
         'id_khach_hang',
         'id_nhan_vien',
+        'ma_giam_gia_id',
+        'kenh_ban',
+        'trang_thai_xu_ly',
+        'ly_do_tu_choi',
         'tong_tien',
         'giam_gia',
+        'giam_gia_ma',
+        'giam_gia_diem',
         'thue_vat',
         'tien_thanh_toan',
+        'diem_da_su_dung',
+        'diem_da_cong',
         'ngay_ban',
     ];
 
@@ -35,8 +43,12 @@ class HoaDon extends Model
         return [
             'tong_tien' => 'decimal:2',
             'giam_gia' => 'decimal:2',
+            'giam_gia_ma' => 'decimal:2',
+            'giam_gia_diem' => 'decimal:2',
             'thue_vat' => 'decimal:2',
             'tien_thanh_toan' => 'decimal:2',
+            'diem_da_su_dung' => 'integer',
+            'diem_da_cong' => 'integer',
             'ngay_tao' => 'datetime',
             'ngay_cap_nhat' => 'datetime',
             'ngay_ban' => 'datetime',
@@ -51,6 +63,11 @@ class HoaDon extends Model
     public function nhanVien(): BelongsTo
     {
         return $this->belongsTo(NhanVien::class, 'id_nhan_vien', 'id_nhan_vien');
+    }
+
+    public function maGiamGia(): BelongsTo
+    {
+        return $this->belongsTo(MaGiamGia::class, 'ma_giam_gia_id');
     }
 
     public function chiTiets(): HasMany

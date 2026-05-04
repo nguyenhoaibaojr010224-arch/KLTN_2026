@@ -32,6 +32,7 @@ class LoginRequest extends FormRequest
             'tai_khoan' => ['required', 'string', 'max:100'],
             'so_dien_thoai' => ['nullable', 'string', 'max:100'],
             'password' => ['required', 'string', 'min:6'],
+            'kenh_dang_nhap' => ['nullable', 'string', 'in:he_thong,tai_quay'],
         ];
     }
 

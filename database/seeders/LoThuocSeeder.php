@@ -2,16 +2,15 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use Database\Seeders\Concerns\SeedsDatabaseRows;
 use Illuminate\Database\Seeder;
 
 class LoThuocSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
+    use SeedsDatabaseRows;
+
     public function run(): void
     {
-        //
+        $this->seedTableFromJson('lo_thuocs', 'lo_thuocs.json', 'id_lo');
     }
 }

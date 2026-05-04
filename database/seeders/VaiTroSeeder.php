@@ -2,16 +2,15 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use Database\Seeders\Concerns\SeedsDatabaseRows;
 use Illuminate\Database\Seeder;
 
 class VaiTroSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
+    use SeedsDatabaseRows;
+
     public function run(): void
     {
-        //
+        $this->seedTableFromJson('vai_tros', 'vai_tros.json', 'id_vai_tro');
     }
 }

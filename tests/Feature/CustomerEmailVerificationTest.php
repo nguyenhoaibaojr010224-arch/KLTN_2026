@@ -96,6 +96,7 @@ class CustomerEmailVerificationTest extends TestCase
 
         $response
             ->assertForbidden()
+            ->assertJsonPath('message', 'Tài khoản chưa xác minh email. Vui lòng nhập mã đã gửi đến Gmail để hoàn tất đăng nhập.')
             ->assertJsonPath('verification_required', true)
             ->assertJsonPath('email', 'pending.customer@example.com');
     }

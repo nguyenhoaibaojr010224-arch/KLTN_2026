@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>Hóa đơn điện tử {{ $hoaDon->ma_hoa_don }}</title>
+    <title>Xác nhận đơn hàng {{ $hoaDon->ma_hoa_don }}</title>
 </head>
 <body style="margin:0;background:#f3f7fd;color:#183153;font-family:Arial,'Helvetica Neue',sans-serif;line-height:1.55;">
     @php
@@ -17,19 +17,16 @@
             <div style="padding:26px 30px;background:#1652c5;color:#ffffff;">
                 <div style="font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;">Nhà thuốc</div>
                 <div style="font-size:30px;font-weight:900;color:#9ef23c;line-height:1;">PharmaGo</div>
-                <div style="margin-top:18px;font-size:22px;font-weight:800;">Đặt hàng thành công</div>
+                <div style="margin-top:18px;font-size:22px;font-weight:800;">Đơn hàng đã được xác nhận</div>
             </div>
 
             <div style="padding:28px 30px;">
                 <p style="margin:0 0 10px;font-size:18px;font-weight:700;">Xin chào, {{ $customerName }}</p>
                 <p style="margin:0 0 20px;font-size:16px;">
-                    Đơn hàng của bạn đã được đặt hàng thành công, kèm theo hóa đơn điện tử bên dưới.
+                    Nhân viên PharmaGo đã xác nhận đơn hàng của bạn. Thông tin hóa đơn và sản phẩm nằm bên dưới.
                 </p>
 
                 <div style="padding:16px 18px;border-radius:18px;background:#eef5ff;border:1px solid #d7e6ff;margin-bottom:22px;">
-                    <div style="display:inline-block;padding:7px 12px;border-radius:999px;background:#ffffff;color:#1652c5;font-weight:800;font-size:13px;margin-bottom:12px;">
-                        Hóa đơn điện tử
-                    </div>
                     <table cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;">
                         <tr>
                             <td style="padding:6px 0;color:#64748b;width:180px;">Mã hóa đơn</td>
@@ -63,7 +60,7 @@
                     <thead>
                         <tr style="background:#f3f7ff;color:#0f2654;">
                             <th align="left" style="padding:12px;border-bottom:1px solid #dbe5ff;">Sản phẩm</th>
-                            <th align="left" style="padding:12px;border-bottom:1px solid #dbe5ff;">Phân loại</th>
+                            <th align="left" style="padding:12px;border-bottom:1px solid #dbe5ff;">Đơn vị</th>
                             <th align="right" style="padding:12px;border-bottom:1px solid #dbe5ff;">SL</th>
                             <th align="right" style="padding:12px;border-bottom:1px solid #dbe5ff;">Đơn giá</th>
                             <th align="right" style="padding:12px;border-bottom:1px solid #dbe5ff;">Thành tiền</th>
@@ -74,7 +71,7 @@
                             @php
                                 $quantity = (float) ($item['soLuong'] ?? 0);
                                 $unitPrice = (float) ($item['gia'] ?? 0);
-                                $lineTotal = $unitPrice * $quantity;
+                                $lineTotal = (float) ($item['thanhTien'] ?? ($unitPrice * $quantity));
                             @endphp
                             <tr>
                                 <td style="padding:12px;border-bottom:1px solid #edf2ff;font-weight:700;">{{ $item['ten'] ?? 'Sản phẩm' }}</td>
@@ -108,14 +105,8 @@
                     </table>
                 </div>
 
-                @if(!empty($meta['note']))
-                    <div style="margin-top:18px;padding:14px 16px;border-radius:16px;background:#fff7ed;color:#9a3412;">
-                        <strong>Ghi chú:</strong> {{ $meta['note'] }}
-                    </div>
-                @endif
-
                 <p style="margin:24px 0 0;color:#64748b;">
-                    PharmaGo sẽ xử lý đơn hàng và liên hệ nếu cần xác nhận thêm thông tin.
+                    Cảm ơn bạn đã mua hàng tại PharmaGo.
                 </p>
             </div>
         </div>

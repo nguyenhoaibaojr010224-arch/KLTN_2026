@@ -43,7 +43,8 @@ class KhachHang extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'email_verified' => 'boolean',
-            'ngay_sinh' => 'date',
+            'ngay_sinh' => 'date:Y-m-d',
+            'diem_tich_luy' => 'integer',
             'mat_khau' => 'hashed',
         ];
     }
@@ -66,6 +67,11 @@ class KhachHang extends Authenticatable
     public function diaChiNhanHangs(): HasMany
     {
         return $this->hasMany(DiaChiKhachHang::class, 'id_khach_hang', 'id_khach_hang');
+    }
+
+    public function maGiamGias(): HasMany
+    {
+        return $this->hasMany(MaGiamGia::class, 'id_khach_hang', 'id_khach_hang');
     }
 
     public function getAvatarUrlAttribute(): ?string

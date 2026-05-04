@@ -5,6 +5,7 @@ use App\Http\Controllers\BangCapController;
 use App\Http\Controllers\CatalogThuocController;
 use App\Http\Controllers\ChiTietHoaDonController;
 use App\Http\Controllers\ChiTietPhieuNhapController;
+use App\Http\Controllers\CounterSaleController;
 use App\Http\Controllers\CustomerOrderController;
 use App\Http\Controllers\CustomerAddressController;
 use App\Http\Controllers\DashboardAnalyticsController;
@@ -32,6 +33,7 @@ use Illuminate\Support\Facades\Route;
 // Public endpoints: client goi truc tiep, server xu ly trong controller/request/model
 // =========================
 Route::post('/login', [AuthController::class, 'login']);
+Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
 Route::post('/register', [AuthController::class, 'register']);
 Route::get('/catalog/thuocs', [CatalogThuocController::class, 'index']);
 Route::get('/catalog/thuocs/{ma_thuoc}', [CatalogThuocController::class, 'show']);
@@ -90,6 +92,8 @@ Route::prefix('admin')
         Route::get('/nhan-viens/search', [NhanVienController::class, 'search']);
         Route::get('/nhan-viens', [NhanVienController::class, 'index']);
         Route::post('/nhan-viens', [NhanVienController::class, 'store']);
+        Route::get('/nhan-viens/{id}/work-sessions', [NhanVienController::class, 'workSessions']);
+        Route::get('/nhan-viens/{id}/sales-by-date', [NhanVienController::class, 'salesByDate']);
         Route::get('/nhan-viens/{id}', [NhanVienController::class, 'show']);
         Route::put('/nhan-viens/{id}', [NhanVienController::class, 'update']);
         Route::delete('/nhan-viens/{id}', [NhanVienController::class, 'destroy']);
@@ -175,6 +179,7 @@ Route::prefix('hoa-dons')
         Route::post('/', [HoaDonController::class, 'store']);
         Route::get('/{id}', [HoaDonController::class, 'show']);
         Route::post('/{id}/confirm', [HoaDonController::class, 'confirm']);
+        Route::post('/{id}/reject', [HoaDonController::class, 'reject']);
 
         // Nhan vien/Admin - Chi tiet hoa don
         Route::get('/{id_hoa_don}/chi-tiets', [ChiTietHoaDonController::class, 'indexByHoaDon']);
@@ -183,6 +188,12 @@ Route::prefix('hoa-dons')
         // Nhan vien/Admin - Lich su don hang theo hoa don
         Route::get('/{id_hoa_don}/lich-su', [LichSuDonHangController::class, 'indexByHoaDon']);
         Route::post('/{id_hoa_don}/lich-su', [LichSuDonHangController::class, 'store']);
+    });
+
+Route::prefix('ban-tai-quay')
+    ->middleware(['auth:sanctum', 'nhan_vien.role:admin,staff'])
+    ->group(function () {
+        Route::post('/hoa-don', [CounterSaleController::class, 'store']);
     });
 
 Route::prefix('dashboard')

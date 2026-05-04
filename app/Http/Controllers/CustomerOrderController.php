@@ -28,6 +28,10 @@ use Illuminate\Validation\ValidationException;
 
 class CustomerOrderController extends Controller
 {
+    private const REWARD_VND_PER_POINT = 1000;
+    private const REWARD_REDEEM_POINTS = 1000;
+    private const REWARD_REDEEM_VALUE = 10000;
+
     public function index(Request $request): JsonResponse
     {
         $khachHang = $request->user();
@@ -72,6 +76,11 @@ class CustomerOrderController extends Controller
         }
 
         $checkoutResult = DB::transaction(function () use ($validated, $khachHang, $nhanVienXuLy) {
+            $lockedKhachHang = KhachHang::query()
+                ->whereKey($khachHang->id_khach_hang)
+                ->lockForUpdate()
+                ->firstOrFail();
+
             $requestedItems = collect($validated['items'])
                 ->map(function (array $item): array {
                     $selectedUnit = trim((string) ($item['don_vi'] ?? ''));
@@ -234,24 +243,44 @@ class CustomerOrderController extends Controller
                 }
             }
 
-            [$maGiamGia, $giamGia, $usageRecord] = $this->resolveOrderDiscount(
+            [$maGiamGia, $giamGiaMa, $usageRecord] = $this->resolveOrderDiscount(
                 $validated['ma_giam_gia'] ?? null,
                 $tongTien,
-                $khachHang
+                $lockedKhachHang
             );
 
-            $tienSauGiam = max($tongTien - $giamGia, 0);
+            $tienSauMa = max($tongTien - $giamGiaMa, 0);
+            [$giamGiaDiem, $diemDaSuDung] = $this->resolveRewardPointDiscount(
+                (bool) ($validated['su_dung_diem'] ?? false),
+                $tienSauMa,
+                $lockedKhachHang
+            );
+
+            $tongGiamGia = $giamGiaMa + $giamGiaDiem;
+            $tienSauGiam = max($tongTien - $tongGiamGia, 0);
             $thueVat = $this->calculateVatAmount($tienSauGiam);
             $tienThanhToan = $tienSauGiam + $thueVat;
+            $diemDaCong = $this->calculateRewardPointsEarned($tongTien);
+
+            $lockedKhachHang->forceFill([
+                'diem_tich_luy' => max(0, (int) $lockedKhachHang->diem_tich_luy - $diemDaSuDung + $diemDaCong),
+            ])->save();
 
             $hoaDon = HoaDon::create([
                 'ma_hoa_don' => $this->generateInvoiceCode(),
-                'id_khach_hang' => $khachHang->id_khach_hang,
+                'id_khach_hang' => $lockedKhachHang->id_khach_hang,
                 'id_nhan_vien' => $nhanVienXuLy->id_nhan_vien,
+                'ma_giam_gia_id' => $maGiamGia?->id,
+                'kenh_ban' => 'he_thong',
+                'trang_thai_xu_ly' => 'cho_xac_nhan',
                 'tong_tien' => $tongTien,
-                'giam_gia' => $giamGia,
+                'giam_gia' => $tongGiamGia,
+                'giam_gia_ma' => $giamGiaMa,
+                'giam_gia_diem' => $giamGiaDiem,
                 'thue_vat' => $thueVat,
                 'tien_thanh_toan' => $tienThanhToan,
+                'diem_da_su_dung' => $diemDaSuDung,
+                'diem_da_cong' => $diemDaCong,
                 'ngay_ban' => now(),
             ]);
 
@@ -284,7 +313,7 @@ class CustomerOrderController extends Controller
 
             LichSuDonHang::create([
                 'id_hoa_don' => $hoaDon->id_hoa_don,
-                'trang_thai' => 'Thanh cong',
+                'trang_thai' => 'Chờ xác nhận',
                 'ghi_chu' => $orderNote,
                 'thoi_gian' => now(),
                 'id_nhan_vien' => $nhanVienXuLy->id_nhan_vien,
@@ -297,7 +326,7 @@ class CustomerOrderController extends Controller
                 } else {
                     MaGiamGiaLuotDung::create([
                         'ma_giam_gia_id' => $maGiamGia->id,
-                        'id_khach_hang' => $khachHang->id_khach_hang,
+                        'id_khach_hang' => $lockedKhachHang->id_khach_hang,
                         'so_lan_su_dung' => 1,
                         'lan_su_dung_cuoi' => now(),
                     ]);
@@ -313,19 +342,10 @@ class CustomerOrderController extends Controller
         /** @var \App\Models\HoaDon $invoice */
         $invoice = $checkoutResult['hoa_don'];
 
-        $this->sendOrderConfirmationMail(
-            $khachHang,
-            $invoice,
-            $checkoutResult['items'],
-            $validated['phuong_thuc_thanh_toan'] ?? 'cod',
-            $validated['dia_chi_giao_hang'] ?? null,
-            $validated['ghi_chu'] ?? null
-        );
-
         $invoice->load($this->customerOrderRelations());
 
         return response()->json([
-            'message' => 'Dat hang thanh cong.',
+            'message' => 'Đặt hàng thành công. Đơn hàng đang chờ nhân viên xác nhận.',
             'data' => $this->transformCustomerOrder($invoice),
         ], 201);
     }
@@ -333,7 +353,8 @@ class CustomerOrderController extends Controller
     private function customerOrderRelations(): array
     {
         return [
-            'khachHang:id_khach_hang,ten_khach_hang,so_dien_thoai,email,dia_chi',
+            'khachHang:id_khach_hang,ten_khach_hang,so_dien_thoai,email,dia_chi,diem_tich_luy',
+            'maGiamGia:id,ma_giam_gia,ten_ma,loai_ap_dung,gia_tri',
             'thanhToan:id_hoa_don,phuong_thuc,so_tien,thoi_gian,ma_giao_dich',
             'latestLichSuDonHang',
             'lichSuDonHangs:id_lich_su,id_hoa_don,trang_thai,ghi_chu,thoi_gian,id_nhan_vien',
@@ -347,6 +368,13 @@ class CustomerOrderController extends Controller
     {
         $latestLoggedInEmployee = NhanVienDangNhapLog::query()
             ->with('nhanVien')
+            ->where('kenh_dang_nhap', 'he_thong')
+            ->whereNull('thoi_gian_dang_xuat')
+            ->where('dang_hoat_dong', true)
+            ->where(function ($query): void {
+                $query->whereNull('het_han_luc')
+                    ->orWhere('het_han_luc', '>', now());
+            })
             ->whereHas('nhanVien', fn ($query) => $query->where('trang_thai', 'active'))
             ->orderByDesc('thoi_gian_dang_nhap')
             ->orderByDesc('id')
@@ -439,6 +467,18 @@ class CustomerOrderController extends Controller
             ]);
         }
 
+        if (! $this->couponCanBeUsedByCustomer($maGiamGia, $khachHang)) {
+            throw ValidationException::withMessages([
+                'ma_giam_gia' => ['Ma giam gia khong ap dung cho tai khoan nay.'],
+            ]);
+        }
+
+        if ($this->isFirstOrderCoupon($maGiamGia) && $this->customerHasCompletedOrder($khachHang)) {
+            throw ValidationException::withMessages([
+                'ma_giam_gia' => ['Ma don dau tien chi ap dung cho don hang dau tien.'],
+            ]);
+        }
+
         if ($tongTien < (int) $maGiamGia->gia_tri_don_toi_thieu) {
             throw ValidationException::withMessages([
                 'ma_giam_gia' => ['Don hang chua dat gia tri toi thieu de dung ma nay.'],
@@ -464,6 +504,51 @@ class CustomerOrderController extends Controller
             min($maGiamGia->tinhTienGiam($tongTien), $tongTien),
             $usageRecord,
         ];
+    }
+
+    private function resolveRewardPointDiscount(bool $wantsToUsePoints, int|float $amountAfterCoupon, KhachHang $khachHang): array
+    {
+        if (! $wantsToUsePoints || $amountAfterCoupon <= 0) {
+            return [0, 0];
+        }
+
+        $availablePointBlocks = intdiv((int) $khachHang->diem_tich_luy, self::REWARD_REDEEM_POINTS);
+        $orderValueBlocks = intdiv((int) floor($amountAfterCoupon), self::REWARD_REDEEM_VALUE);
+        $blocksToUse = min($availablePointBlocks, $orderValueBlocks);
+
+        if ($blocksToUse <= 0) {
+            return [0, 0];
+        }
+
+        return [
+            $blocksToUse * self::REWARD_REDEEM_VALUE,
+            $blocksToUse * self::REWARD_REDEEM_POINTS,
+        ];
+    }
+
+    private function calculateRewardPointsEarned(int|float $paidAmount): int
+    {
+        return intdiv((int) floor(max((float) $paidAmount, 0)), self::REWARD_VND_PER_POINT);
+    }
+
+    private function couponCanBeUsedByCustomer(MaGiamGia $maGiamGia, KhachHang $khachHang): bool
+    {
+        return $maGiamGia->id_khach_hang === null
+            || (int) $maGiamGia->id_khach_hang === (int) $khachHang->id_khach_hang;
+    }
+
+    private function isFirstOrderCoupon(MaGiamGia $maGiamGia): bool
+    {
+        return (string) $maGiamGia->loai_ma === 'first_order';
+    }
+
+    private function customerHasCompletedOrder(KhachHang $khachHang): bool
+    {
+        return HoaDon::query()
+            ->where('id_khach_hang', $khachHang->id_khach_hang)
+            ->whereIn('trang_thai_xu_ly', ['cho_xac_nhan', 'da_xac_nhan', 'hoan_thanh'])
+            ->whereHas('chiTiets')
+            ->exists();
     }
 
     private function mapPaymentMethod(string $method): string
@@ -737,11 +822,22 @@ class CustomerOrderController extends Controller
             'ma_hoa_don' => $hoaDon->ma_hoa_don,
             'ngay_ban' => optional($hoaDon->ngay_ban)->toIso8601String(),
             'trang_thai' => $hoaDon->latestLichSuDonHang?->trang_thai ?: 'Thanh cong',
+            'kenh_ban' => $hoaDon->kenh_ban,
+            'trang_thai_xu_ly' => $hoaDon->trang_thai_xu_ly,
+            'ly_do_tu_choi' => $hoaDon->ly_do_tu_choi,
             'thoi_gian_cap_nhat_trang_thai' => optional($hoaDon->latestLichSuDonHang?->thoi_gian)->toIso8601String(),
             'tong_tien' => (float) $hoaDon->tong_tien,
             'giam_gia' => (float) $hoaDon->giam_gia,
+            'giam_gia_ma' => (float) ($hoaDon->giam_gia_ma ?? 0),
+            'giam_gia_diem' => (float) ($hoaDon->giam_gia_diem ?? 0),
             'thue_vat' => (float) $hoaDon->thue_vat,
             'tien_thanh_toan' => (float) $hoaDon->tien_thanh_toan,
+            'diem_da_su_dung' => (int) ($hoaDon->diem_da_su_dung ?? 0),
+            'diem_da_cong' => (int) ($hoaDon->diem_da_cong ?? 0),
+            'diem_hien_tai' => $hoaDon->khachHang?->diem_tich_luy !== null
+                ? (int) $hoaDon->khachHang->diem_tich_luy
+                : null,
+            'ma_giam_gia' => $hoaDon->maGiamGia?->ma_giam_gia,
             'nguoi_nhan' => $hoaDon->khachHang?->ten_khach_hang,
             'so_dien_thoai_nhan' => $hoaDon->khachHang?->so_dien_thoai,
             'dia_chi_giao_hang' => $parsedOrderNote['shipping_address'] ?: $hoaDon->khachHang?->dia_chi,

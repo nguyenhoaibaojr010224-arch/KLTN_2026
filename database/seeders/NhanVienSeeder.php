@@ -2,16 +2,16 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use Database\Seeders\Concerns\SeedsDatabaseRows;
 use Illuminate\Database\Seeder;
 
 class NhanVienSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
+    use SeedsDatabaseRows;
+
     public function run(): void
     {
-        //
+        $this->seedTableFromJson('nhan_viens', 'nhan_viens.json', 'id_nhan_vien');
+        $this->seedTableFromJson('thong_tin_nhan_viens', 'thong_tin_nhan_viens.json', 'id_nhan_vien');
     }
 }

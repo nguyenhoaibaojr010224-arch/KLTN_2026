@@ -34,7 +34,7 @@ class ThongTinNhanVien extends Model
         return [
             'ngay_tao' => 'datetime',
             'ngay_cap_nhat' => 'datetime',
-            'ngay_sinh' => 'date',
+            'ngay_sinh' => 'date:Y-m-d',
             'ngay_vao_lam' => 'date',
         ];
     }

@@ -66,14 +66,28 @@ class LoginWithEmailOrPhoneTest extends TestCase
             'so_dien_thoai' => 'staff.login@example.com',
             'password' => 'Password@123',
         ])
+            ->assertStatus(428)
+            ->assertJsonPath('staff_channel_required', true);
+
+        $this->postJson('/api/login', [
+            'so_dien_thoai' => 'staff.login@example.com',
+            'password' => 'Password@123',
+            'kenh_dang_nhap' => 'he_thong',
+        ])
             ->assertOk()
             ->assertJsonPath('type', 'staff')
             ->assertJsonPath('user.email', 'staff.login@example.com')
             ->assertJsonStructure(['token']);
 
+        \App\Models\NhanVienDangNhapLog::query()->update([
+            'thoi_gian_dang_xuat' => now(),
+            'dang_hoat_dong' => null,
+        ]);
+
         $this->postJson('/api/login', [
             'so_dien_thoai' => '0907654321',
             'password' => 'Password@123',
+            'kenh_dang_nhap' => 'he_thong',
         ])
             ->assertOk()
             ->assertJsonPath('type', 'staff')
