@@ -32,6 +32,7 @@ class HoaDonFactory extends Factory
             'tong_tien' => $tongTien,
             'giam_gia' => $giamGia,
             'tien_thanh_toan' => $tongTien - $giamGia,
+            'diem_thuong_da_xu_ly' => false,
             'ngay_ban' => $this->faker->dateTimeBetween('-60 days', 'now'),
         ];
     }

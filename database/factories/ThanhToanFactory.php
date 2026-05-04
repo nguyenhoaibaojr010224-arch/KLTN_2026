@@ -19,6 +19,7 @@ class ThanhToanFactory extends Factory
             'so_tien' => $this->faker->numberBetween(50, 5000) * 1000,
             'thoi_gian' => $this->faker->dateTimeBetween('-30 days', 'now'),
             'ma_giao_dich' => strtoupper($this->faker->optional(0.7)->bothify('GD-#####??')) ?: null,
+            'trang_thai' => 'paid',
         ];
     }
 }

@@ -12,10 +12,12 @@ use App\Models\NhanVien;
 use App\Models\NhanVienDangNhapLog;
 use App\Models\ThanhToan;
 use App\Models\Thuoc;
+use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -23,6 +25,105 @@ use Illuminate\Validation\ValidationException;
 
 class CounterSaleController extends Controller
 {
+    private const COUNTER_CUSTOMER_TOKEN_MINUTES = 60;
+    private const REWARD_VND_PER_POINT = 1000;
+    private const REWARD_REDEEM_POINTS = 1000;
+    private const REWARD_REDEEM_VALUE = 10000;
+
+    public function authenticateCustomer(Request $request): JsonResponse
+    {
+        $nhanVien = $request->user();
+
+        if (! $nhanVien instanceof NhanVien) {
+            return response()->json([
+                'message' => 'Chỉ nhân viên mới được bán tại quầy.',
+            ], 403);
+        }
+
+        if (! $this->hasActiveCounterSession($nhanVien, $request)) {
+            return response()->json([
+                'message' => 'Tài khoản này chưa đăng nhập kênh tại quầy.',
+            ], 403);
+        }
+
+        $validated = $request->validate([
+            'tai_khoan' => ['required', 'string', 'max:100'],
+            'mat_khau' => ['required', 'string', 'min:6'],
+        ], [
+            'tai_khoan.required' => 'Vui lòng nhập email hoặc số điện thoại khách hàng.',
+            'mat_khau.required' => 'Vui lòng nhập mật khẩu khách hàng.',
+        ]);
+
+        $taiKhoan = (string) $validated['tai_khoan'];
+        $khachHang = KhachHang::query()
+            ->where('so_dien_thoai', $taiKhoan)
+            ->orWhere('email', $taiKhoan)
+            ->first();
+
+        if (! $khachHang || ! Hash::check((string) $validated['mat_khau'], $khachHang->mat_khau)) {
+            throw ValidationException::withMessages([
+                'tai_khoan' => ['Thông tin khách hàng không chính xác.'],
+            ]);
+        }
+
+        if (! $khachHang->email_verified) {
+            return response()->json([
+                'message' => 'Tài khoản khách hàng chưa xác minh email.',
+            ], 403);
+        }
+
+        return response()->json([
+            'message' => 'Đã chọn khách hàng cho hóa đơn tại quầy.',
+            'data' => [
+                'khach_hang' => $this->counterCustomerPayload($khachHang),
+                'customer_token' => $this->createCounterCustomerToken($khachHang),
+            ],
+        ]);
+    }
+
+    public function findCustomerByPhone(Request $request): JsonResponse
+    {
+        $nhanVien = $request->user();
+
+        if (! $nhanVien instanceof NhanVien) {
+            return response()->json([
+                'message' => 'Chỉ nhân viên mới được bán tại quầy.',
+            ], 403);
+        }
+
+        if (! $this->hasActiveCounterSession($nhanVien, $request)) {
+            return response()->json([
+                'message' => 'Tài khoản này chưa đăng nhập kênh tại quầy.',
+            ], 403);
+        }
+
+        $validated = $request->validate([
+            'so_dien_thoai' => ['required', 'string', 'max:20'],
+        ], [
+            'so_dien_thoai.required' => 'Vui lòng nhập số điện thoại khách hàng.',
+        ]);
+
+        $phone = preg_replace('/\D+/', '', (string) $validated['so_dien_thoai']);
+
+        $khachHang = KhachHang::query()
+            ->where('so_dien_thoai', $phone)
+            ->first();
+
+        if (! $khachHang) {
+            throw ValidationException::withMessages([
+                'so_dien_thoai' => ['Không tìm thấy khách hàng với số điện thoại này.'],
+            ]);
+        }
+
+        return response()->json([
+            'message' => 'Đã chọn khách hàng cho hóa đơn tại quầy.',
+            'data' => [
+                'khach_hang' => $this->counterCustomerPayload($khachHang),
+                'customer_token' => $this->createCounterCustomerToken($khachHang),
+            ],
+        ]);
+    }
+
     public function store(Request $request): JsonResponse
     {
         $nhanVien = $request->user();
@@ -45,6 +146,8 @@ class CounterSaleController extends Controller
             'items.*.so_luong' => ['required', 'integer', 'min:1'],
             'items.*.don_vi' => ['nullable', 'string', 'max:50'],
             'phuong_thuc_thanh_toan' => ['required', 'string', 'in:tien_mat,momo,zalopay,the_atm,the_quoc_te'],
+            'customer_token' => ['nullable', 'string'],
+            'su_dung_diem' => ['nullable', 'boolean'],
             'ghi_chu' => ['nullable', 'string', 'max:500'],
         ], [
             'items.required' => 'Vui lòng chọn ít nhất một sản phẩm để bán tại quầy.',
@@ -53,25 +156,37 @@ class CounterSaleController extends Controller
         ]);
 
         $result = DB::transaction(function () use ($validated, $nhanVien): array {
-            $khachVangLai = $this->resolveWalkInCustomer();
+            [$khachHang, $isRegisteredCustomer] = $this->resolveSaleCustomer($validated['customer_token'] ?? null);
             [$tongTien, $detailRows, $summaryItems] = $this->buildSaleDetails($validated['items']);
-            $thueVat = $this->calculateVatAmount($tongTien);
-            $tienThanhToan = $tongTien + $thueVat;
+            [$giamGiaDiem, $diemDaSuDung] = $isRegisteredCustomer
+                ? $this->resolveRewardPointDiscount((bool) ($validated['su_dung_diem'] ?? false), $tongTien, $khachHang)
+                : [0, 0];
+            $tienSauGiam = max($tongTien - $giamGiaDiem, 0);
+            $thueVat = $this->calculateVatAmount($tienSauGiam);
+            $tienThanhToan = $tienSauGiam + $thueVat;
+            $diemDaCong = $isRegisteredCustomer ? $this->calculateRewardPointsEarned($tongTien) : 0;
+
+            if ($isRegisteredCustomer) {
+                $khachHang->forceFill([
+                    'diem_tich_luy' => max(0, (int) $khachHang->diem_tich_luy - $diemDaSuDung + $diemDaCong),
+                ])->save();
+            }
 
             $hoaDon = HoaDon::create([
                 'ma_hoa_don' => $this->generateInvoiceCode('TQ'),
-                'id_khach_hang' => $khachVangLai->id_khach_hang,
+                'id_khach_hang' => $khachHang->id_khach_hang,
                 'id_nhan_vien' => $nhanVien->id_nhan_vien,
                 'kenh_ban' => 'tai_quay',
                 'trang_thai_xu_ly' => 'hoan_thanh',
                 'tong_tien' => $tongTien,
-                'giam_gia' => 0,
+                'giam_gia' => $giamGiaDiem,
                 'giam_gia_ma' => 0,
-                'giam_gia_diem' => 0,
+                'giam_gia_diem' => $giamGiaDiem,
                 'thue_vat' => $thueVat,
                 'tien_thanh_toan' => $tienThanhToan,
-                'diem_da_su_dung' => 0,
-                'diem_da_cong' => 0,
+                'diem_da_su_dung' => $diemDaSuDung,
+                'diem_da_cong' => $diemDaCong,
+                'diem_thuong_da_xu_ly' => $isRegisteredCustomer,
                 'ngay_ban' => now(),
             ]);
 
@@ -110,6 +225,7 @@ class CounterSaleController extends Controller
             return [
                 'hoa_don' => $hoaDon,
                 'items' => $summaryItems,
+                'khach_hang' => $isRegisteredCustomer ? $this->counterCustomerPayload($khachHang->fresh()) : null,
             ];
         });
 
@@ -118,6 +234,7 @@ class CounterSaleController extends Controller
             'data' => [
                 ...$result['hoa_don']->toArray(),
                 'items' => $result['items'],
+                'khach_hang_tich_diem' => $result['khach_hang'],
             ],
         ], 201);
     }
@@ -309,6 +426,92 @@ class CounterSaleController extends Controller
         }
 
         return '9999' . random_int(100000, 999999);
+    }
+
+    private function resolveSaleCustomer(?string $customerToken): array
+    {
+        if (! $customerToken) {
+            return [$this->resolveWalkInCustomer(), false];
+        }
+
+        $payload = $this->decodeCounterCustomerToken($customerToken);
+        $issuedAt = Carbon::createFromTimestamp((int) ($payload['issued_at'] ?? 0));
+
+        if ($issuedAt->lt(now()->subMinutes(self::COUNTER_CUSTOMER_TOKEN_MINUTES))) {
+            throw ValidationException::withMessages([
+                'customer_token' => ['Phiên khách hàng tại quầy đã hết hạn. Vui lòng đăng nhập khách hàng lại.'],
+            ]);
+        }
+
+        $khachHang = KhachHang::query()
+            ->whereKey((int) ($payload['id_khach_hang'] ?? 0))
+            ->lockForUpdate()
+            ->first();
+
+        if (! $khachHang) {
+            throw ValidationException::withMessages([
+                'customer_token' => ['Không tìm thấy khách hàng đã chọn.'],
+            ]);
+        }
+
+        return [$khachHang, true];
+    }
+
+    private function createCounterCustomerToken(KhachHang $khachHang): string
+    {
+        return Crypt::encryptString(json_encode([
+            'id_khach_hang' => $khachHang->id_khach_hang,
+            'issued_at' => now()->timestamp,
+        ], JSON_THROW_ON_ERROR));
+    }
+
+    private function decodeCounterCustomerToken(string $customerToken): array
+    {
+        try {
+            $payload = json_decode(Crypt::decryptString($customerToken), true, 512, JSON_THROW_ON_ERROR);
+        } catch (DecryptException|\JsonException) {
+            throw ValidationException::withMessages([
+                'customer_token' => ['Phiên khách hàng tại quầy không hợp lệ.'],
+            ]);
+        }
+
+        return is_array($payload) ? $payload : [];
+    }
+
+    private function counterCustomerPayload(KhachHang $khachHang): array
+    {
+        return [
+            'id_khach_hang' => $khachHang->id_khach_hang,
+            'ten_khach_hang' => $khachHang->ten_khach_hang,
+            'so_dien_thoai' => $khachHang->so_dien_thoai,
+            'email' => $khachHang->email,
+            'diem_tich_luy' => (int) $khachHang->diem_tich_luy,
+        ];
+    }
+
+    private function resolveRewardPointDiscount(bool $wantsToUsePoints, int|float $amount, KhachHang $khachHang): array
+    {
+        if (! $wantsToUsePoints || $amount <= 0) {
+            return [0, 0];
+        }
+
+        $availablePointBlocks = intdiv((int) $khachHang->diem_tich_luy, self::REWARD_REDEEM_POINTS);
+        $orderValueBlocks = intdiv((int) floor($amount), self::REWARD_REDEEM_VALUE);
+        $blocksToUse = min($availablePointBlocks, $orderValueBlocks);
+
+        if ($blocksToUse <= 0) {
+            return [0, 0];
+        }
+
+        return [
+            $blocksToUse * self::REWARD_REDEEM_VALUE,
+            $blocksToUse * self::REWARD_REDEEM_POINTS,
+        ];
+    }
+
+    private function calculateRewardPointsEarned(int|float $productAmount): int
+    {
+        return intdiv((int) floor(max((float) $productAmount, 0)), self::REWARD_VND_PER_POINT);
     }
 
     private function resolveSelectedUnit(Thuoc $thuoc, mixed $requestedUnit): string

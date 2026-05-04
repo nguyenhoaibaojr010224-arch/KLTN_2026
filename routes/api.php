@@ -19,6 +19,7 @@ use App\Http\Controllers\MaGiamGiaController;
 use App\Http\Controllers\NhanVienController;
 use App\Http\Controllers\NhaSanXuatController;
 use App\Http\Controllers\PasswordResetController;
+use App\Http\Controllers\PayosWebhookController;
 use App\Http\Controllers\PhieuNhapController;
 use App\Http\Controllers\SupportChatController;
 use App\Http\Controllers\ThanhToanController;
@@ -45,6 +46,7 @@ Route::post('/email-verifications/resend', [EmailVerificationController::class, 
 Route::post('/password-resets/request', [PasswordResetController::class, 'request']);
 Route::post('/password-resets/validate-token', [PasswordResetController::class, 'validateToken']);
 Route::post('/password-resets/reset', [PasswordResetController::class, 'reset']);
+Route::post('/payos/webhook', PayosWebhookController::class);
 
 // =========================
 // SERVER
@@ -193,6 +195,8 @@ Route::prefix('hoa-dons')
 Route::prefix('ban-tai-quay')
     ->middleware(['auth:sanctum', 'nhan_vien.role:admin,staff'])
     ->group(function () {
+        Route::post('/khach-hang/dang-nhap', [CounterSaleController::class, 'authenticateCustomer']);
+        Route::post('/khach-hang/so-dien-thoai', [CounterSaleController::class, 'findCustomerByPhone']);
         Route::post('/hoa-don', [CounterSaleController::class, 'store']);
     });
 
@@ -312,6 +316,7 @@ Route::prefix('profile')
 Route::prefix('checkout')
     ->middleware(['auth:sanctum'])
     ->group(function () {
+        Route::post('/orders/payos-cancel', [CustomerOrderController::class, 'cancelPayos']);
         Route::get('/orders', [CustomerOrderController::class, 'index']);
         Route::post('/orders', [CustomerOrderController::class, 'store']);
     });

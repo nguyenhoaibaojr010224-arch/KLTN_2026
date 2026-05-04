@@ -16,6 +16,8 @@ use App\Models\NhanVien;
 use App\Models\NhanVienDangNhapLog;
 use App\Models\ThanhToan;
 use App\Models\Thuoc;
+use App\Services\PayosService;
+use App\Services\RewardPointService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -56,7 +58,7 @@ class CustomerOrderController extends Controller
         ]);
     }
 
-    public function store(StoreCustomerCheckoutRequest $request): JsonResponse
+    public function store(StoreCustomerCheckoutRequest $request, PayosService $payos): JsonResponse
     {
         $khachHang = $request->user();
 
@@ -69,13 +71,19 @@ class CustomerOrderController extends Controller
         $validated = $request->validated();
         $nhanVienXuLy = $this->resolveProcessingEmployee();
 
+        if (($validated['phuong_thuc_thanh_toan'] ?? null) === 'payos' && ! $payos->isConfigured()) {
+            return response()->json([
+                'message' => 'Chưa cấu hình PayOS. Vui lòng điền PAYOS_CLIENT_ID, PAYOS_API_KEY và PAYOS_CHECKSUM_KEY trong .env.',
+            ], 422);
+        }
+
         if (! $nhanVienXuLy) {
             return response()->json([
                 'message' => 'He thong chua co nhan vien xu ly don hang.',
             ], 422);
         }
 
-        $checkoutResult = DB::transaction(function () use ($validated, $khachHang, $nhanVienXuLy) {
+        $checkoutResult = DB::transaction(function () use ($validated, $khachHang, $nhanVienXuLy, $payos) {
             $lockedKhachHang = KhachHang::query()
                 ->whereKey($khachHang->id_khach_hang)
                 ->lockForUpdate()
@@ -262,10 +270,6 @@ class CustomerOrderController extends Controller
             $tienThanhToan = $tienSauGiam + $thueVat;
             $diemDaCong = $this->calculateRewardPointsEarned($tongTien);
 
-            $lockedKhachHang->forceFill([
-                'diem_tich_luy' => max(0, (int) $lockedKhachHang->diem_tich_luy - $diemDaSuDung + $diemDaCong),
-            ])->save();
-
             $hoaDon = HoaDon::create([
                 'ma_hoa_don' => $this->generateInvoiceCode(),
                 'id_khach_hang' => $lockedKhachHang->id_khach_hang,
@@ -281,6 +285,7 @@ class CustomerOrderController extends Controller
                 'tien_thanh_toan' => $tienThanhToan,
                 'diem_da_su_dung' => $diemDaSuDung,
                 'diem_da_cong' => $diemDaCong,
+                'diem_thuong_da_xu_ly' => false,
                 'ngay_ban' => now(),
             ]);
 
@@ -296,15 +301,39 @@ class CustomerOrderController extends Controller
                 ]);
             }
 
-            ThanhToan::create([
+            $paymentMethod = (string) $validated['phuong_thuc_thanh_toan'];
+            $thanhToan = ThanhToan::create([
                 'id_hoa_don' => $hoaDon->id_hoa_don,
-                'phuong_thuc' => $this->mapPaymentMethod($validated['phuong_thuc_thanh_toan']),
+                'phuong_thuc' => $this->mapPaymentMethod($paymentMethod),
                 'so_tien' => $hoaDon->tien_thanh_toan,
                 'thoi_gian' => now(),
-                'ma_giao_dich' => $this->requiresTransactionCode($validated['phuong_thuc_thanh_toan'])
+                'ma_giao_dich' => $this->requiresTransactionCode($paymentMethod)
                     ? $this->generateTransactionCode()
                     : null,
+                'trang_thai' => $paymentMethod === 'payos' ? 'pending' : 'paid',
             ]);
+
+            if ($paymentMethod === 'payos') {
+                try {
+                    $payosLink = $payos->createPaymentLink($hoaDon, array_map(fn (array $item): array => [
+                        'name' => $item['ten'] ?? 'San pham',
+                        'quantity' => (int) ($item['soLuong'] ?? 1),
+                        'price' => (int) ($item['gia'] ?? 0),
+                    ], $summaryItems));
+                } catch (\RuntimeException $exception) {
+                    throw ValidationException::withMessages([
+                        'payos' => [$exception->getMessage()],
+                    ]);
+                }
+
+                $thanhToan->forceFill([
+                    'payos_order_code' => $payosLink['order_code'],
+                    'payos_payment_link_id' => $payosLink['payment_link_id'],
+                    'payos_checkout_url' => $payosLink['checkout_url'],
+                    'payos_qr_code' => $payosLink['qr_code'],
+                    'payos_payload' => $payosLink['raw'],
+                ])->save();
+            }
 
             $orderNote = $this->buildOrderNote(
                 $validated['dia_chi_giao_hang'] ?? null,
@@ -350,12 +379,84 @@ class CustomerOrderController extends Controller
         ], 201);
     }
 
+    public function cancelPayos(Request $request, RewardPointService $rewardPoints): JsonResponse
+    {
+        $khachHang = $request->user();
+
+        if (! $khachHang instanceof KhachHang) {
+            return response()->json([
+                'message' => 'Bạn cần đăng nhập tài khoản khách hàng để hủy thanh toán PayOS.',
+            ], 403);
+        }
+
+        $validated = $request->validate([
+            'order_code' => ['required', 'integer', 'min:1'],
+            'payment_link_id' => ['nullable', 'string', 'max:255'],
+            'status' => ['nullable', 'string', 'max:50'],
+        ], [
+            'order_code.required' => 'Thiếu mã đơn hàng PayOS.',
+        ]);
+
+        $maHoaDon = DB::transaction(function () use ($khachHang, $validated, $rewardPoints): string {
+            $orderCode = (int) $validated['order_code'];
+            $paymentLinkId = trim((string) ($validated['payment_link_id'] ?? ''));
+
+            $hoaDon = HoaDon::query()
+                ->with($this->customerOrderRelations())
+                ->where('id_khach_hang', $khachHang->id_khach_hang)
+                ->where(function ($query) use ($orderCode, $paymentLinkId): void {
+                    $query->where('id_hoa_don', $orderCode)
+                        ->orWhereHas('thanhToan', function ($paymentQuery) use ($orderCode, $paymentLinkId): void {
+                            $paymentQuery->where('payos_order_code', $orderCode);
+
+                            if ($paymentLinkId !== '') {
+                                $paymentQuery->orWhere('payos_payment_link_id', $paymentLinkId);
+                            }
+                        });
+                })
+                ->lockForUpdate()
+                ->first();
+
+            if (! $hoaDon) {
+                throw ValidationException::withMessages([
+                    'order_code' => ['Không tìm thấy đơn hàng PayOS cần hủy.'],
+                ]);
+            }
+
+            if ($hoaDon->thanhToan?->phuong_thuc !== 'payos') {
+                throw ValidationException::withMessages([
+                    'order_code' => ['Chỉ có thể hủy đơn thanh toán PayOS bằng thao tác này.'],
+                ]);
+            }
+
+            if ($hoaDon->thanhToan?->trang_thai === 'paid') {
+                throw ValidationException::withMessages([
+                    'order_code' => ['Đơn hàng này đã thanh toán nên không thể hủy PayOS.'],
+                ]);
+            }
+
+            $maHoaDon = (string) $hoaDon->ma_hoa_don;
+
+            $this->restoreReservedInventory($hoaDon);
+            $rewardPoints->restore($hoaDon);
+            $this->restoreCouponUsage($hoaDon);
+            $hoaDon->delete();
+
+            return $maHoaDon;
+        });
+
+        return response()->json([
+            'message' => "Đơn hàng {$maHoaDon} đã bị hủy.",
+            'data' => null,
+        ]);
+    }
+
     private function customerOrderRelations(): array
     {
         return [
             'khachHang:id_khach_hang,ten_khach_hang,so_dien_thoai,email,dia_chi,diem_tich_luy',
             'maGiamGia:id,ma_giam_gia,ten_ma,loai_ap_dung,gia_tri',
-            'thanhToan:id_hoa_don,phuong_thuc,so_tien,thoi_gian,ma_giao_dich',
+            'thanhToan:id_hoa_don,phuong_thuc,so_tien,thoi_gian,ma_giao_dich,trang_thai,payos_order_code,payos_payment_link_id,payos_checkout_url,payos_qr_code,payos_paid_at',
             'latestLichSuDonHang',
             'lichSuDonHangs:id_lich_su,id_hoa_don,trang_thai,ghi_chu,thoi_gian,id_nhan_vien',
             'chiTiets:id,id_hoa_don,id_lo,don_vi_ban,he_so_quy_doi_ban,so_luong,gia_ban,thanh_tien',
@@ -559,6 +660,7 @@ class CustomerOrderController extends Controller
             'zalopay' => 'zalopay',
             'atm' => 'the_atm',
             'international' => 'the_quoc_te',
+            'payos' => 'payos',
             default => 'tien_mat',
         };
     }
@@ -566,12 +668,13 @@ class CustomerOrderController extends Controller
     private function mapPaymentMethodLabel(string $method): string
     {
         return match ($method) {
-            'cod' => 'Tien mat',
+            'cod' => 'Tiền mặt',
             'momo' => 'MoMo',
             'zalopay' => 'ZaloPay',
-            'atm' => 'The ATM',
-            'international' => 'The quoc te',
-            default => 'Tien mat',
+            'atm' => 'Thẻ ATM',
+            'international' => 'Thẻ quốc tế',
+            'payos' => 'QR',
+            default => 'Tiền mặt',
         };
     }
 
@@ -583,18 +686,55 @@ class CustomerOrderController extends Controller
             'zalopay' => 'ZaloPay',
             'the_atm' => 'Thẻ ATM',
             'the_quoc_te' => 'Thẻ quốc tế',
+            'payos' => 'QR',
             default => 'Tiền mặt',
         };
     }
 
     private function requiresTransactionCode(string $method): bool
     {
-        return $method !== 'cod';
+        return ! in_array($method, ['cod', 'payos'], true);
     }
 
     private function calculateVatAmount(int|float $amountAfterDiscount): float
     {
         return round(max((float) $amountAfterDiscount, 0) * 0.1, 2);
+    }
+
+    private function restoreReservedInventory(HoaDon $hoaDon): void
+    {
+        $hoaDon->loadMissing('chiTiets');
+
+        foreach ($hoaDon->chiTiets as $detail) {
+            LoThuoc::query()
+                ->whereKey($detail->id_lo)
+                ->lockForUpdate()
+                ->increment('so_luong_con', (int) $detail->so_luong);
+        }
+    }
+
+    private function restoreCouponUsage(HoaDon $hoaDon): void
+    {
+        if (! $hoaDon->ma_giam_gia_id) {
+            return;
+        }
+
+        $usage = MaGiamGiaLuotDung::query()
+            ->where('ma_giam_gia_id', $hoaDon->ma_giam_gia_id)
+            ->where('id_khach_hang', $hoaDon->id_khach_hang)
+            ->lockForUpdate()
+            ->first();
+
+        if (! $usage) {
+            return;
+        }
+
+        if ((int) $usage->so_lan_su_dung <= 1) {
+            $usage->delete();
+            return;
+        }
+
+        $usage->decrement('so_lan_su_dung');
     }
 
     private function generateInvoiceCode(): string
@@ -834,6 +974,7 @@ class CustomerOrderController extends Controller
             'tien_thanh_toan' => (float) $hoaDon->tien_thanh_toan,
             'diem_da_su_dung' => (int) ($hoaDon->diem_da_su_dung ?? 0),
             'diem_da_cong' => (int) ($hoaDon->diem_da_cong ?? 0),
+            'diem_thuong_da_xu_ly' => (bool) $hoaDon->diem_thuong_da_xu_ly,
             'diem_hien_tai' => $hoaDon->khachHang?->diem_tich_luy !== null
                 ? (int) $hoaDon->khachHang->diem_tich_luy
                 : null,
@@ -845,8 +986,19 @@ class CustomerOrderController extends Controller
             'ghi_chu_he_thong' => $parsedOrderNote['system_note'],
             'phuong_thuc_thanh_toan' => $hoaDon->thanhToan?->phuong_thuc,
             'phuong_thuc_thanh_toan_label' => $this->mapStoredPaymentMethodLabel($hoaDon->thanhToan?->phuong_thuc),
+            'trang_thai_thanh_toan' => $hoaDon->thanhToan?->trang_thai,
             'ma_giao_dich' => $hoaDon->thanhToan?->ma_giao_dich,
             'thoi_gian_thanh_toan' => optional($hoaDon->thanhToan?->thoi_gian)->toIso8601String(),
+            'payos' => $hoaDon->thanhToan?->phuong_thuc === 'payos'
+                ? [
+                    'order_code' => $hoaDon->thanhToan?->payos_order_code,
+                    'payment_link_id' => $hoaDon->thanhToan?->payos_payment_link_id,
+                    'checkout_url' => $hoaDon->thanhToan?->payos_checkout_url,
+                    'qr_code' => $hoaDon->thanhToan?->payos_qr_code,
+                    'status' => $hoaDon->thanhToan?->trang_thai,
+                    'paid_at' => optional($hoaDon->thanhToan?->payos_paid_at)->toIso8601String(),
+                ]
+                : null,
             'tong_so_san_pham' => $this->formatDisplayQuantity((float) $items->sum(fn (array $item) => (float) ($item['so_luong'] ?? 0))),
             'timeline' => $this->buildOrderTimeline($hoaDon),
             'items' => $items,

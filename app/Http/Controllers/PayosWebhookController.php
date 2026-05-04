@@ -1,0 +1,108 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\LichSuDonHang;
+use App\Models\ThanhToan;
+use App\Services\PayosService;
+use App\Services\RewardPointService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+
+class PayosWebhookController extends Controller
+{
+    public function __invoke(Request $request, PayosService $payos, RewardPointService $rewardPoints): JsonResponse
+    {
+        $payload = $request->all();
+
+        if (! $payos->verifyWebhook($payload)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'PayOS signature không hợp lệ.',
+            ], 400);
+        }
+
+        $data = is_array($payload['data'] ?? null) ? $payload['data'] : [];
+        $orderCode = (int) ($data['orderCode'] ?? 0);
+        $paymentLinkId = (string) ($data['paymentLinkId'] ?? $data['id'] ?? '');
+        $success = (bool) ($payload['success'] ?? false);
+        $code = (string) ($payload['code'] ?? '');
+
+        if ($orderCode <= 0 && $paymentLinkId === '') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Thiếu mã đơn hàng PayOS.',
+            ], 422);
+        }
+
+        DB::transaction(function () use ($data, $orderCode, $paymentLinkId, $success, $code, $payload, $rewardPoints): void {
+            $thanhToan = ThanhToan::query()
+                ->where(function ($query) use ($orderCode, $paymentLinkId): void {
+                    if ($orderCode > 0) {
+                        $query->where('payos_order_code', $orderCode);
+                    }
+
+                    if ($paymentLinkId !== '') {
+                        $query->orWhere('payos_payment_link_id', $paymentLinkId);
+                    }
+                })
+                ->lockForUpdate()
+                ->first();
+
+            if (! $thanhToan) {
+                return;
+            }
+
+            $wasPaid = $thanhToan->trang_thai === 'paid';
+            $isPaid = $success && $code === '00';
+            $status = strtoupper((string) ($data['status'] ?? $payload['status'] ?? ''));
+            $isCanceled = in_array($status, ['CANCELLED', 'CANCELED'], true)
+                || filter_var($data['cancel'] ?? $payload['cancel'] ?? false, FILTER_VALIDATE_BOOLEAN);
+            $paidAt = $this->resolvePaidAt($data);
+
+            $thanhToan->forceFill([
+                'trang_thai' => $isPaid ? 'paid' : ($isCanceled ? 'canceled' : 'failed'),
+                'ma_giao_dich' => $data['reference'] ?? $data['transactionReference'] ?? $thanhToan->ma_giao_dich,
+                'thoi_gian' => $isPaid ? ($paidAt ?: now()) : $thanhToan->thoi_gian,
+                'payos_payment_link_id' => $paymentLinkId ?: $thanhToan->payos_payment_link_id,
+                'payos_payload' => $data,
+                'payos_paid_at' => $isPaid ? ($paidAt ?: now()) : $thanhToan->payos_paid_at,
+            ])->save();
+
+            if ($isPaid && ! $wasPaid) {
+                if ($thanhToan->hoaDon) {
+                    $rewardPoints->settle($thanhToan->hoaDon);
+                }
+
+                LichSuDonHang::create([
+                    'id_hoa_don' => $thanhToan->id_hoa_don,
+                    'trang_thai' => 'Đã thanh toán',
+                    'ghi_chu' => 'PayOS đã xác nhận thanh toán.',
+                    'thoi_gian' => $paidAt ?: now(),
+                    'id_nhan_vien' => $thanhToan->hoaDon?->id_nhan_vien,
+                ]);
+            }
+        });
+
+        return response()->json([
+            'success' => true,
+        ]);
+    }
+
+    private function resolvePaidAt(array $data): ?Carbon
+    {
+        $raw = $data['transactionDateTime'] ?? $data['paymentTime'] ?? null;
+
+        if (! filled($raw)) {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($raw);
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+}

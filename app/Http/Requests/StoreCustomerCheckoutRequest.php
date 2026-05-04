@@ -18,7 +18,7 @@ class StoreCustomerCheckoutRequest extends FormRequest
             'items.*.ma_thuoc' => ['required', 'string', 'exists:thuocs,ma_thuoc'],
             'items.*.so_luong' => ['required', 'integer', 'min:1'],
             'items.*.don_vi' => ['nullable', 'string', 'max:50'],
-            'phuong_thuc_thanh_toan' => ['required', 'in:cod,momo,zalopay,atm,international'],
+            'phuong_thuc_thanh_toan' => ['required', 'in:cod,momo,zalopay,atm,international,payos'],
             'ma_giam_gia' => ['nullable', 'string', 'max:30'],
             'su_dung_diem' => ['nullable', 'boolean'],
             'dia_chi_giao_hang' => ['nullable', 'string', 'max:255'],

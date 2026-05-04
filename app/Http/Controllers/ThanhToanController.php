@@ -70,7 +70,7 @@ class ThanhToanController extends Controller
             ]);
         }
 
-        if ($validated['phuong_thuc'] !== 'tien_mat' && empty($validated['ma_giao_dich'])) {
+        if (! in_array($validated['phuong_thuc'], ['tien_mat', 'payos'], true) && empty($validated['ma_giao_dich'])) {
             throw ValidationException::withMessages([
                 'ma_giao_dich' => ['Phuong thuc nay bat buoc co ma giao dich.'],
             ]);
@@ -82,6 +82,7 @@ class ThanhToanController extends Controller
             'so_tien' => $soTien,
             'thoi_gian' => $validated['thoi_gian'] ?? now(),
             'ma_giao_dich' => $validated['ma_giao_dich'] ?? null,
+            'trang_thai' => $validated['phuong_thuc'] === 'payos' ? 'pending' : 'paid',
         ]);
 
         $record->load(['hoaDon.khachHang', 'hoaDon.nhanVien']);

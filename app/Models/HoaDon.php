@@ -35,6 +35,7 @@ class HoaDon extends Model
         'tien_thanh_toan',
         'diem_da_su_dung',
         'diem_da_cong',
+        'diem_thuong_da_xu_ly',
         'ngay_ban',
     ];
 
@@ -49,6 +50,7 @@ class HoaDon extends Model
             'tien_thanh_toan' => 'decimal:2',
             'diem_da_su_dung' => 'integer',
             'diem_da_cong' => 'integer',
+            'diem_thuong_da_xu_ly' => 'boolean',
             'ngay_tao' => 'datetime',
             'ngay_cap_nhat' => 'datetime',
             'ngay_ban' => 'datetime',

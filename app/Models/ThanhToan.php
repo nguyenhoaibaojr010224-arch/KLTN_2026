@@ -26,6 +26,13 @@ class ThanhToan extends Model
         'so_tien',
         'thoi_gian',
         'ma_giao_dich',
+        'trang_thai',
+        'payos_order_code',
+        'payos_payment_link_id',
+        'payos_checkout_url',
+        'payos_qr_code',
+        'payos_payload',
+        'payos_paid_at',
     ];
 
     protected function casts(): array
@@ -33,6 +40,8 @@ class ThanhToan extends Model
         return [
             'so_tien' => 'decimal:2',
             'thoi_gian' => 'datetime',
+            'payos_payload' => 'array',
+            'payos_paid_at' => 'datetime',
             'ngay_tao' => 'datetime',
             'ngay_cap_nhat' => 'datetime',
         ];

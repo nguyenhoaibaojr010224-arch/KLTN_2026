@@ -14,6 +14,7 @@ use App\Models\LoThuoc;
 use App\Models\MaGiamGiaLuotDung;
 use App\Models\NhanVien;
 use App\Models\NhanVienDangNhapLog;
+use App\Services\RewardPointService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -200,7 +201,7 @@ class HoaDonController extends Controller
         ]);
     }
 
-    public function confirm(Request $request, int $id): JsonResponse
+    public function confirm(Request $request, int $id, RewardPointService $rewardPoints): JsonResponse
     {
         if (! $this->canProcessSystemOrder($request)) {
             return response()->json([
@@ -212,7 +213,7 @@ class HoaDonController extends Controller
             'ghi_chu' => ['nullable', 'string', 'max:500'],
         ]);
 
-        $hoaDon = DB::transaction(function () use ($request, $id, $validated): HoaDon {
+        $hoaDon = DB::transaction(function () use ($request, $id, $validated, $rewardPoints): HoaDon {
             $hoaDon = HoaDon::query()
                 ->with($this->orderActionRelations())
                 ->whereKey($id)
@@ -231,6 +232,12 @@ class HoaDonController extends Controller
                 ]);
             }
 
+            if (! $this->canSettleRewardsOnConfirm($hoaDon)) {
+                throw ValidationException::withMessages([
+                    'thanh_toan' => ['Đơn PayOS chưa thanh toán thành công nên chưa thể xác nhận.'],
+                ]);
+            }
+
             $hoaDon->update([
                 'id_nhan_vien' => $request->user()->id_nhan_vien,
                 'kenh_ban' => 'he_thong',
@@ -246,6 +253,10 @@ class HoaDonController extends Controller
                 'id_nhan_vien' => $request->user()->id_nhan_vien,
             ]);
 
+            if ($this->canSettleRewardsOnConfirm($hoaDon)) {
+                $rewardPoints->settle($hoaDon);
+            }
+
             return $this->freshOrderForResponse($hoaDon->id_hoa_don);
         });
 
@@ -257,7 +268,7 @@ class HoaDonController extends Controller
         ]);
     }
 
-    public function reject(Request $request, int $id): JsonResponse
+    public function reject(Request $request, int $id, RewardPointService $rewardPoints): JsonResponse
     {
         if (! $this->canProcessSystemOrder($request)) {
             return response()->json([
@@ -272,7 +283,7 @@ class HoaDonController extends Controller
             'ly_do_tu_choi.min' => 'Lý do từ chối phải có ít nhất 5 ký tự.',
         ]);
 
-        $hoaDon = DB::transaction(function () use ($request, $id, $validated): HoaDon {
+        $hoaDon = DB::transaction(function () use ($request, $id, $validated, $rewardPoints): HoaDon {
             $hoaDon = HoaDon::query()
                 ->with($this->orderActionRelations())
                 ->whereKey($id)
@@ -292,6 +303,7 @@ class HoaDonController extends Controller
             }
 
             $this->restoreReservedInventory($hoaDon);
+            $rewardPoints->restore($hoaDon);
             $this->restoreCustomerRewardsAndCoupon($hoaDon);
 
             $hoaDon->update([
@@ -399,24 +411,17 @@ class HoaDonController extends Controller
         }
     }
 
-    private function restoreCustomerRewardsAndCoupon(HoaDon $hoaDon): void
+    private function canSettleRewardsOnConfirm(HoaDon $hoaDon): bool
     {
-        $khachHang = KhachHang::query()
-            ->whereKey($hoaDon->id_khach_hang)
-            ->lockForUpdate()
-            ->first();
-
-        if ($khachHang) {
-            $khachHang->forceFill([
-                'diem_tich_luy' => max(
-                    0,
-                    (int) $khachHang->diem_tich_luy
-                    + (int) ($hoaDon->diem_da_su_dung ?? 0)
-                    - (int) ($hoaDon->diem_da_cong ?? 0)
-                ),
-            ])->save();
+        if ($hoaDon->thanhToan?->phuong_thuc !== 'payos') {
+            return true;
         }
 
+        return $hoaDon->thanhToan?->trang_thai === 'paid';
+    }
+
+    private function restoreCustomerRewardsAndCoupon(HoaDon $hoaDon): void
+    {
         if (! $hoaDon->ma_giam_gia_id) {
             return;
         }
@@ -510,6 +515,7 @@ class HoaDonController extends Controller
             'zalopay' => 'ZaloPay',
             'the_atm' => 'Thẻ ATM',
             'the_quoc_te' => 'Thẻ quốc tế',
+            'payos' => 'QR',
             default => 'Tiền mặt',
         };
     }
