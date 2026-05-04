@@ -8,17 +8,14 @@
         </div>
         <h2 class="page-section-title">Quản lý hóa đơn</h2>
         <p class="page-section-copy mb-0">
-          Đơn hàng được tạo tự động ngay khi khách đặt thành công. Màn này dùng để theo dõi hóa đơn thật,
-          VAT và giảm giá đã áp dụng.
+          Đơn online cần nhân viên hệ thống xác nhận trước khi tính doanh thu. Đơn tại quầy được hoàn thành ngay khi thanh toán.
         </p>
       </div>
 
-      <div class="d-flex flex-wrap gap-2">
-        <button class="btn btn-primary" @click="loadAll" :disabled="isReloading">
-          <span v-if="isReloading" class="spinner-border spinner-border-sm me-2"></span>
-          Đồng bộ dữ liệu
-        </button>
-      </div>
+      <button class="btn btn-primary" type="button" :disabled="isReloading" @click="loadAll">
+        <span v-if="isReloading" class="spinner-border spinner-border-sm me-2"></span>
+        Tải lại dữ liệu
+      </button>
     </div>
   </section>
 
@@ -31,20 +28,19 @@
           class="form-control"
           placeholder="Mã hóa đơn, khách hàng, số điện thoại, nhân viên"
           @keyup.enter="handleSearch"
-        />
+        >
       </div>
 
       <div class="col-lg-5">
         <div class="d-flex flex-wrap gap-2">
-          <button class="btn btn-outline-primary" @click="handleSearch" :disabled="loading.search || !keyword">
+          <button class="btn btn-outline-primary" type="button" :disabled="loading.search || !keyword" @click="handleSearch">
             <span v-if="loading.search" class="spinner-border spinner-border-sm me-2"></span>
             Tìm kiếm
           </button>
-          <button class="btn btn-outline-secondary" @click="resetSearch">Xóa lọc</button>
+          <button class="btn btn-outline-secondary" type="button" @click="resetSearch">Xóa lọc</button>
         </div>
       </div>
     </div>
-
   </section>
 
   <section class="row g-4">
@@ -52,23 +48,23 @@
       <article class="metric-card h-100">
         <p class="metric-card__label mb-2">Tổng hóa đơn</p>
         <h3 class="metric-card__value mb-3">{{ stats.tong_so_hoa_don }}</h3>
-        <span class="metric-card__delta is-positive">Dữ liệu thật từ checkout</span>
+        <span class="metric-card__delta is-positive">Chỉ tính đơn đã xác nhận</span>
       </article>
     </div>
 
     <div class="col-md-6 col-xl-3">
       <article class="metric-card h-100">
-        <p class="metric-card__label mb-2">Tổng thanh toán</p>
-        <h3 class="metric-card__value mb-3">{{ formatCurrency(stats.tong_tien_thanh_toan) }}</h3>
-        <span class="metric-card__delta is-positive">Đã gồm VAT</span>
+        <p class="metric-card__label mb-2">Doanh thu hệ thống</p>
+        <h3 class="metric-card__value mb-3">{{ formatCurrency(stats.doanh_thu_he_thong) }}</h3>
+        <span class="metric-card__delta is-positive">{{ stats.hoa_don_he_thong }} hóa đơn</span>
       </article>
     </div>
 
     <div class="col-md-6 col-xl-3">
       <article class="metric-card h-100">
-        <p class="metric-card__label mb-2">Tổng giảm giá</p>
-        <h3 class="metric-card__value mb-3">{{ formatCurrency(stats.tong_giam_gia) }}</h3>
-        <span class="metric-card__delta is-warning">Mã giảm giá đã áp dụng</span>
+        <p class="metric-card__label mb-2">Doanh thu tại quầy</p>
+        <h3 class="metric-card__value mb-3">{{ formatCurrency(stats.doanh_thu_tai_quay) }}</h3>
+        <span class="metric-card__delta is-positive">{{ stats.hoa_don_tai_quay }} hóa đơn</span>
       </article>
     </div>
 
@@ -76,84 +72,144 @@
       <article class="metric-card h-100">
         <p class="metric-card__label mb-2">VAT đã thu</p>
         <h3 class="metric-card__value mb-3">{{ formatCurrency(stats.tong_thue_vat) }}</h3>
-        <span class="metric-card__delta is-positive">10% trên giá trị sau giảm</span>
+        <span class="metric-card__delta is-positive">10% sau giảm giá</span>
       </article>
     </div>
   </section>
 
   <section class="content-card mt-4">
-    <div class="d-flex justify-content-between align-items-center gap-3 mb-4">
+    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
       <div>
-        <h3 class="panel-title">Bảng hóa đơn</h3>
-        <p class="panel-subtitle mb-0">
-          Route đang dùng: <code>/api/hoa-dons</code> · Tự động cập nhật mỗi 5 giây
-        </p>
+        <h3 class="panel-title">Danh sách hóa đơn</h3>
+        <p class="panel-subtitle mb-0">Đơn chờ xác nhận sẽ có nút xác nhận hoặc từ chối.</p>
       </div>
       <span class="soft-badge soft-badge--blue">{{ hoaDons.length }} hóa đơn</span>
     </div>
 
-    <div v-if="hoaDons.length">
-      <div class="table-responsive">
-        <table class="table table-master align-middle mb-0">
-          <thead>
-            <tr>
-              <th>Mã hóa đơn</th>
-              <th>Khách hàng</th>
-              <th>Nhân viên</th>
-              <th>Trạng thái</th>
-              <th>Tổng tiền</th>
-              <th>Giảm giá</th>
-              <th>VAT</th>
-              <th>Thanh toán</th>
-              <th>Ngày bán</th>
-              <th class="text-end">Xử lý</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="hoaDon in visibleHoaDons" :key="hoaDon.id_hoa_don">
-              <td class="fw-semibold">{{ hoaDon.ma_hoa_don }}</td>
-              <td>
-                <div>{{ hoaDon.khach_hang?.ten_khach_hang || "-" }}</div>
-                <div class="small text-secondary">{{ hoaDon.khach_hang?.so_dien_thoai || "-" }}</div>
-              </td>
-              <td>
-                <div>{{ hoaDon.nhan_vien?.ho_ten || "-" }}</div>
-                <div class="small text-secondary">{{ hoaDon.nhan_vien?.ten_dang_nhap || "-" }}</div>
-              </td>
-              <td>
-                <span class="soft-badge" :class="statusBadgeClass(currentStatus(hoaDon))">
-                  {{ currentStatus(hoaDon) }}
-                </span>
-              </td>
-              <td>{{ formatCurrency(hoaDon.tong_tien) }}</td>
-              <td>{{ formatCurrency(hoaDon.giam_gia) }}</td>
-              <td>{{ formatCurrency(hoaDon.thue_vat) }}</td>
-              <td>{{ formatCurrency(hoaDon.tien_thanh_toan) }}</td>
-              <td>{{ formatDate(hoaDon.ngay_ban) }}</td>
-              <td class="text-end">
-                <span class="small text-secondary">Tự động</span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div v-if="canLoadMoreHoaDons" class="d-flex justify-content-center mt-4 pt-4 border-top">
-        <button class="btn btn-outline-primary px-4" @click="showMoreHoaDons">Xem thêm</button>
-      </div>
+    <div v-if="hoaDons.length" class="table-responsive">
+      <table class="table table-master align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Mã hóa đơn</th>
+            <th>Khách hàng</th>
+            <th>Nhân viên</th>
+            <th>Kênh</th>
+            <th>Trạng thái</th>
+            <th>Thanh toán</th>
+            <th>Ngày bán</th>
+            <th class="text-end">Xử lý</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="hoaDon in visibleHoaDons" :key="hoaDon.id_hoa_don">
+            <td class="fw-semibold">{{ hoaDon.ma_hoa_don }}</td>
+            <td>
+              <div>{{ hoaDon.khach_hang?.ten_khach_hang || "-" }}</div>
+              <div class="small text-secondary">{{ hoaDon.khach_hang?.so_dien_thoai || "-" }}</div>
+            </td>
+            <td>
+              <div>{{ hoaDon.nhan_vien?.ho_ten || "-" }}</div>
+              <div class="small text-secondary">{{ hoaDon.nhan_vien?.ten_dang_nhap || "-" }}</div>
+            </td>
+            <td>
+              <span class="soft-badge" :class="hoaDon.kenh_ban === 'tai_quay' ? 'soft-badge--teal' : 'soft-badge--blue'">
+                {{ channelLabel(hoaDon.kenh_ban) }}
+              </span>
+            </td>
+            <td>
+              <span class="soft-badge" :class="statusBadgeClass(hoaDon.trang_thai_xu_ly)">
+                {{ statusLabel(hoaDon) }}
+              </span>
+              <div v-if="hoaDon.ly_do_tu_choi" class="small text-danger mt-1">
+                {{ hoaDon.ly_do_tu_choi }}
+              </div>
+            </td>
+            <td>
+              <strong>{{ formatCurrency(hoaDon.tien_thanh_toan) }}</strong>
+              <div class="small text-secondary">
+                VAT {{ formatCurrency(hoaDon.thue_vat) }}
+              </div>
+            </td>
+            <td>{{ formatDate(hoaDon.ngay_ban) }}</td>
+            <td class="text-end">
+              <div v-if="isPending(hoaDon)" class="d-flex justify-content-end gap-2">
+                <button
+                  class="btn btn-sm btn-success"
+                  type="button"
+                  :disabled="processingId === hoaDon.id_hoa_don"
+                  @click="confirmOrder(hoaDon)"
+                >
+                  <span v-if="processingId === hoaDon.id_hoa_don" class="spinner-border spinner-border-sm me-1"></span>
+                  Xác nhận
+                </button>
+                <button
+                  class="btn btn-sm btn-outline-danger"
+                  type="button"
+                  :disabled="processingId === hoaDon.id_hoa_don"
+                  @click="openRejectModal(hoaDon)"
+                >
+                  Từ chối
+                </button>
+              </div>
+              <span v-else class="small text-secondary">{{ actionLabel(hoaDon) }}</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
 
     <div v-else class="master-empty">
       <p class="mb-2 fw-semibold">Chưa có hóa đơn để hiển thị.</p>
-      <p class="mb-0 text-secondary">
-        Khi khách đặt hàng thành công, hóa đơn sẽ xuất hiện tại đây mà không cần tải lại trang.
-      </p>
+      <p class="mb-0 text-secondary">Khi khách đặt hàng hoặc nhân viên bán tại quầy, hóa đơn sẽ xuất hiện tại đây.</p>
+    </div>
+
+    <div v-if="canLoadMoreHoaDons" class="d-flex justify-content-center mt-4 pt-4 border-top">
+      <button class="btn btn-outline-primary px-4" type="button" @click="showMoreHoaDons">Xem thêm</button>
     </div>
   </section>
+
+  <div v-if="rejectModal.open" class="order-modal" role="dialog" aria-modal="true">
+    <div class="order-modal__backdrop" @click="closeRejectModal"></div>
+    <div class="order-modal__panel">
+      <button class="order-modal__close" type="button" aria-label="Đóng" @click="closeRejectModal">
+        <i class="bi bi-x-lg"></i>
+      </button>
+
+      <div class="soft-badge soft-badge--orange mb-3">
+        <i class="bi bi-exclamation-triangle"></i>
+        Từ chối đơn hàng
+      </div>
+      <h3>{{ rejectModal.order?.ma_hoa_don }}</h3>
+      <p>Nhập lý do từ chối. Nội dung này sẽ được gửi về email khách hàng.</p>
+
+      <textarea
+        v-model.trim="rejectModal.reason"
+        class="form-control"
+        rows="5"
+        placeholder="Ví dụ: Sản phẩm trong đơn hiện không đủ tồn kho."
+      ></textarea>
+
+      <div class="order-modal__actions">
+        <button class="btn btn-outline-secondary" type="button" :disabled="rejectModal.loading" @click="closeRejectModal">
+          Đóng
+        </button>
+        <button class="btn btn-danger" type="button" :disabled="rejectSubmitDisabled" @click="submitReject">
+          <span v-if="rejectModal.loading" class="spinner-border spinner-border-sm me-2"></span>
+          Gửi từ chối
+        </button>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script>
-import { getHoaDons, getHoaDonStatistics, searchHoaDons } from "../../../api/hoaDonApi";
+import {
+  confirmHoaDon,
+  getHoaDons,
+  getHoaDonStatistics,
+  rejectHoaDon,
+  searchHoaDons,
+} from "../../../api/hoaDonApi";
 import { showToast } from "../../../lib/toast";
 
 const HOA_DON_TABLE_BATCH_SIZE = 15;
@@ -167,6 +223,7 @@ export default {
       hoaDons: [],
       visibleHoaDonCount: HOA_DON_TABLE_BATCH_SIZE,
       refreshTimer: null,
+      processingId: null,
       loading: {
         list: false,
         search: false,
@@ -174,11 +231,19 @@ export default {
       },
       stats: {
         tong_so_hoa_don: 0,
-        tong_tien: 0,
         tong_giam_gia: 0,
         tong_thue_vat: 0,
         tong_tien_thanh_toan: 0,
-        gia_tri_trung_binh: 0,
+        doanh_thu_he_thong: 0,
+        doanh_thu_tai_quay: 0,
+        hoa_don_he_thong: 0,
+        hoa_don_tai_quay: 0,
+      },
+      rejectModal: {
+        open: false,
+        order: null,
+        reason: "",
+        loading: false,
       },
     };
   },
@@ -192,6 +257,9 @@ export default {
     },
     canLoadMoreHoaDons() {
       return this.hoaDons.length > this.visibleHoaDonCount;
+    },
+    rejectSubmitDisabled() {
+      return this.rejectModal.loading || this.rejectModal.reason.length < 5;
     },
   },
 
@@ -213,7 +281,6 @@ export default {
 
   watch: {
     "$route.query.q": {
-      immediate: false,
       handler(nextValue) {
         const nextKeyword = String(nextValue || "").trim();
 
@@ -258,19 +325,54 @@ export default {
         timeStyle: "short",
       }).format(new Date(value));
     },
-    currentStatus(hoaDon) {
-      return hoaDon?.latest_lich_su_don_hang?.trang_thai || "Thành công";
+    channelLabel(channel) {
+      return channel === "tai_quay" ? "Tại quầy" : "Hệ thống";
     },
-    statusBadgeClass(status) {
-      if (status === "Thành công") {
-        return "soft-badge--teal";
+    statusLabel(hoaDon) {
+      const status = hoaDon?.trang_thai_xu_ly;
+
+      if (status === "cho_xac_nhan") {
+        return "Chờ xác nhận";
       }
 
-      if (status === "Đã hủy") {
+      if (status === "tu_choi") {
+        return "Từ chối";
+      }
+
+      if (status === "hoan_thanh") {
+        return "Hoàn thành tại quầy";
+      }
+
+      return "Đã xác nhận";
+    },
+    statusBadgeClass(status) {
+      if (status === "cho_xac_nhan") {
         return "soft-badge--orange";
       }
 
+      if (status === "tu_choi") {
+        return "soft-badge--red";
+      }
+
+      if (status === "hoan_thanh") {
+        return "soft-badge--teal";
+      }
+
       return "soft-badge--blue";
+    },
+    isPending(hoaDon) {
+      return hoaDon?.trang_thai_xu_ly === "cho_xac_nhan";
+    },
+    actionLabel(hoaDon) {
+      if (hoaDon?.trang_thai_xu_ly === "tu_choi") {
+        return "Đã gửi lý do";
+      }
+
+      if (hoaDon?.kenh_ban === "tai_quay") {
+        return "Tự hoàn thành";
+      }
+
+      return "Đã xử lý";
     },
     applyHoaDonResponse(response) {
       this.hoaDons = Array.isArray(response?.data) ? response.data : [];
@@ -313,7 +415,7 @@ export default {
 
         if (!silent) {
           this.resetHoaDonPagination();
-          showToast(`Đã tải ${this.hoaDons.length} hóa đơn từ backend.`);
+          showToast(`Đã tải ${this.hoaDons.length} hóa đơn.`);
         }
       } catch (error) {
         if (!silent) {
@@ -360,7 +462,7 @@ export default {
       }
     },
     async refreshCurrentView() {
-      if (this.loading.list || this.loading.search || this.loading.stats) {
+      if (this.rejectModal.open || this.loading.list || this.loading.search || this.loading.stats) {
         return;
       }
 
@@ -393,6 +495,130 @@ export default {
       });
       this.loadAll();
     },
+    async confirmOrder(hoaDon) {
+      this.processingId = hoaDon.id_hoa_don;
+
+      try {
+        const response = await confirmHoaDon(hoaDon.id_hoa_don);
+        showToast(response?.message || "Xác nhận đơn hàng thành công.");
+        await this.refreshCurrentView();
+      } catch (error) {
+        showToast(this.normalizeError(error), "error");
+      } finally {
+        this.processingId = null;
+      }
+    },
+    openRejectModal(hoaDon) {
+      this.rejectModal.open = true;
+      this.rejectModal.order = hoaDon;
+      this.rejectModal.reason = "";
+      this.rejectModal.loading = false;
+    },
+    closeRejectModal() {
+      if (this.rejectModal.loading) {
+        return;
+      }
+
+      this.rejectModal.open = false;
+      this.rejectModal.order = null;
+      this.rejectModal.reason = "";
+    },
+    async submitReject() {
+      if (this.rejectSubmitDisabled || !this.rejectModal.order) {
+        return;
+      }
+
+      this.rejectModal.loading = true;
+      this.processingId = this.rejectModal.order.id_hoa_don;
+
+      try {
+        const response = await rejectHoaDon(this.rejectModal.order.id_hoa_don, {
+          ly_do_tu_choi: this.rejectModal.reason,
+        });
+        showToast(response?.message || "Đã từ chối đơn hàng.");
+        this.rejectModal.open = false;
+        await this.refreshCurrentView();
+      } catch (error) {
+        showToast(this.normalizeError(error), "error");
+      } finally {
+        this.rejectModal.loading = false;
+        this.processingId = null;
+      }
+    },
   },
 };
 </script>
+
+<style scoped>
+.soft-badge--red {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.order-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1090;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+
+.order-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.58);
+  backdrop-filter: blur(4px);
+}
+
+.order-modal__panel {
+  position: relative;
+  z-index: 1;
+  width: min(560px, 100%);
+  padding: 24px;
+  border: 1px solid rgba(22, 82, 197, 0.12);
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 28px 80px rgba(15, 23, 42, 0.28);
+}
+
+.order-modal__close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 999px;
+  background: #fff;
+  color: #475569;
+}
+
+.order-modal__panel h3 {
+  margin: 0 0 8px;
+  color: #111827;
+  font-size: 1.35rem;
+  font-weight: 800;
+}
+
+.order-modal__panel p {
+  margin: 0 0 16px;
+  color: #64748b;
+}
+
+.order-modal__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+@media (max-width: 767.98px) {
+  .order-modal__actions > .btn {
+    width: 100%;
+  }
+}
+</style>

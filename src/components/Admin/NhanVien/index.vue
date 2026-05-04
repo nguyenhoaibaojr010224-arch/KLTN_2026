@@ -105,7 +105,7 @@
                   v-for="(nhanVien, index) in nhanViens"
                   :key="nhanVien.id_nhan_vien"
                   :class="{ 'table-active': selectedId === nhanVien.id_nhan_vien }"
-                  @click="setSelectedNhanVien(nhanVien)"
+                  @click="openWorkSessionModal(nhanVien)"
                   style="cursor: pointer;"
                 >
                   <td>{{ index + 1 }}</td>
@@ -145,6 +145,7 @@
         </article>
       </div>
     </section>
+
   </div>
 
   <div ref="formModalEl" class="modal fade" tabindex="-1" aria-hidden="true">
@@ -297,6 +298,205 @@
       </div>
     </div>
   </div>
+
+  <div ref="workSessionModalEl" class="modal fade" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content border-0 shadow-lg">
+        <div class="modal-header">
+          <div>
+            <h5 class="modal-title fw-bold mb-1">Lịch sử ra vào</h5>
+            <p class="mb-0 text-secondary small">
+              {{ selectedNhanVien?.ho_ten || "Nhân viên" }} - {{ workSessionFilterLabel }}
+            </p>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+        </div>
+
+        <div class="modal-body">
+          <div class="row g-3 align-items-end mb-4">
+            <div class="col-md-5 col-lg-4">
+              <label class="form-label fw-semibold">Chọn ngày làm việc</label>
+              <input
+                v-model="selectedWorkSessionDate"
+                type="date"
+                class="form-control"
+                @change="handleWorkSessionDateChange"
+              />
+            </div>
+
+            <div class="col-md-7 col-lg-8">
+              <div class="d-flex flex-wrap gap-2">
+                <button
+                  class="btn btn-outline-secondary"
+                  type="button"
+                  :disabled="!isWorkSessionFiltered"
+                  @click="clearWorkSessionDateFilter"
+                >
+                  Tất cả
+                </button>
+                <button
+                  class="btn btn-outline-primary"
+                  type="button"
+                  :disabled="loading.workSessions"
+                  @click="loadWorkSessions"
+                >
+                  <span v-if="loading.workSessions" class="spinner-border spinner-border-sm me-2"></span>
+                  Tải lại
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="loading.workSessions" class="master-empty">
+            <span class="spinner-border spinner-border-sm me-2"></span>
+            Đang tải lịch sử ra vào...
+          </div>
+
+          <div v-else-if="workSessionData.tracking_enabled === false" class="alert alert-info mb-0">
+            {{ workSessionData.message || "Tài khoản này không tính lịch sử ra vào làm việc." }}
+          </div>
+
+          <template v-else>
+            <div class="row g-3 mb-4">
+              <div class="col-md-4">
+                <div class="border rounded-3 p-3 h-100">
+                  <div class="small text-secondary mb-1">Tổng phiên</div>
+                  <div class="h4 fw-bold mb-0">{{ workSessionSummary.tong_phien }}</div>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="border rounded-3 p-3 h-100">
+                  <div class="small text-secondary mb-1">Tổng thời gian làm</div>
+                  <div class="h4 fw-bold mb-0">{{ formatDuration(workSessionSummary.tong_giay_lam) }}</div>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="border rounded-3 p-3 h-100">
+                  <div class="small text-secondary mb-1">Trạng thái hiện tại</div>
+                  <span class="soft-badge" :class="workSessionSummary.dang_lam ? 'soft-badge--teal' : 'soft-badge--blue'">
+                    {{ workSessionSummary.dang_lam ? "Đang làm" : "Không có phiên mở" }}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div v-if="workSessions.length" class="table-responsive">
+              <table class="table table-master align-middle mb-0">
+                <thead>
+                  <tr>
+                    <th>Ngày làm</th>
+                    <th>Check in</th>
+                    <th>Check out</th>
+                    <th>Số giờ làm</th>
+                    <th>Trạng thái</th>
+                    <th>Lý do ra</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="session in workSessions"
+                    :key="session.id"
+                    :class="{ 'table-active': selectedSalesSessionId === session.id }"
+                    style="cursor: pointer;"
+                    @click="loadSessionSales(session)"
+                  >
+                    <td>{{ formatDate(session.ngay) }}</td>
+                    <td>{{ formatDateTime(session.thoi_gian_vao) }}</td>
+                    <td>{{ formatDateTime(session.thoi_gian_ra) }}</td>
+                    <td>
+                      <div class="fw-semibold">{{ formatDuration(session.thoi_luong_giay) }}</div>
+                    </td>
+                    <td>
+                      <span class="soft-badge" :class="workSessionStatusBadgeClass(session.trang_thai)">
+                        {{ workSessionStatusLabel(session.trang_thai) }}
+                      </span>
+                    </td>
+                    <td>{{ logoutReasonLabel(session.ly_do_dang_xuat) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div v-else class="master-empty">
+              <p class="mb-0 fw-semibold">Không có ca làm việc trong ngày đã chọn.</p>
+            </div>
+
+            <section v-if="selectedSalesSessionId" class="mt-4 border-top pt-4">
+              <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 mb-3">
+                <div>
+                  <h6 class="fw-bold mb-1">Đơn hàng đã bán trong ngày {{ selectedSalesDateLabel }}</h6>
+                  <p class="text-secondary small mb-0">
+                    {{ selectedNhanVien?.ho_ten || "Nhân viên" }} bán {{ salesSummary.tong_don_hang }} đơn,
+                    {{ salesSummary.tong_san_pham }} sản phẩm.
+                  </p>
+                </div>
+                <div class="text-lg-end">
+                  <div class="small text-secondary">Tổng doanh thu</div>
+                  <div class="h5 fw-bold mb-0">{{ formatCurrency(salesSummary.tong_doanh_thu) }}</div>
+                </div>
+              </div>
+
+              <div v-if="loading.sales" class="master-empty">
+                <span class="spinner-border spinner-border-sm me-2"></span>
+                Đang tải đơn hàng...
+              </div>
+
+              <div v-else-if="salesOrders.length" class="vstack gap-3">
+                <article v-for="order in salesOrders" :key="order.id_hoa_don" class="border rounded-3 p-3">
+                  <div class="d-flex flex-column flex-lg-row justify-content-between gap-2 mb-3">
+                    <div>
+                      <div class="fw-bold">{{ order.ma_hoa_don || `Hóa đơn #${order.id_hoa_don}` }}</div>
+                      <div class="small text-secondary">
+                        {{ formatDateTime(order.ngay_ban) }} ·
+                        {{ order.khach_hang?.ten_khach_hang || "Khách lẻ" }}
+                        <span v-if="order.khach_hang?.so_dien_thoai">· {{ order.khach_hang.so_dien_thoai }}</span>
+                      </div>
+                    </div>
+                    <div class="text-lg-end">
+                      <span class="soft-badge soft-badge--blue">{{ order.trang_thai }}</span>
+                      <div class="fw-bold mt-2">{{ formatCurrency(order.tien_thanh_toan) }}</div>
+                    </div>
+                  </div>
+
+                  <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                      <thead>
+                        <tr>
+                          <th>Sản phẩm</th>
+                          <th>Số lô</th>
+                          <th>Đơn vị</th>
+                          <th class="text-end">SL</th>
+                          <th class="text-end">Giá bán</th>
+                          <th class="text-end">Thành tiền</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr v-for="item in order.items" :key="item.id">
+                          <td>
+                            <div class="fw-semibold">{{ item.ten_thuoc }}</div>
+                            <div class="small text-secondary">{{ item.ma_thuoc }}{{ item.ham_luong ? ` · ${item.ham_luong}` : "" }}</div>
+                          </td>
+                          <td>{{ item.so_lo || "Không có" }}</td>
+                          <td>{{ item.don_vi_ban || "Không có" }}</td>
+                          <td class="text-end">{{ item.so_luong }}</td>
+                          <td class="text-end">{{ formatCurrency(item.gia_ban) }}</td>
+                          <td class="text-end fw-semibold">{{ formatCurrency(item.thanh_tien) }}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </article>
+              </div>
+
+              <div v-else class="master-empty">
+                <p class="mb-0 fw-semibold">Ngày này nhân viên chưa bán đơn hàng nào.</p>
+              </div>
+            </section>
+          </template>
+        </div>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script>
@@ -306,6 +506,8 @@ import {
   changeNhanVienPassword,
   createNhanVien,
   deleteNhanVien,
+  getNhanVienSalesByDate,
+  getNhanVienWorkSessions,
   getNhanViens,
   searchNhanViens,
   updateNhanVien,
@@ -332,6 +534,40 @@ function createEmptyPasswordForm() {
   };
 }
 
+function createEmptyWorkSessionData() {
+  return {
+    tracking_enabled: true,
+    message: "",
+    filter: {
+      type: "all",
+      value: null,
+      label: "Tất cả",
+    },
+    summary: {
+      tong_phien: 0,
+      tong_giay_lam: 0,
+      tong_gio_lam: 0,
+      dang_lam: false,
+    },
+    sessions: [],
+  };
+}
+
+function createEmptySalesData() {
+  return {
+    filter: {
+      date: "",
+      label: "",
+    },
+    summary: {
+      tong_don_hang: 0,
+      tong_san_pham: 0,
+      tong_doanh_thu: 0,
+    },
+    orders: [],
+  };
+}
+
 export default {
   name: "NhanVienAdmin",
   data() {
@@ -342,12 +578,21 @@ export default {
       vaiTros: [],
       bangCaps: [],
       selectedId: null,
+      workSessionFilter: {
+        type: "all",
+        value: null,
+      },
+      workSessionData: createEmptyWorkSessionData(),
+      salesData: createEmptySalesData(),
+      selectedSalesSessionId: null,
       form: createEmptyForm(),
       passwordForm: createEmptyPasswordForm(),
       deleteTarget: null,
       formModal: null,
       passwordModal: null,
       deleteModal: null,
+      workSessionModal: null,
+      selectedWorkSessionDate: "",
       loading: {
         list: false,
         search: false,
@@ -355,6 +600,8 @@ export default {
         password: false,
         deleteId: null,
         meta: false,
+        workSessions: false,
+        sales: false,
       },
     };
   },
@@ -364,6 +611,27 @@ export default {
     },
     isEditing() {
       return Boolean(this.selectedNhanVien);
+    },
+    workSessionSummary() {
+      return this.workSessionData?.summary || createEmptyWorkSessionData().summary;
+    },
+    workSessions() {
+      return Array.isArray(this.workSessionData?.sessions) ? this.workSessionData.sessions : [];
+    },
+    workSessionFilterLabel() {
+      return this.workSessionData?.filter?.label || "Tất cả";
+    },
+    isWorkSessionFiltered() {
+      return this.workSessionData?.filter?.type && this.workSessionData.filter.type !== "all";
+    },
+    salesOrders() {
+      return Array.isArray(this.salesData?.orders) ? this.salesData.orders : [];
+    },
+    salesSummary() {
+      return this.salesData?.summary || createEmptySalesData().summary;
+    },
+    selectedSalesDateLabel() {
+      return this.salesData?.filter?.label || "";
     },
     metrics() {
       const total = this.nhanViens.length;
@@ -411,12 +679,14 @@ export default {
     this.formModal = new Modal(this.$refs.formModalEl);
     this.passwordModal = new Modal(this.$refs.passwordModalEl);
     this.deleteModal = new Modal(this.$refs.deleteModalEl);
+    this.workSessionModal = new Modal(this.$refs.workSessionModalEl);
     this.bootstrapData();
   },
   beforeUnmount() {
     this.formModal?.dispose();
     this.passwordModal?.dispose();
     this.deleteModal?.dispose();
+    this.workSessionModal?.dispose();
   },
   methods: {
     roleLabel(value) {
@@ -439,6 +709,78 @@ export default {
     },
     statusBadgeClass(value) {
       return String(value || "").toLowerCase() === "active" ? "soft-badge--teal" : "soft-badge--orange";
+    },
+    workSessionStatusLabel(value) {
+      const map = {
+        dang_lam: "Đang làm",
+        da_dang_xuat: "Đã đăng xuất",
+        tu_het_han: "Tự hết hạn",
+      };
+      return map[value] || "Không xác định";
+    },
+    workSessionStatusBadgeClass(value) {
+      const map = {
+        dang_lam: "soft-badge--teal",
+        da_dang_xuat: "soft-badge--blue",
+        tu_het_han: "soft-badge--orange",
+      };
+      return map[value] || "";
+    },
+    logoutReasonLabel(value) {
+      const map = {
+        manual: "Đăng xuất",
+        expired: "Tự hết hạn",
+        relogin: "Đăng nhập lại",
+      };
+      return map[value] || "Đang mở";
+    },
+    formatDateTime(value) {
+      if (!value) {
+        return "Chưa có";
+      }
+
+      return new Intl.DateTimeFormat("vi-VN", {
+        dateStyle: "short",
+        timeStyle: "short",
+      }).format(new Date(value));
+    },
+    formatDate(value) {
+      if (!value) {
+        return "Chưa có";
+      }
+
+      return new Intl.DateTimeFormat("vi-VN", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      }).format(new Date(`${value}T00:00:00`));
+    },
+    formatMonth(value) {
+      if (!value) {
+        return "Chưa có";
+      }
+
+      const [year, month] = String(value).split("-");
+
+      return month && year ? `${month}/${year}` : value;
+    },
+    formatDuration(seconds = 0) {
+      const totalMinutes = Math.max(0, Math.round(Number(seconds || 0) / 60));
+      const hours = Math.floor(totalMinutes / 60);
+      const minutes = totalMinutes % 60;
+
+      if (!hours) {
+        return `${minutes} phút`;
+      }
+
+      return minutes ? `${hours} giờ ${minutes} phút` : `${hours} giờ`;
+    },
+    formatCurrency(value = 0) {
+      return new Intl.NumberFormat("vi-VN", {
+        style: "currency",
+        currency: "VND",
+        maximumFractionDigits: 0,
+      }).format(Number(value || 0));
     },
     normalizeError(err, fallback = "Đã xảy ra lỗi.") {
       if (err?.payload?.errors) {
@@ -463,6 +805,19 @@ export default {
     },
     setSelectedNhanVien(nhanVien) {
       this.selectedId = nhanVien.id_nhan_vien;
+    },
+    async openWorkSessionModal(nhanVien) {
+      this.setSelectedNhanVien(nhanVien);
+      this.workSessionFilter = {
+        type: "all",
+        value: null,
+      };
+      this.selectedWorkSessionDate = "";
+      this.workSessionData = createEmptyWorkSessionData();
+      this.salesData = createEmptySalesData();
+      this.selectedSalesSessionId = null;
+      this.workSessionModal.show();
+      await this.loadWorkSessions();
     },
     async bootstrapData() {
       try {
@@ -490,6 +845,11 @@ export default {
           const refreshed = this.nhanViens.find((item) => item.id_nhan_vien === this.selectedId);
           if (!refreshed) {
             this.selectedId = null;
+            this.workSessionData = createEmptyWorkSessionData();
+            this.salesData = createEmptySalesData();
+            this.selectedSalesSessionId = null;
+          } else {
+            await this.loadWorkSessions();
           }
         }
 
@@ -502,6 +862,86 @@ export default {
         this.loading.list = false;
       }
     },
+    buildWorkSessionQuery() {
+      if (this.workSessionFilter.type === "date") {
+        return { date: this.workSessionFilter.value };
+      }
+
+      if (this.workSessionFilter.type === "month") {
+        return { month: this.workSessionFilter.value };
+      }
+
+      if (this.workSessionFilter.type === "year") {
+        return { year: this.workSessionFilter.value };
+      }
+
+      return {};
+    },
+    async loadWorkSessions() {
+      if (!this.selectedId) {
+        this.workSessionData = createEmptyWorkSessionData();
+        this.salesData = createEmptySalesData();
+        this.selectedSalesSessionId = null;
+        return;
+      }
+
+      this.loading.workSessions = true;
+      try {
+        this.workSessionData = await getNhanVienWorkSessions(this.selectedId, this.buildWorkSessionQuery());
+      } catch (err) {
+        this.workSessionData = createEmptyWorkSessionData();
+        this.salesData = createEmptySalesData();
+        this.selectedSalesSessionId = null;
+        showToast(this.normalizeError(err, "Không thể tải lịch sử ra vào của nhân viên."), "error");
+      } finally {
+        this.loading.workSessions = false;
+      }
+    },
+    async applyWorkSessionFilter(type = "all", value = null) {
+      this.workSessionFilter = {
+        type,
+        value,
+      };
+      this.salesData = createEmptySalesData();
+      this.selectedSalesSessionId = null;
+      await this.loadWorkSessions();
+    },
+    async loadSessionSales(session) {
+      if (!this.selectedId || !session?.ngay) {
+        return;
+      }
+
+      this.selectedSalesSessionId = session.id;
+      this.salesData = {
+        ...createEmptySalesData(),
+        filter: {
+          date: session.ngay,
+          label: this.formatDate(session.ngay),
+        },
+      };
+      this.loading.sales = true;
+
+      try {
+        this.salesData = await getNhanVienSalesByDate(this.selectedId, session.ngay);
+      } catch (err) {
+        this.salesData = createEmptySalesData();
+        showToast(this.normalizeError(err, "Không thể tải đơn hàng của nhân viên trong ngày này."), "error");
+      } finally {
+        this.loading.sales = false;
+      }
+    },
+    async handleWorkSessionDateChange() {
+      if (!this.selectedWorkSessionDate) {
+        await this.clearWorkSessionDateFilter();
+        return;
+      }
+
+      await this.applyWorkSessionFilter("date", this.selectedWorkSessionDate);
+    },
+    async clearWorkSessionDateFilter() {
+      this.selectedWorkSessionDate = "";
+      await this.applyWorkSessionFilter();
+    },
     async handleSearch() {
       if (!this.keyword) {
         await this.loadNhanViens({ notifySuccess: true });
@@ -512,6 +952,9 @@ export default {
       try {
         this.nhanViens = await searchNhanViens(this.keyword);
         this.selectedId = null;
+        this.workSessionData = createEmptyWorkSessionData();
+        this.salesData = createEmptySalesData();
+        this.selectedSalesSessionId = null;
         showToast(`Tìm thấy ${this.nhanViens.length} nhân viên phù hợp.`);
       } catch (err) {
         showToast(this.normalizeError(err, "Không thể tìm kiếm nhân viên."), "error");
@@ -521,6 +964,9 @@ export default {
     },
     openCreateModal() {
       this.selectedId = null;
+      this.workSessionData = createEmptyWorkSessionData();
+      this.salesData = createEmptySalesData();
+      this.selectedSalesSessionId = null;
       this.resetForm();
       this.formModal.show();
     },
@@ -615,6 +1061,9 @@ export default {
 
         if (this.selectedId === this.deleteTarget.id_nhan_vien) {
           this.selectedId = null;
+          this.workSessionData = createEmptyWorkSessionData();
+          this.salesData = createEmptySalesData();
+          this.selectedSalesSessionId = null;
         }
 
         const deletedName = this.deleteTarget.ho_ten;
@@ -632,6 +1081,13 @@ export default {
       this.keyword = "";
       this.selectedId = null;
       this.deleteTarget = null;
+      this.workSessionFilter = {
+        type: "all",
+        value: null,
+      };
+      this.workSessionData = createEmptyWorkSessionData();
+      this.salesData = createEmptySalesData();
+      this.selectedSalesSessionId = null;
       this.resetForm();
       await this.loadNhanViens({ notifySuccess: true });
     },

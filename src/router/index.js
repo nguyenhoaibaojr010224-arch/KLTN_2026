@@ -1,5 +1,10 @@
 import { createRouter, createWebHistory } from "vue-router";
-import { isAdminUser, isAuthenticated, isSystemUser } from "../lib/authStorage";
+import {
+  getSessionChannel,
+  isAdminUser,
+  isAuthenticated,
+  isSystemUser,
+} from "../lib/authStorage";
 
 const routes = [
   {
@@ -97,6 +102,19 @@ const routes = [
       subtitle: "Theo dõi đăng nhập nhân viên, hóa đơn và doanh thu theo ngày, theo tháng.",
       requiresAuth: true,
       requiresSystem: true,
+    },
+  },
+  {
+    path: "/ban-tai-quay",
+    name: "ban-tai-quay",
+    component: () => import("../components/Admin/BanTaiQuay/index.vue"),
+    meta: {
+      layout: "default",
+      title: "Bán tại quầy",
+      subtitle: "Lập hóa đơn và thanh toán trực tiếp cho khách nhận thuốc tại quầy.",
+      requiresAuth: true,
+      requiresSystem: true,
+      requiresCounter: true,
     },
   },
   {
@@ -209,11 +227,23 @@ router.beforeEach((to) => {
     return { path: "/" };
   }
 
+  if (to.meta.requiresCounter && getSessionChannel() !== "tai_quay") {
+    return { path: "/thong-ke" };
+  }
+
+  if (to.meta.requiresSystem && !to.meta.requiresCounter && getSessionChannel() === "tai_quay") {
+    return { path: "/ban-tai-quay" };
+  }
+
   if (to.meta.requiresAdmin && !isAdminUser()) {
     return { path: "/thong-ke" };
   }
 
   if (to.meta.guestOnly && loggedIn) {
+    if (isSystemUser()) {
+      return { path: getSessionChannel() === "tai_quay" ? "/ban-tai-quay" : "/thong-ke" };
+    }
+
     return { path: "/" };
   }
 });

@@ -21,6 +21,21 @@
               </div>
             </div>
 
+            <div class="pc-reward-summary">
+              <div class="pc-reward-summary__label">
+                <span>Điểm thưởng hiện có</span>
+                <button
+                  type="button"
+                  class="pc-info-icon"
+                  aria-label="1000 điểm giảm được 10000"
+                  @click="openRewardInfoModal"
+                >
+                  <i class="bi bi-info-circle"></i>
+                </button>
+              </div>
+              <strong>{{ formatNumber(state.profile.pxu) }} điểm</strong>
+            </div>
+
             <nav class="pc-account-nav">
               <RouterLink
                 v-for="item in menuItems"
@@ -189,6 +204,14 @@
                       <strong>{{ formatCurrency(order.tongTien) }}</strong>
                     </div>
                     <button
+                      v-if="canContinuePayosPayment(order)"
+                      type="button"
+                      class="pc-history-card__payos"
+                      @click.stop="continuePayosPayment(order)"
+                    >
+                      Tiếp tục thanh toán
+                    </button>
+                    <button
                       type="button"
                       class="pc-history-card__reorder"
                       @click.stop="reorderOrder(order)"
@@ -224,8 +247,17 @@
                     <section class="pc-history-info">
                       <span class="pc-history-info__label">Thanh toán</span>
                       <strong>{{ order.phuongThucThanhToanLabel || "Tiền mặt" }}</strong>
+                      <p v-if="order.trangThaiThanhToan">Trạng thái: {{ paymentStatusLabel(order.trangThaiThanhToan) }}</p>
                       <p v-if="order.thoiGianThanhToan">Ghi nhận: {{ formatDateTime(order.thoiGianThanhToan) }}</p>
                       <p v-if="order.maGiaoDich">Mã giao dịch: {{ order.maGiaoDich }}</p>
+                      <button
+                        v-if="canContinuePayosPayment(order)"
+                        type="button"
+                        class="pc-history-info__payos"
+                        @click="continuePayosPayment(order)"
+                      >
+                        Mở lại PayOS
+                      </button>
                     </section>
 
                     <section class="pc-history-info pc-history-info--totals">
@@ -234,13 +266,33 @@
                         <span>Tạm tính</span>
                         <strong>{{ formatCurrency(order.tamTinh) }}</strong>
                       </div>
-                      <div class="pc-history-info__row">
+                      <div v-if="order.giamGiaMa > 0" class="pc-history-info__row">
+                        <span>Mã giảm giá{{ order.maGiamGia ? ` (${order.maGiamGia})` : "" }}</span>
+                        <strong class="text-success">-{{ formatCurrency(order.giamGiaMa) }}</strong>
+                      </div>
+                      <div v-if="order.giamGiaDiem > 0" class="pc-history-info__row">
+                        <span>Điểm thưởng</span>
+                        <strong class="text-success">-{{ formatCurrency(order.giamGiaDiem) }}</strong>
+                      </div>
+                      <div v-if="order.giamGia > 0 && !order.giamGiaMa && !order.giamGiaDiem" class="pc-history-info__row">
                         <span>Giảm giá</span>
-                        <strong>{{ order.giamGia > 0 ? `-${formatCurrency(order.giamGia)}` : formatCurrency(0) }}</strong>
+                        <strong class="text-success">-{{ formatCurrency(order.giamGia) }}</strong>
+                      </div>
+                      <div v-if="!order.giamGia" class="pc-history-info__row">
+                        <span>Giảm giá</span>
+                        <strong>{{ formatCurrency(0) }}</strong>
                       </div>
                       <div class="pc-history-info__row">
                         <span>VAT</span>
                         <strong>{{ formatCurrency(order.thueVat) }}</strong>
+                      </div>
+                      <div v-if="order.diemDaSuDung > 0" class="pc-history-info__row pc-history-info__row--points">
+                        <span>Điểm đã dùng</span>
+                        <strong>-{{ formatNumber(order.diemDaSuDung) }} điểm</strong>
+                      </div>
+                      <div v-if="order.diemDaCong > 0" class="pc-history-info__row pc-history-info__row--points">
+                        <span>Điểm đã cộng</span>
+                        <strong class="text-primary">+{{ formatNumber(order.diemDaCong) }} điểm</strong>
                       </div>
                       <div class="pc-history-info__row pc-history-info__row--total">
                         <span>Tổng thanh toán</span>
@@ -392,6 +444,24 @@
               <p>Màn này đã có điều hướng sẵn, có thể nối thêm API hoặc dữ liệu thật ở bước sau.</p>
             </div>
           </section>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="showRewardInfoModal" class="pc-modal-backdrop" @click.self="closeRewardInfoModal">
+      <div class="pc-modal-card pc-modal-card--reward-info">
+        <button class="pc-modal-card__close" type="button" @click="closeRewardInfoModal">
+          <i class="bi bi-x-lg"></i>
+        </button>
+
+        <div class="pc-reward-modal">
+          <div class="pc-reward-modal__icon">
+            <i class="bi bi-info-circle"></i>
+          </div>
+          <div>
+            <h2>Điểm thưởng</h2>
+            <p>1000 điểm giảm được 10000</p>
+          </div>
         </div>
       </div>
     </div>
@@ -553,6 +623,7 @@ export default {
       avatarLoadFailed: false,
       avatarObjectUrl: "",
       avatarPreviewUrl: state.profile.avatarUrl || "",
+      showRewardInfoModal: false,
       discountCodesLoading: false,
       discountCodes: [],
       expandedOrderId: null,
@@ -704,6 +775,11 @@ export default {
         maximumFractionDigits: 0,
       }).format(Number(value || 0));
     },
+    formatNumber(value) {
+      return new Intl.NumberFormat("vi-VN", {
+        maximumFractionDigits: 0,
+      }).format(Number(value || 0));
+    },
     formatDateTime(value) {
       if (!value) {
         return "Đang cập nhật";
@@ -722,6 +798,112 @@ export default {
         minute: "2-digit",
       }).format(date);
     },
+    normalizePaymentStatus(value) {
+      return String(value || "")
+        .trim()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/đ/g, "d")
+        .replace(/[^a-z0-9]+/g, "_")
+        .replace(/^_+|_+$/g, "");
+    },
+    paymentStatusLabel(value) {
+      const status = this.normalizePaymentStatus(value);
+      const labels = {
+        pending: "Chờ thanh toán",
+        unpaid: "Chờ thanh toán",
+        cho_thanh_toan: "Chờ thanh toán",
+        paid: "Đã thanh toán",
+        success: "Đã thanh toán",
+        completed: "Đã thanh toán",
+        da_thanh_toan: "Đã thanh toán",
+        thanh_toan_thanh_cong: "Đã thanh toán",
+        failed: "Thanh toán thất bại",
+        fail: "Thanh toán thất bại",
+        cancelled: "Đã hủy thanh toán",
+        canceled: "Đã hủy thanh toán",
+        da_huy: "Đã hủy thanh toán",
+        expired: "Link đã hết hạn",
+        het_han: "Link đã hết hạn",
+      };
+
+      return labels[status] || value || "Đang cập nhật";
+    },
+    getPayosCheckoutUrl(order) {
+      return order?.payosCheckoutUrl || order?.payos?.checkout_url || order?.payos?.checkoutUrl || "";
+    },
+    canContinuePayosPayment(order) {
+      const method = String(order?.phuongThucThanhToan || "").trim().toLowerCase();
+      const methodLabel = String(order?.phuongThucThanhToanLabel || "").trim().toLowerCase();
+
+      if (method !== "payos" && !methodLabel.includes("payos")) {
+        return false;
+      }
+
+      if (!this.getPayosCheckoutUrl(order)) {
+        return false;
+      }
+
+      const status = this.normalizePaymentStatus(order?.trangThaiThanhToan || order?.payosStatus || order?.payos?.status || "");
+      const pendingStatuses = new Set([
+        "pending",
+        "unpaid",
+        "cho_thanh_toan",
+        "dang_cho_thanh_toan",
+        "waiting",
+      ]);
+      const closedStatuses = new Set([
+        "paid",
+        "success",
+        "completed",
+        "da_thanh_toan",
+        "thanh_toan_thanh_cong",
+        "failed",
+        "fail",
+        "cancelled",
+        "canceled",
+        "da_huy",
+        "expired",
+        "het_han",
+      ]);
+
+      if (closedStatuses.has(status)) {
+        return false;
+      }
+
+      if (pendingStatuses.has(status)) {
+        return true;
+      }
+
+      const orderStatus = this.normalizePaymentStatus(order?.trangThai || order?.trangThaiXuLy || "");
+      const closedOrderStatuses = new Set([
+        "da_xac_nhan",
+        "da_thanh_toan",
+        "thanh_toan",
+        "hoan_thanh",
+        "thanh_cong",
+        "da_huy",
+        "huy",
+        "tu_choi",
+      ]);
+
+      if (closedOrderStatuses.has(orderStatus)) {
+        return false;
+      }
+
+      return ["cho_xac_nhan", "cho_thanh_toan"].includes(orderStatus);
+    },
+    continuePayosPayment(order) {
+      const checkoutUrl = this.getPayosCheckoutUrl(order);
+
+      if (!checkoutUrl) {
+        showToast("Không tìm thấy link PayOS cho đơn hàng này.", "error");
+        return;
+      }
+
+      window.location.href = checkoutUrl;
+    },
     promotionValueLabel(item) {
       if (item.loai_ap_dung === "phan_tram") {
         return `${Number(item.gia_tri || 0)}%`;
@@ -730,6 +912,12 @@ export default {
     },
     formatFullAddress(address) {
       return [address.soNha, address.phuongXa, address.quanHuyen, address.tinhThanh].filter(Boolean).join(", ");
+    },
+    openRewardInfoModal() {
+      this.showRewardInfoModal = true;
+    },
+    closeRewardInfoModal() {
+      this.showRewardInfoModal = false;
     },
     extractErrorMessage(error, fallbackMessage) {
       const fieldErrors = error?.payload?.errors || error?.response?.data?.errors;
@@ -808,8 +996,11 @@ export default {
         payload.append("so_dien_thoai", this.profileDraft.soDienThoai || "");
         payload.append("email", this.profileDraft.email || "");
         payload.append("dia_chi", this.profileDraft.diaChi || "");
-        payload.append("ngay_sinh", this.profileDraft.ngaySinh || "");
         payload.append("gioi_tinh", this.profileDraft.gioiTinh || "");
+
+        if (this.profileDraft.ngaySinh) {
+          payload.append("ngay_sinh", this.profileDraft.ngaySinh);
+        }
 
         if (this.avatarFile) {
           payload.append("avatar", this.avatarFile);
@@ -977,6 +1168,85 @@ export default {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.pc-reward-summary {
+  display: grid;
+  gap: 4px;
+  margin: 16px 0 18px;
+  padding: 14px 16px;
+  border: 1px solid rgba(25, 135, 84, 0.14);
+  border-radius: 16px;
+  background: rgba(25, 135, 84, 0.06);
+}
+
+.pc-reward-summary span {
+  color: #5f7393;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.pc-reward-summary__label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.pc-reward-summary strong {
+  color: #0f7a49;
+  font-size: 1.12rem;
+}
+
+.pc-info-icon {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(22, 82, 197, 0.1);
+  color: #1652c5;
+}
+
+.pc-modal-card--reward-info {
+  max-width: 420px;
+}
+
+.pc-reward-modal {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 4px 8px 0 0;
+}
+
+.pc-reward-modal__icon {
+  width: 48px;
+  height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: rgba(22, 82, 197, 0.1);
+  color: #1652c5;
+  font-size: 1.35rem;
+}
+
+.pc-reward-modal h2 {
+  margin: 0 0 8px;
+  color: #122b52;
+  font-size: 1.3rem;
+  font-weight: 800;
+}
+
+.pc-reward-modal p {
+  margin: 0;
+  color: #314a73;
+  font-size: 1rem;
+  font-weight: 700;
 }
 
 .pc-account-form__avatar-wrap {
@@ -1244,6 +1514,22 @@ export default {
   background: #dfeaff;
 }
 
+.pc-history-card__payos {
+  min-height: 36px;
+  padding: 0 16px;
+  border: 1px solid rgba(20, 184, 166, 0.24);
+  border-radius: 999px;
+  background: #e8fffb;
+  color: #04766b;
+  font-size: 0.88rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.pc-history-card__payos:hover {
+  background: #d1fbf3;
+}
+
 .pc-history-card__toggle {
   padding: 0;
   border: 0;
@@ -1320,6 +1606,23 @@ export default {
   line-height: 1.55;
 }
 
+.pc-history-info__payos {
+  min-height: 34px;
+  margin-top: 12px;
+  padding: 0 14px;
+  border: 1px solid rgba(20, 184, 166, 0.24);
+  border-radius: 999px;
+  background: #e8fffb;
+  color: #04766b;
+  font-size: 0.86rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.pc-history-info__payos:hover {
+  background: #d1fbf3;
+}
+
 .pc-history-info--totals {
   display: grid;
   gap: 8px;
@@ -1336,6 +1639,10 @@ export default {
 
 .pc-history-info__row strong {
   font-size: 0.95rem;
+}
+
+.pc-history-info__row--points {
+  font-size: 0.9rem;
 }
 
 .pc-history-info__row--total {

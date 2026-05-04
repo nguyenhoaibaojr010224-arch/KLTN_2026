@@ -7,6 +7,12 @@ export function login(payload) {
   });
 }
 
+export function logout() {
+  return apiClient("/logout", {
+    method: "POST",
+  });
+}
+
 export function register(payload) {
   return apiClient("/register", {
     method: "POST",

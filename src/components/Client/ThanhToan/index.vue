@@ -32,19 +32,6 @@
             </article>
           </section>
 
-          <section v-if="giftItems.length" class="pc-order-card">
-            <div class="pc-order-card__sectiontitle">Quà tặng</div>
-            <article v-for="gift in giftItems" :key="gift.id" class="pc-gift-item">
-              <div class="pc-gift-item__thumb"></div>
-              <div class="pc-gift-item__content">
-                <h3>{{ gift.ten }}</h3>
-                <p>{{ gift.loai }}</p>
-              </div>
-              <div class="pc-gift-item__meta">x{{ gift.soLuong }}</div>
-              <div class="pc-gift-item__meta">{{ formatCurrency(gift.gia) }}</div>
-            </article>
-          </section>
-
           <section class="pc-order-card">
             <div class="pc-order-card__sectiontitle">Hình thức nhận hàng</div>
             <div class="pc-delivery-body">
@@ -111,6 +98,7 @@
                   <img v-if="method.logo" :src="method.logo" :alt="method.label" class="pc-payment-method__logo-image" />
                   <span v-else-if="method.id === 'cod'" class="pc-payment-method__logo-text">COD</span>
                   <span v-else-if="method.id === 'atm'" class="pc-payment-method__logo-text">ATM</span>
+                  <span v-else-if="method.id === 'payos'" class="pc-payment-method__logo-text">QR</span>
                   <i v-else class="bi bi-credit-card-2-front"></i>
                 </span>
                 <span class="pc-payment-method__label">{{ method.label }}</span>
@@ -171,6 +159,23 @@
                 <button type="button" class="btn btn-sm btn-outline-danger" @click="removePromotionCode">Bỏ mã</button>
               </div>
 
+              <div class="pc-reward-box">
+                <div class="pc-reward-box__head">
+                  <span><i class="bi bi-stars"></i> Điểm thưởng</span>
+                  <strong>{{ formatNumber(rewardPointBalance) }} điểm</strong>
+                </div>
+                <label v-if="canUseRewardPoints" class="pc-reward-box__toggle">
+                  <input v-model="state.useRewardPoints" type="checkbox" />
+                  <span>
+                    Dùng {{ formatNumber(rewardPointsPreviewToUse) }} điểm để giảm
+                    {{ formatCurrency(rewardPointDiscountPreview) }}
+                  </span>
+                </label>
+                <p v-else class="pc-reward-box__hint">
+                  Tích đủ 1.000 điểm và đơn sau giảm từ 10.000đ để đổi 10.000đ.
+                </p>
+              </div>
+
               <div class="pc-summary-card__line">
                 <span>Tạm tính</span>
                 <strong>{{ formatCurrency(subtotal) }}</strong>
@@ -183,9 +188,17 @@
                 <span>Giảm giá mã khuyến mãi</span>
                 <strong class="text-success">-{{ formatCurrency(orderPromotionDiscount) }}</strong>
               </div>
+              <div class="pc-summary-card__line" v-if="rewardPointDiscount > 0">
+                <span>Giảm bằng điểm thưởng</span>
+                <strong class="text-success">-{{ formatCurrency(rewardPointDiscount) }}</strong>
+              </div>
               <div class="pc-summary-card__line">
                 <span>VAT (10%)</span>
                 <strong>{{ formatCurrency(vatAmount) }}</strong>
+              </div>
+              <div class="pc-summary-card__line">
+                <span>Điểm dự kiến cộng</span>
+                <strong class="text-primary">+{{ formatNumber(estimatedRewardPointsEarned) }} điểm</strong>
               </div>
               <div class="pc-summary-card__total">
                 <span>Tổng tiền</span>
@@ -315,9 +328,16 @@
             </div>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
           </div>
-          <div v-if="selectedProductInfo" class="modal-body">
-            <div class="pc-product-info">
-              <div class="pc-product-info__thumb" :class="selectedProductInfo.imageTone || 'pink'"></div>
+            <div v-if="selectedProductInfo" class="modal-body">
+              <div class="pc-product-info">
+              <div class="pc-product-info__thumb" :class="selectedProductInfo.imageTone || 'pink'">
+                <img
+                  v-if="selectedProductInfo.hinhAnhUrl"
+                  :src="selectedProductInfo.hinhAnhUrl"
+                  :alt="selectedProductInfo.ten"
+                />
+                <i v-else class="bi bi-capsule-pill"></i>
+              </div>
               <div class="pc-product-info__content">
                 <h4>{{ selectedProductInfo.ten }}</h4>
                 <div class="pc-product-info__meta">
@@ -354,7 +374,7 @@
 
 <script>
 import { Modal } from "bootstrap";
-import { createCheckoutOrder } from "../../../api/orderApi";
+import { cancelPayosOrder, createCheckoutOrder } from "../../../api/orderApi";
 import { getAvailableOrderDiscountCodes, validatePromotionCode } from "../../../api/pricingApi";
 import { useCustomerStore } from "../../../lib/customerStore";
 import { showToast } from "../../../lib/toast";
@@ -392,6 +412,7 @@ export default {
         { id: "zalopay", label: "ZaloPay", logo: zaloPayLogo },
         { id: "atm", label: "Thẻ ATM" },
         { id: "international", label: "Thẻ quốc tế" },
+        { id: "payos", label: "PayOS QR / Ngân hàng" },
       ],
     };
   },
@@ -409,6 +430,37 @@ export default {
     orderPromotionDiscount() {
       return this.customerStore.orderPromotionDiscount;
     },
+    subtotalAfterPromotion() {
+      return this.customerStore.subtotalAfterPromotion;
+    },
+    rewardPointBalance() {
+      return this.customerStore.rewardPointBalance;
+    },
+    canUseRewardPoints() {
+      return this.customerStore.canUseRewardPoints;
+    },
+    rewardPointsToUse() {
+      return this.customerStore.rewardPointsToUse;
+    },
+    rewardPointDiscount() {
+      return this.customerStore.rewardPointDiscount;
+    },
+    rewardPointsPreviewToUse() {
+      if (!this.canUseRewardPoints) {
+        return 0;
+      }
+
+      return Math.min(
+        Math.floor(Number(this.rewardPointBalance || 0) / 1000),
+        Math.floor(Number(this.subtotalAfterPromotion || 0) / 10000)
+      ) * 1000;
+    },
+    rewardPointDiscountPreview() {
+      return Math.floor(this.rewardPointsPreviewToUse / 1000) * 10000;
+    },
+    estimatedRewardPointsEarned() {
+      return this.customerStore.estimatedRewardPointsEarned;
+    },
     vatAmount() {
       return this.customerStore.vatAmount;
     },
@@ -420,9 +472,6 @@ export default {
     },
     defaultAddress() {
       return this.customerStore.defaultAddress;
-    },
-    giftItems() {
-      return this.customerStore.giftItems;
     },
     addresses() {
       return [...this.state.addresses].sort((left, right) => Number(Boolean(right.macDinh)) - Number(Boolean(left.macDinh)));
@@ -439,11 +488,16 @@ export default {
   },
 
   async mounted() {
+    if (await this.handlePayosCancelReturn()) {
+      return;
+    }
+
     await this.customerStore.syncCartPricesWithCatalog?.();
     await this.customerStore.syncAddressesFromApi?.();
     this.promotionPickerModal = new Modal(this.$refs.promotionPickerModalEl);
     this.productInfoModal = new Modal(this.$refs.productInfoModalEl);
     this.promotionCode = this.state.appliedPromotion?.maGiamGia || "";
+    await this.autoApplyDefaultPromotion();
     this.$refs.promotionPickerModalEl?.addEventListener("hidden.bs.modal", this.handlePromotionModalHidden);
     this.$refs.productInfoModalEl?.addEventListener("hidden.bs.modal", this.handleProductInfoModalHidden);
   },
@@ -473,6 +527,11 @@ export default {
         maximumFractionDigits: 0,
       }).format(Number(value || 0));
     },
+    formatNumber(value) {
+      return new Intl.NumberFormat("vi-VN", {
+        maximumFractionDigits: 0,
+      }).format(Number(value || 0));
+    },
     extractErrorMessage(error, fallbackMessage) {
       const fieldErrors = error?.payload?.errors || error?.response?.data?.errors;
 
@@ -487,6 +546,33 @@ export default {
 
       return error?.payload?.message || error?.response?.data?.message || error?.message || fallbackMessage;
     },
+    async handlePayosCancelReturn() {
+      const query = this.$route.query || {};
+      const status = String(query.status || "").trim().toUpperCase();
+      const cancel = String(query.cancel || "").trim().toLowerCase() === "true";
+      const orderCode = Number(query.orderCode || query.order_code || 0);
+
+      if ((!cancel && !["CANCELLED", "CANCELED"].includes(status)) || !orderCode) {
+        return false;
+      }
+
+      try {
+        await cancelPayosOrder({
+          order_code: orderCode,
+          payment_link_id: query.id || query.paymentLinkId || query.payment_link_id || "",
+          status: status || "CANCELLED",
+        });
+
+        this.customerStore.removePayosOrderNotificationByOrderCode?.(orderCode);
+        await this.customerStore.syncOrdersFromApi?.();
+        await this.customerStore.refreshProfileFromApi?.();
+      } catch (error) {
+        showToast(this.extractErrorMessage(error, "Không thể cập nhật trạng thái hủy PayOS."), "error");
+      }
+
+      this.$router.replace("/tai-khoan/lich-su-don-hang");
+      return true;
+    },
     promotionValueLabel(item) {
       if (item.loai_ap_dung === "phan_tram") return `${Number(item.gia_tri || 0)}%`;
       return this.formatCurrency(item.gia_tri);
@@ -495,7 +581,10 @@ export default {
       this.$router.push("/tai-khoan/dia-chi");
     },
     openProductInfo(item) {
-      this.selectedProductInfo = item;
+      this.selectedProductInfo = {
+        ...item,
+        hinhAnhUrl: item.hinhAnhUrl || item.hinh_anh_url || "",
+      };
       this.productInfoModal.show();
     },
     async selectAddress(address) {
@@ -509,7 +598,9 @@ export default {
         showToast(this.extractErrorMessage(error, "Không thể cập nhật địa chỉ giao hàng."), "error");
       }
     },
-    async loadAvailablePromotionCodes() {
+    async loadAvailablePromotionCodes(options = {}) {
+      const { silent = false } = options;
+
       if (this.payableSubtotal <= 0) {
         this.availablePromotionCodes = [];
         return;
@@ -521,7 +612,9 @@ export default {
         this.availablePromotionCodes = Array.isArray(response?.data) ? response.data : [];
       } catch (error) {
         this.availablePromotionCodes = [];
-        showToast(error?.message || "Không thể tải danh sách mã giảm giá.", "error");
+        if (!silent) {
+          showToast(error?.message || "Không thể tải danh sách mã giảm giá.", "error");
+        }
       } finally {
         this.availableCodesLoading = false;
       }
@@ -538,6 +631,22 @@ export default {
       await this.loadAvailablePromotionCodes();
       this.promotionPickerModal.show();
     },
+    async autoApplyDefaultPromotion() {
+      if (!this.canUsePromotionCode || this.state.appliedPromotion || this.payableSubtotal <= 0) {
+        return;
+      }
+
+      await this.loadAvailablePromotionCodes({ silent: true });
+      const defaultCode = this.eligiblePromotionCodes.find(
+        (item) => item.tu_dong_ap_dung || item.loai_ma === "first_order"
+      );
+
+      if (!defaultCode) {
+        return;
+      }
+
+      await this.selectPromotionCode(defaultCode, { silent: true });
+    },
     handlePromotionModalHidden() {
       cleanupBootstrapModalArtifacts();
     },
@@ -545,10 +654,14 @@ export default {
       this.selectedProductInfo = null;
       cleanupBootstrapModalArtifacts();
     },
-    async selectPromotionCode(item) {
+    async selectPromotionCode(item, options = {}) {
+      const { silent = false } = options;
+
       if (!item.co_the_ap_dung) {
         this.promotionError = item.ly_do_khong_ap_dung || "Bạn không đủ điều kiện sử dụng mã này.";
-        showToast(this.promotionError, "error");
+        if (!silent) {
+          showToast(this.promotionError, "error");
+        }
         return;
       }
 
@@ -565,13 +678,17 @@ export default {
         this.customerStore.applyPromotionCode(response.data);
         this.promotionCode = response.data.ma_giam_gia;
         this.promotionMessage = `Đã áp dụng mã ${response.data.ma_giam_gia}.`;
-        this.promotionPickerModal.hide();
-        cleanupBootstrapModalArtifacts();
-        showToast(`Áp dụng mã ${response.data.ma_giam_gia} thành công.`);
+        if (!silent) {
+          this.promotionPickerModal.hide();
+          cleanupBootstrapModalArtifacts();
+          showToast(`Áp dụng mã ${response.data.ma_giam_gia} thành công.`);
+        }
       } catch (error) {
         this.customerStore.clearAppliedPromotion();
         this.promotionError = error?.message || "Không áp dụng được mã giảm giá.";
-        showToast(this.promotionError, "error");
+        if (!silent) {
+          showToast(this.promotionError, "error");
+        }
       } finally {
         this.promotionLoading = false;
       }
@@ -612,12 +729,23 @@ export default {
           })),
           phuong_thuc_thanh_toan: this.state.paymentMethod,
           ma_giam_gia: this.state.appliedPromotion?.maGiamGia || null,
+          su_dung_diem: Boolean(this.state.useRewardPoints && this.rewardPointDiscount > 0),
           dia_chi_giao_hang: diaChiGiaoHang,
           ghi_chu: this.state.note || "",
         });
 
         const orderId = this.customerStore.placeOrder(response?.data || null);
         await this.customerStore.syncOrdersFromApi();
+        await this.customerStore.refreshProfileFromApi();
+
+        const payosCheckoutUrl = response?.data?.payos?.checkout_url;
+
+        if (this.state.paymentMethod === "payos" && payosCheckoutUrl) {
+          showToast(`Đã tạo đơn ${orderId}. Đang chuyển sang PayOS.`, "success");
+          window.location.href = payosCheckoutUrl;
+          return;
+        }
+
         showToast(`Đặt hàng thành công. Mã đơn: ${orderId}`, "success");
         this.$router.push("/tai-khoan/lich-su-don-hang");
       } catch (error) {
@@ -695,6 +823,10 @@ export default {
   color: #1474b8;
 }
 
+.pc-payment-method__logo--payos .pc-payment-method__logo-text {
+  color: #0f766e;
+}
+
 .pc-payment-method__logo--international {
   color: #1a5fb5;
   font-size: 1.35rem;
@@ -742,6 +874,49 @@ export default {
 
 .pc-applied-promo strong {
   color: #153c78;
+}
+
+.pc-reward-box {
+  margin-bottom: 12px;
+  padding: 14px 16px;
+  border: 1px solid rgba(25, 135, 84, 0.14);
+  border-radius: 16px;
+  background: rgba(25, 135, 84, 0.06);
+}
+
+.pc-reward-box__head,
+.pc-reward-box__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pc-reward-box__head span,
+.pc-reward-box__toggle span {
+  color: #17345f;
+  font-weight: 700;
+}
+
+.pc-reward-box__head strong {
+  color: #0f7a49;
+}
+
+.pc-reward-box__toggle {
+  margin-top: 10px;
+  cursor: pointer;
+}
+
+.pc-reward-box__toggle input {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.pc-reward-box__hint {
+  margin: 8px 0 0;
+  color: #5f7393;
+  font-size: 0.9rem;
 }
 
 .pc-link-button {
@@ -798,13 +973,25 @@ export default {
 .pc-product-info__thumb {
   width: 88px;
   height: 88px;
+  display: grid;
+  place-items: center;
   flex-shrink: 0;
   border-radius: 20px;
   background: linear-gradient(135deg, #ffe7f2, #f1f6ff);
+  overflow: hidden;
+  color: #1d63ea;
+  font-size: 1.6rem;
 }
 
 .pc-product-info__thumb.pink {
   background: linear-gradient(135deg, #ffe7f2, #f2f6ff);
+}
+
+.pc-product-info__thumb img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
 }
 
 .pc-product-info__content {

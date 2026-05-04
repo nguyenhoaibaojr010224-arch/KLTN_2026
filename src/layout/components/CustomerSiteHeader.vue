@@ -194,6 +194,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import { logout as logoutFromApi } from "../../api/authApi";
 import { catalogSections } from "../../data/catalogSections";
 import { authState, clearAuthSession, getAuthType, isAuthenticatedState, isSystemUserState } from "../../lib/authStorage";
 import { useCustomerStore } from "../../lib/customerStore";
@@ -493,11 +494,20 @@ watch(
   }
 );
 
-function handleLogout() {
+async function handleLogout() {
   closeUserMenu();
   stopOrderSyncPolling();
-  clearAuthSession();
-  router.push("/");
+
+  try {
+    if (authState.token) {
+      await logoutFromApi();
+    }
+  } catch {
+    // Local session cleanup still runs if the API is already unavailable.
+  } finally {
+    clearAuthSession();
+    router.push("/");
+  }
 }
 
 function handleAvatarError() {

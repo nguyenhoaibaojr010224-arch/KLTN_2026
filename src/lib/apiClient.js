@@ -1,4 +1,4 @@
-import { clearAuthSession, getAccessToken } from "./authStorage";
+import { clearAuthSession, getAccessToken, isSessionExpired } from "./authStorage";
 
 const DEFAULT_API_BASE_URL = "http://127.0.0.1:8000/api";
 const DEFAULT_API_TIMEOUT_MS = 10000;
@@ -41,6 +41,21 @@ async function parseResponse(response) {
 
 export async function apiClient(path, options = {}) {
   const token = getAccessToken();
+
+  if (token && isSessionExpired()) {
+    clearAuthSession();
+
+    if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
+      window.location.href = "/login?reason=session-expired";
+    }
+
+    throw {
+      status: 401,
+      message: "Phiên đăng nhập đã hết hạn sau 8 tiếng. Vui lòng đăng nhập lại.",
+      payload: null,
+    };
+  }
+
   const isFormData = options.body instanceof FormData;
   const timeoutMs =
     typeof options.timeoutMs === "number" && options.timeoutMs > 0

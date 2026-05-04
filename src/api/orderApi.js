@@ -10,3 +10,10 @@ export function createCheckoutOrder(payload) {
     body: JSON.stringify(payload),
   });
 }
+
+export function cancelPayosOrder(payload) {
+  return apiClient("/checkout/orders/payos-cancel", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}

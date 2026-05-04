@@ -86,7 +86,7 @@
                   >
                     <div class="master-topstrip__notification-title">{{ item.ma_hoa_don }}</div>
                     <div class="master-topstrip__notification-copy">
-                      {{ item.khach_hang?.ten_khach_hang || "Khách hàng" }} đã đặt hàng thành công
+                      {{ item.khach_hang?.ten_khach_hang || "Khách hàng" }} đang chờ xác nhận đơn hàng
                     </div>
                     <div class="master-topstrip__notification-meta">
                       <span>{{ formatCurrency(item.tong_tien) }}</span>
@@ -197,6 +197,7 @@ const inventoryNotificationCount = ref(0);
 
 const showSystemNotifications = computed(() =>
   ["admin", "staff", "nhan_vien", "nhanvien"].includes(authState.type)
+    && authState.sessionChannel !== "tai_quay"
 );
 
 const inventoryAlertNotifications = computed(() => [

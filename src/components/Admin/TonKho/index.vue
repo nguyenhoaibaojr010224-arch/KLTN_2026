@@ -566,7 +566,7 @@
           <div>
             <h5 class="modal-title fw-bold mb-1">{{ lotForm.id_lo ? "Cập nhật lô thuốc" : "Nhập lô thuốc" }}</h5>
             <p class="mb-0 text-secondary small">
-              {{ lotForm.id_lo ? "Cập nhật thông tin và nhập thêm theo đúng đơn vị của lô." : "Nhập lô mới và quy đổi về đơn vị kho chuẩn." }}
+              {{ lotForm.id_lo ? "Cập nhật thông tin lô. Số lượng tồn chỉ thay đổi khi tạo phiếu nhập." : "Nhập lô mới và quy đổi về đơn vị kho chuẩn." }}
             </p>
           </div>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
@@ -646,20 +646,6 @@
             </div>
           </div>
 
-          <div class="row g-3 mt-1" v-if="lotForm.id_lo">
-            <div class="col-md-6">
-              <label class="form-label fw-semibold">Số lượng nhập thêm</label>
-              <input v-model.number="lotForm.so_luong_nhap_them_goc" type="number" min="1" class="form-control" />
-              <div class="form-text">Hệ thống sẽ tự quy đổi số lượng nhập thêm về {{ lotBaseUnitName || "đơn vị kho" }}.</div>
-            </div>
-            <div class="col-md-6">
-              <label class="form-label fw-semibold">Tồn kho tăng thêm</label>
-              <input :value="formatQuantity(lotConvertedQuantity, lotBaseUnitName)" class="form-control" disabled />
-              <div class="form-text" v-if="lotSelectedUnitOption">
-                Giá quy đổi: {{ formatCurrency(lotUnitBasePrice) }} / {{ lotBaseUnitName || "đơn vị kho" }}
-              </div>
-            </div>
-          </div>
         </div>
 
         <div class="modal-footer">
@@ -794,7 +780,6 @@ export default {
         don_vi_nhap: "",
         so_luong_nhap_goc: null,
         so_luong_con: null,
-        so_luong_nhap_them_goc: null,
         gia_nhap: null,
       },
       lockThuocSelect: false,
@@ -821,7 +806,7 @@ export default {
       return normalizeUnitName(this.lotSelectedUnitOption?.don_vi_co_so || this.selectedLotThuoc?.don_vi_co_so || this.selectedLotThuoc?.don_vi_tinh);
     },
     lotConvertedQuantity() {
-      const quantity = this.lotForm.id_lo ? Number(this.lotForm.so_luong_nhap_them_goc || 0) : Number(this.lotForm.so_luong_nhap_goc || 0);
+      const quantity = Number(this.lotForm.so_luong_nhap_goc || 0);
       const factor = Math.max(1, Number(this.lotSelectedUnitOption?.so_luong_quy_doi || 1));
       return quantity * factor;
     },
@@ -831,10 +816,6 @@ export default {
       }
 
       return `1 ${this.lotSelectedUnitOption.ten_don_vi} = ${this.lotSelectedUnitOption.so_luong_quy_doi} ${this.lotBaseUnitName || "đơn vị kho"}`;
-    },
-    lotUnitBasePrice() {
-      const factor = Math.max(1, Number(this.lotSelectedUnitOption?.so_luong_quy_doi || 1));
-      return Number(this.lotForm.gia_nhap || 0) / factor;
     },
     receiptTotal() {
       return this.receiptForm.chi_tiets.reduce((sum, line) => sum + this.receiptLineTotal(line), 0);
@@ -1363,7 +1344,6 @@ export default {
         don_vi_nhap: lot.don_vi_nhap || defaultUnit,
         so_luong_nhap_goc: lot.so_luong_nhap_goc || null,
         so_luong_con: lot.so_luong_con ?? lot.so_luong_nhap ?? null,
-        so_luong_nhap_them_goc: null,
         gia_nhap: lot.gia_nhap || null,
       };
 
@@ -1407,11 +1387,6 @@ export default {
         return;
       }
 
-      if (this.lotForm.id_lo && (!this.lotForm.so_luong_nhap_them_goc || Number(this.lotForm.so_luong_nhap_them_goc) < 1)) {
-        showToast("Vui lòng nhập số lượng nhập thêm.", "error");
-        return;
-      }
-
       const payload = {
         id_thuoc: this.lotForm.id_thuoc,
         so_lo: this.lotForm.so_lo,
@@ -1421,9 +1396,7 @@ export default {
         gia_nhap: Number(this.lotForm.gia_nhap),
       };
 
-      if (this.lotForm.id_lo) {
-        payload.so_luong_nhap_them_goc = Number(this.lotForm.so_luong_nhap_them_goc);
-      } else {
+      if (!this.lotForm.id_lo) {
         payload.so_luong_nhap_goc = Number(this.lotForm.so_luong_nhap_goc);
       }
 

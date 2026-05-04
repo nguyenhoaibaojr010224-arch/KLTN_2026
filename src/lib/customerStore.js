@@ -124,6 +124,36 @@ function normalizeAvatarUrl(url) {
   return `${url}${separator}t=${Date.now()}`;
 }
 
+function getUserBirthDate(user) {
+  const value = user?.ngay_sinh || user?.thong_tin_nhan_vien?.ngay_sinh || "";
+  const normalizedValue = String(value || "");
+
+  if (!normalizedValue) {
+    return "";
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(normalizedValue)) {
+    return normalizedValue;
+  }
+
+  const parsedDate = new Date(normalizedValue);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return normalizedValue;
+  }
+
+  const year = parsedDate.getFullYear();
+  const month = String(parsedDate.getMonth() + 1).padStart(2, "0");
+  const day = String(parsedDate.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function normalizePointValue(value) {
+  const parsedValue = Number(value || 0);
+  return Number.isFinite(parsedValue) ? Math.max(Math.floor(parsedValue), 0) : 0;
+}
+
 function buildProfile() {
   const authType = getAuthType();
   const user = getStoredUser();
@@ -134,10 +164,10 @@ function buildProfile() {
     email: user?.email || "",
     diaChi: user?.dia_chi || "",
     avatarUrl: normalizeAvatarUrl(user?.avatar_url || ""),
-    ngaySinh: user?.ngay_sinh || "",
+    ngaySinh: getUserBirthDate(user),
     gioiTinh: user?.gioi_tinh || "",
     rankName: authType === "customer" ? "Hạng Vàng" : "Thành viên",
-    pxu: 1993,
+    pxu: normalizePointValue(user?.diem_tich_luy ?? user?.pxu ?? 0),
   };
 }
 
@@ -604,15 +634,130 @@ function addAccountNotification(payload) {
   return notification;
 }
 
+function normalizeNotificationToken(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function isPayosOrder(order) {
+  const method = normalizeNotificationToken(order?.phuongThucThanhToan || order?.phuong_thuc_thanh_toan || "");
+  const methodLabel = normalizeNotificationToken(order?.phuongThucThanhToanLabel || order?.phuong_thuc_thanh_toan_label || "");
+  return method === "payos" || methodLabel.includes("payos");
+}
+
+function removeOrderNotification(orderId) {
+  const notificationId = `order-${String(orderId || "").trim()}`;
+
+  if (notificationId === "order-") {
+    return;
+  }
+
+  const nextNotifications = accountNotificationsSource.filter((item) => String(item.id) !== notificationId);
+
+  if (nextNotifications.length === accountNotificationsSource.length) {
+    return;
+  }
+
+  accountNotificationsSource = nextNotifications;
+  persistAccountNotifications();
+  syncNotificationsState();
+}
+
+function removePayosOrderNotificationByOrderCode(orderCode) {
+  const normalizedOrderCode = String(orderCode || "").trim();
+
+  if (!normalizedOrderCode) {
+    return;
+  }
+
+  const order = state.orders.find((item) =>
+    isPayosOrder(item) &&
+    [
+      item.idHoaDon,
+      item.id_hoa_don,
+      item.payosOrderCode,
+      item.payos?.order_code,
+      item.payos?.orderCode,
+      item.payosPaymentLinkId,
+      item.payos?.payment_link_id,
+      item.payos?.paymentLinkId,
+      item.id,
+    ].some((value) => String(value || "").trim() === normalizedOrderCode)
+  );
+
+  if (order?.id) {
+    removeOrderNotification(order.id);
+  }
+}
+
+function buildOrderNotificationTitle(order) {
+  if (!order?.id) {
+    return "";
+  }
+
+  const paymentStatus = normalizeNotificationToken(
+    order?.trangThaiThanhToan || order?.payosStatus || order?.payos?.status || ""
+  );
+  const orderStatus = normalizeNotificationToken(
+    order?.trangThaiXuLy || order?.trang_thai_xu_ly || order?.trangThai || order?.trang_thai || ""
+  );
+
+  if (["huy", "da_huy", "cancelled", "canceled", "tu_choi", "tu_choi_don_hang"].includes(orderStatus)) {
+    return "";
+  }
+
+  if (["canceled", "cancelled", "failed", "fail", "that_bai", "expired", "het_han"].includes(paymentStatus)) {
+    return "";
+  }
+
+  if (isPayosOrder(order)) {
+    if (["pending", "unpaid", "cho_thanh_toan", "dang_cho_thanh_toan", "waiting"].includes(paymentStatus)) {
+      return `Đơn hàng ${order.id} của bạn chưa được thanh toán.`;
+    }
+
+    if (["paid", "success", "completed", "da_thanh_toan", "thanh_toan_thanh_cong"].includes(paymentStatus)) {
+      if (["da_xac_nhan", "hoan_thanh", "thanh_cong", "completed", "complete", "success"].includes(orderStatus)) {
+        return `Đơn hàng ${order.id} đã đặt hàng thành công.`;
+      }
+
+      return `Đơn hàng ${order.id} thanh toán thành công, chờ xác nhận.`;
+    }
+  }
+
+  if (["da_xac_nhan", "hoan_thanh", "thanh_cong", "completed", "complete", "success"].includes(orderStatus)) {
+    return `Đơn hàng ${order.id} đã đặt hàng thành công.`;
+  }
+
+  return `Đơn hàng ${order.id} đang chờ nhân viên xác nhận.`;
+}
+
 function addOrderNotification(order) {
   if (!order?.id) {
     return null;
   }
 
+  const notificationTitle = buildOrderNotificationTitle(order);
+  if (!notificationTitle) {
+    removeOrderNotification(order.id);
+    return null;
+  }
+
+  const notificationId = `order-${order.id}`;
+  const existingNotification = accountNotificationsSource.find((item) => String(item.id) === notificationId);
+  if (existingNotification?.tieuDe === notificationTitle) {
+    return existingNotification;
+  }
+
   return addAccountNotification({
-    id: `order-${order.id}`,
+    id: notificationId,
     group: "Đơn hàng",
-    tieuDe: `Đơn hàng ${order.id} đã được đặt thành công.`,
+    tieuDe: notificationTitle,
     createdAt: new Date().toISOString(),
   });
 }
@@ -635,7 +780,55 @@ function normalizeOrderHistoryItem(orderPayload) {
   const orderDate = orderPayload?.ngay_ban || orderPayload?.ngay;
   const tongTienGoc = Number(orderPayload?.tong_tien || orderPayload?.tongTien || 0);
   const giamGia = Number(orderPayload?.giam_gia || orderPayload?.giamGia || 0);
+  const giamGiaMa = Number(orderPayload?.giam_gia_ma || orderPayload?.giamGiaMa || 0);
+  const giamGiaDiem = Number(orderPayload?.giam_gia_diem || orderPayload?.giamGiaDiem || 0);
   const thueVat = Number(orderPayload?.thue_vat || orderPayload?.thueVat || 0);
+  const payosPayload = orderPayload?.payos && typeof orderPayload.payos === "object" ? orderPayload.payos : {};
+  const trangThaiThanhToan =
+    orderPayload?.trang_thai_thanh_toan ||
+    orderPayload?.trangThaiThanhToan ||
+    payosPayload?.status ||
+    orderPayload?.payos_status ||
+    orderPayload?.payosStatus ||
+    "";
+  const payosCheckoutUrl =
+    payosPayload?.checkout_url ||
+    payosPayload?.checkoutUrl ||
+    orderPayload?.payos_checkout_url ||
+    orderPayload?.payosCheckoutUrl ||
+    "";
+  const payosOrderCode =
+    payosPayload?.order_code ||
+    payosPayload?.orderCode ||
+    orderPayload?.payos_order_code ||
+    orderPayload?.payosOrderCode ||
+    "";
+  const payosPaymentLinkId =
+    payosPayload?.payment_link_id ||
+    payosPayload?.paymentLinkId ||
+    orderPayload?.payos_payment_link_id ||
+    orderPayload?.payosPaymentLinkId ||
+    "";
+  const payosQrCode =
+    payosPayload?.qr_code ||
+    payosPayload?.qrCode ||
+    orderPayload?.payos_qr_code ||
+    orderPayload?.payosQrCode ||
+    "";
+  const payosPaidAt =
+    payosPayload?.paid_at ||
+    payosPayload?.paidAt ||
+    orderPayload?.payos_paid_at ||
+    orderPayload?.payosPaidAt ||
+    null;
+  const hasPayosData = Boolean(
+    payosCheckoutUrl ||
+      payosOrderCode ||
+      payosPaymentLinkId ||
+      payosQrCode ||
+      trangThaiThanhToan ||
+      payosPaidAt
+  );
   const purchasedItems = Array.isArray(orderPayload?.items)
       ? orderPayload.items.map((item) => ({
           id: item.id || item.maThuoc || item.ma_thuoc,
@@ -655,13 +848,23 @@ function normalizeOrderHistoryItem(orderPayload) {
 
   return {
     id: String(orderPayload?.ma_hoa_don || orderPayload?.id || orderPayload?.id_hoa_don || `DH-${Date.now()}`),
+    idHoaDon: orderPayload?.id_hoa_don || orderPayload?.idHoaDon || null,
     ngay: formatOrderDisplayDate(orderDate),
     ngayBan: orderPayload?.ngay_ban || null,
     trangThai: normalizeOrderStatus(orderPayload?.trang_thai || orderPayload?.trangThai || orderPayload?.status),
+    trangThaiXuLy: orderPayload?.trang_thai_xu_ly || orderPayload?.trangThaiXuLy || "",
     thueVat,
     tongTien: Number(orderPayload?.tien_thanh_toan || orderPayload?.tienThanhToan || tongTienGoc - giamGia + thueVat || 0),
     tamTinh: tongTienGoc,
     giamGia,
+    giamGiaMa,
+    giamGiaDiem,
+    diemDaSuDung: normalizePointValue(orderPayload?.diem_da_su_dung || orderPayload?.diemDaSuDung || 0),
+    diemDaCong: normalizePointValue(orderPayload?.diem_da_cong || orderPayload?.diemDaCong || 0),
+    diemHienTai: orderPayload?.diem_hien_tai == null
+      ? null
+      : normalizePointValue(orderPayload?.diem_hien_tai),
+    maGiamGia: orderPayload?.ma_giam_gia || orderPayload?.maGiamGia || "",
     tienThanhToan: Number(orderPayload?.tien_thanh_toan || orderPayload?.tienThanhToan || tongTienGoc - giamGia + thueVat || 0),
     sanPham:
       Number(orderPayload?.tong_so_san_pham || 0) ||
@@ -672,10 +875,32 @@ function normalizeOrderHistoryItem(orderPayload) {
     diaChiGiaoHang: orderPayload?.dia_chi_giao_hang || "",
     ghiChu: orderPayload?.ghi_chu || "",
     ghiChuHeThong: orderPayload?.ghi_chu_he_thong || "",
-    phuongThucThanhToan: orderPayload?.phuong_thuc_thanh_toan || "",
-    phuongThucThanhToanLabel: orderPayload?.phuong_thuc_thanh_toan_label || "",
-    maGiaoDich: orderPayload?.ma_giao_dich || "",
-    thoiGianThanhToan: orderPayload?.thoi_gian_thanh_toan || null,
+    phuongThucThanhToan: orderPayload?.phuong_thuc_thanh_toan || orderPayload?.phuongThucThanhToan || "",
+    phuongThucThanhToanLabel: orderPayload?.phuong_thuc_thanh_toan_label || orderPayload?.phuongThucThanhToanLabel || "",
+    maGiaoDich: orderPayload?.ma_giao_dich || orderPayload?.maGiaoDich || "",
+    thoiGianThanhToan: orderPayload?.thoi_gian_thanh_toan || orderPayload?.thoiGianThanhToan || null,
+    trangThaiThanhToan,
+    payosStatus: trangThaiThanhToan,
+    payosCheckoutUrl,
+    payosOrderCode,
+    payosPaymentLinkId,
+    payosQrCode,
+    payosPaidAt,
+    payos: hasPayosData
+      ? {
+          order_code: payosOrderCode,
+          orderCode: payosOrderCode,
+          payment_link_id: payosPaymentLinkId,
+          paymentLinkId: payosPaymentLinkId,
+          checkout_url: payosCheckoutUrl,
+          checkoutUrl: payosCheckoutUrl,
+          qr_code: payosQrCode,
+          qrCode: payosQrCode,
+          status: trangThaiThanhToan,
+          paid_at: payosPaidAt,
+          paidAt: payosPaidAt,
+        }
+      : null,
     timeline: Array.isArray(orderPayload?.timeline)
       ? orderPayload.timeline.map((item, index) => ({
           id: item.id || `timeline-${index}`,
@@ -705,6 +930,7 @@ const state = reactive({
     .map((order) => normalizeOrderHistoryItem(order))
     .filter((order) => !hiddenOrderIds.includes(String(order?.id || ""))),
   appliedPromotion: readScopedJson(PROMOTION_KEY, null),
+  useRewardPoints: false,
   note: "",
   paymentMethod: "cod",
   hideProductInfo: false,
@@ -828,6 +1054,7 @@ function hydrateScopedState() {
   persistAccountNotifications();
   persistSharedNotifications();
   syncNotificationsState();
+  state.useRewardPoints = false;
   state.note = "";
   state.paymentMethod = "cod";
   state.hideProductInfo = false;
@@ -857,7 +1084,7 @@ function syncProfileFromAuth() {
     ngaySinh: nextProfile.ngaySinh || state.profile.ngaySinh || "",
     gioiTinh: nextProfile.gioiTinh || state.profile.gioiTinh || "",
     rankName: nextProfile.rankName,
-    pxu: state.profile.pxu || nextProfile.pxu,
+    pxu: nextProfile.pxu,
   };
 
   state.addresses = syncAddressesWithProfile(state.addresses, previousProfile, state.profile);
@@ -1151,8 +1378,9 @@ async function refreshProfileFromApi() {
       email: user?.email || state.profile.email,
       diaChi: user?.dia_chi || state.profile.diaChi || "",
       avatarUrl: normalizeAvatarUrl(user?.avatar_url || ""),
-      ngaySinh: user?.ngay_sinh || state.profile.ngaySinh || "",
+      ngaySinh: getUserBirthDate(user) || state.profile.ngaySinh || "",
       gioiTinh: user?.gioi_tinh || state.profile.gioiTinh || "",
+      pxu: normalizePointValue(user?.diem_tich_luy ?? state.profile.pxu),
     };
 
     state.addresses = syncAddressesWithProfile(state.addresses, previousProfile, state.profile);
@@ -1182,8 +1410,9 @@ async function updateProfile(payload) {
     email: user?.email || state.profile.email,
     diaChi: user?.dia_chi || state.profile.diaChi || "",
     avatarUrl: normalizeAvatarUrl(user?.avatar_url || "") || state.profile.avatarUrl || "",
-    ngaySinh: user?.ngay_sinh || state.profile.ngaySinh || "",
+    ngaySinh: getUserBirthDate(user) || state.profile.ngaySinh || "",
     gioiTinh: user?.gioi_tinh || state.profile.gioiTinh || "",
+    pxu: normalizePointValue(user?.diem_tich_luy ?? state.profile.pxu),
   };
 
   state.addresses = syncAddressesWithProfile(state.addresses, previousProfile, state.profile);
@@ -1225,13 +1454,13 @@ async function syncOrdersFromApi(options = {}) {
       .filter((order) => !hiddenOrderIds.includes(String(order.id)));
 
     normalizedOrders.forEach((order) => {
-      const previousOrder = previousOrders.get(String(order.id));
-      const hasCreatedNotification = accountNotificationsSource.some(
-        (item) => String(item.id) === `order-${order.id}`
-      );
+      addOrderNotification(order);
+    });
 
-      if (!previousOrder && !hasCreatedNotification) {
-        addOrderNotification(order);
+    const normalizedOrderIds = new Set(normalizedOrders.map((order) => String(order.id)));
+    previousOrders.forEach((order, orderId) => {
+      if (!normalizedOrderIds.has(orderId) && isPayosOrder(order)) {
+        removeOrderNotification(order.id);
       }
     });
 
@@ -1289,6 +1518,8 @@ function applyPromotionCode(promotion) {
         gioiHanMoiKhach: promotion.gioi_han_moi_khach == null ? null : Number(promotion.gioi_han_moi_khach),
         giamGiaDonHang: Number(promotion.giam_gia_don_hang || 0),
         tongSauGiam: Number(promotion.tong_sau_giam || 0),
+        loaiMa: promotion.loai_ma || "general",
+        tuDongApDung: Boolean(promotion.tu_dong_ap_dung),
       }
     : null;
 
@@ -1298,6 +1529,32 @@ function applyPromotionCode(promotion) {
 function clearAppliedPromotion() {
   state.appliedPromotion = null;
   persistAppliedPromotion();
+}
+
+function syncRewardPointsFromOrder(orderPayload) {
+  if (!orderPayload || orderPayload.diem_hien_tai == null) {
+    return;
+  }
+
+  const nextPoints = normalizePointValue(orderPayload.diem_hien_tai);
+  state.profile = {
+    ...state.profile,
+    pxu: nextPoints,
+  };
+
+  if (authState.user) {
+    setAuthSession({
+      token: authState.token,
+      user: {
+        ...authState.user,
+        diem_tich_luy: nextPoints,
+      },
+      type: authState.type,
+      expiresAt: authState.sessionExpiresAt,
+    });
+  }
+
+  persistProfile();
 }
 
 function placeOrder(orderPayload) {
@@ -1329,6 +1586,8 @@ function placeOrder(orderPayload) {
   state.orders = [historyItem, ...state.orders.filter((order) => order.id !== historyItem.id)];
   state.cart = state.cart.filter((item) => !item.selected);
   clearAppliedPromotion();
+  state.useRewardPoints = false;
+  syncRewardPointsFromOrder(orderPayload);
   persistHiddenOrders();
   persistOrders();
   persistCart();
@@ -1583,9 +1842,27 @@ const orderPromotionDiscount = computed(() => {
 
   return Math.min(discountValue, payableSubtotal.value);
 });
-const discountedSubtotal = computed(() => Math.max(payableSubtotal.value - orderPromotionDiscount.value, 0));
+const subtotalAfterPromotion = computed(() => Math.max(payableSubtotal.value - orderPromotionDiscount.value, 0));
+const rewardPointBalance = computed(() => normalizePointValue(state.profile.pxu));
+const rewardDiscountBlocks = computed(() => {
+  if (!state.useRewardPoints || subtotalAfterPromotion.value <= 0) {
+    return 0;
+  }
+
+  return Math.min(
+    Math.floor(rewardPointBalance.value / 1000),
+    Math.floor(subtotalAfterPromotion.value / 10000)
+  );
+});
+const rewardPointsToUse = computed(() => rewardDiscountBlocks.value * 1000);
+const rewardPointDiscount = computed(() => rewardDiscountBlocks.value * 10000);
+const canUseRewardPoints = computed(() =>
+  rewardPointBalance.value >= 1000 && subtotalAfterPromotion.value >= 10000
+);
+const discountedSubtotal = computed(() => Math.max(subtotalAfterPromotion.value - rewardPointDiscount.value, 0));
 const vatAmount = computed(() => Math.round(discountedSubtotal.value * 0.1));
 const orderTotal = computed(() => Math.max(discountedSubtotal.value + vatAmount.value, 0));
+const estimatedRewardPointsEarned = computed(() => Math.floor(payableSubtotal.value / 1000));
 const defaultAddress = computed(() => state.addresses.find((item) => item.macDinh) || state.addresses[0] || null);
 const giftItems = computed(() => {
   if (!selectedItems.value.length) {
@@ -1621,6 +1898,7 @@ watch(
     () => authState.user?.id_nhan_vien,
     () => authState.user?.so_dien_thoai,
     () => authState.user?.email,
+    () => authState.user?.diem_tich_luy,
   ],
   () => {
     syncProfileFromAuth();
@@ -1638,9 +1916,15 @@ export function useCustomerStore() {
     subtotal,
     productDiscount,
     payableSubtotal,
+    subtotalAfterPromotion,
     discountedSubtotal,
     vatAmount,
     orderPromotionDiscount,
+    rewardPointBalance,
+    canUseRewardPoints,
+    rewardPointsToUse,
+    rewardPointDiscount,
+    estimatedRewardPointsEarned,
     orderTotal,
     canUsePromotionCode: isAuthenticatedState,
     defaultAddress,
@@ -1662,6 +1946,8 @@ export function useCustomerStore() {
     reorderOrder,
     removeOrder,
     addOrderNotification,
+    removeOrderNotification,
+    removePayosOrderNotificationByOrderCode,
     markNotificationRead,
     markNotificationsReadByGroup,
     markAllNotificationsRead,

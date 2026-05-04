@@ -47,6 +47,7 @@
 <script setup>
 import { computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
+import { logout as logoutFromApi } from "../../api/authApi";
 import { getProfile } from "../../api/profileApi";
 import { authState, clearAuthSession, isSystemUser, updateAuthUser } from "../../lib/authStorage";
 
@@ -63,7 +64,7 @@ const roleLabel = computed(() => {
   }
 
   if (["staff", "nhan_vien", "nhanvien"].includes(authState.type)) {
-    return "Nhân viên";
+    return authState.sessionChannel === "tai_quay" ? "Nhân viên tại quầy" : "Nhân viên hệ thống";
   }
 
   if (authState.type === "customer") {
@@ -90,8 +91,16 @@ async function refreshCurrentProfile() {
   }
 }
 
-function handleLogout() {
-  clearAuthSession();
-  router.push("/");
+async function handleLogout() {
+  try {
+    if (authState.token) {
+      await logoutFromApi();
+    }
+  } catch {
+    // Local session cleanup still runs if the API is already unavailable.
+  } finally {
+    clearAuthSession();
+    router.push("/");
+  }
 }
 </script>
