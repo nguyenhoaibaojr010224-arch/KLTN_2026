@@ -162,10 +162,10 @@ class SeedPharmacitySamples extends Command
         foreach ($hoaDons as $index => $hoaDon) {
             ThanhToan::create([
                 'id_hoa_don' => $hoaDon->id_hoa_don,
-                'phuong_thuc' => ['tien_mat', 'chuyen_khoan', 'the'][$index % 3],
+                'phuong_thuc' => ['tien_mat', 'payos'][$index % 2],
                 'so_tien' => $hoaDon->tien_thanh_toan,
                 'thoi_gian' => now()->subMinutes($index * 10),
-                'ma_giao_dich' => $index % 3 === 0 ? null : 'GD' . strtoupper(Str::random(8)),
+                'ma_giao_dich' => $index % 2 === 0 ? null : 'GD' . strtoupper(Str::random(8)),
             ]);
         }
     }

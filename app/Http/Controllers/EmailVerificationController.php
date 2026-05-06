@@ -44,7 +44,7 @@ class EmailVerificationController extends Controller
             ->first();
 
         if (! $record) {
-            return response()->json(['message' => 'Mã xác minh không hợp lệ.'], 422);
+            return response()->json(['message' => 'Mã xác minh không đúng'], 422);
         }
 
         return $this->verifyRecord($record, true);
@@ -134,7 +134,7 @@ class EmailVerificationController extends Controller
         $record = EmailVerification::query()->where('token', $token)->first();
 
         if (! $record) {
-            return response()->json(['message' => 'Mã xác thực email không hợp lệ.'], 404);
+            return response()->json(['message' => 'Mã xác minh không đúng'], 422);
         }
 
         return $this->verifyRecord($record, false);

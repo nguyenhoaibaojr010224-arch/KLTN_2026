@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
@@ -70,8 +71,10 @@ class AuthController extends Controller
             ->first();
 
         if ($nhanVien && Hash::check($password, $nhanVien->mat_khau)) {
-            if ($nhanVien->trang_thai !== 'active') {
-                return response()->json(['message' => 'Tài khoản đã bị khóa.'], 403);
+            if (! $this->isActiveEmployeeStatus($nhanVien->trang_thai)) {
+                return response()->json([
+                    'message' => 'Tài khoản nhân viên đang tạm khóa, không thể đăng nhập vào hệ thống.',
+                ], 403);
             }
 
             $role = $this->normalizeRole($nhanVien->vaiTro?->ten_vai_tro);
@@ -222,13 +225,26 @@ class AuthController extends Controller
         if ($user instanceof KhachHang) {
             $validated = $request->validate([
                 'ten_khach_hang' => 'sometimes|required|string|min:5|max:100',
-                'so_dien_thoai' => 'sometimes|required|string|size:10|unique:khach_hangs,so_dien_thoai,' . $user->id_khach_hang . ',id_khach_hang',
-                'email' => 'sometimes|required|email|max:100|unique:khach_hangs,email,' . $user->id_khach_hang . ',id_khach_hang',
-                'dia_chi' => 'sometimes|nullable|string|min:5|max:100',
+                'so_dien_thoai' => [
+                    'sometimes',
+                    'required',
+                    'string',
+                    'size:10',
+                    Rule::unique('khach_hangs', 'so_dien_thoai')->ignore($user->id_khach_hang, 'id_khach_hang'),
+                    Rule::unique('thong_tin_nhan_viens', 'so_dien_thoai'),
+                    Rule::unique('nhan_viens', 'ten_dang_nhap'),
+                ],
+                'email' => 'sometimes|required|email|max:100',
+                'dia_chi' => 'sometimes|required|string|min:5|max:100',
                 'ngay_sinh' => 'sometimes|nullable|date',
                 'gioi_tinh' => 'sometimes|nullable|string|in:Nam,Nữ,Khác',
                 'avatar' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
-            ]);
+            ], $this->customerProfileValidationMessages());
+
+            if (array_key_exists('email', $validated)) {
+                $this->ensureProfileEmailUnchanged($validated['email'], $user->email);
+                unset($validated['email']);
+            }
 
             if ($request->hasFile('avatar')) {
                 if ($user->avatar) {
@@ -242,13 +258,26 @@ class AuthController extends Controller
         } elseif ($user instanceof NhanVien) {
             $validated = $request->validate([
                 'ho_ten' => 'sometimes|required|string|min:5|max:100',
-                'so_dien_thoai' => 'sometimes|required|string|size:10|unique:thong_tin_nhan_viens,so_dien_thoai,' . $user->id_nhan_vien . ',id_nhan_vien',
-                'email' => 'sometimes|required|email|max:100|unique:thong_tin_nhan_viens,email,' . $user->id_nhan_vien . ',id_nhan_vien',
-                'dia_chi' => 'sometimes|nullable|string|min:5|max:100',
+                'so_dien_thoai' => [
+                    'sometimes',
+                    'required',
+                    'string',
+                    'size:10',
+                    Rule::unique('thong_tin_nhan_viens', 'so_dien_thoai')->ignore($user->id_nhan_vien, 'id_nhan_vien'),
+                    Rule::unique('nhan_viens', 'ten_dang_nhap')->ignore($user->id_nhan_vien, 'id_nhan_vien'),
+                    Rule::unique('khach_hangs', 'so_dien_thoai'),
+                ],
+                'email' => 'sometimes|required|email|max:100',
+                'dia_chi' => 'sometimes|required|string|min:5|max:100',
                 'ngay_sinh' => 'sometimes|nullable|date',
                 'gioi_tinh' => 'sometimes|nullable|string|in:Nam,Nữ,Khác',
                 'avatar' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
-            ]);
+            ], $this->staffProfileValidationMessages());
+
+            if (array_key_exists('email', $validated)) {
+                $this->ensureProfileEmailUnchanged($validated['email'], $user->thongTinNhanVien?->email);
+                unset($validated['email']);
+            }
 
             if (array_key_exists('ho_ten', $validated)) {
                 $user->update([
@@ -304,11 +333,18 @@ class AuthController extends Controller
 
         $request->validate([
             'current_password' => 'required',
-            'new_password' => 'required|min:6|confirmed',
+            'new_password' => [
+                'required',
+                'string',
+                'min:8',
+                'regex:/^(?=.*[A-Z])(?=.*[!@#$%^&*(),.?":{}|<>\[\]\/\\\\_\-+=~`;\']).+$/',
+                'confirmed',
+            ],
         ], [
             'current_password.required' => 'Vui lòng nhập mật khẩu hiện tại.',
             'new_password.required' => 'Vui lòng nhập mật khẩu mới.',
-            'new_password.min' => 'Mật khẩu mới phải có ít nhất 6 ký tự.',
+            'new_password.min' => 'Mật khẩu mới phải có ít nhất 8 ký tự.',
+            'new_password.regex' => 'Mật khẩu mới phải có ít nhất 1 chữ in hoa và 1 ký tự đặc biệt.',
             'new_password.confirmed' => 'Xác nhận mật khẩu mới không khớp.',
         ]);
 
@@ -341,6 +377,11 @@ class AuthController extends Controller
         }
 
         return $normalized;
+    }
+
+    private function isActiveEmployeeStatus(?string $status): bool
+    {
+        return Str::of((string) $status)->trim()->lower()->toString() === 'active';
     }
 
     private function createFirstOrderCoupon(KhachHang $khachHang): MaGiamGia
@@ -519,6 +560,77 @@ class AuthController extends Controller
         return $channel === 'tai_quay'
             ? self::ACTIVE_COUNTER_SESSION_MESSAGE
             : self::ACTIVE_STAFF_SESSION_MESSAGE;
+    }
+
+    private function ensureProfileEmailUnchanged(?string $submittedEmail, ?string $currentEmail): void
+    {
+        if (! filled($currentEmail)) {
+            return;
+        }
+
+        if (Str::lower(trim((string) $submittedEmail)) === Str::lower(trim((string) $currentEmail))) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'email' => ['Email không thể chỉnh sửa.'],
+        ]);
+    }
+
+    private function customerProfileValidationMessages(): array
+    {
+        return [
+            'ten_khach_hang.required' => 'Vui lòng nhập họ và tên.',
+            'ten_khach_hang.string' => 'Họ và tên phải là chuỗi ký tự.',
+            'ten_khach_hang.min' => 'Họ và tên phải có ít nhất 5 ký tự.',
+            'ten_khach_hang.max' => 'Họ và tên không được vượt quá 100 ký tự.',
+            'so_dien_thoai.required' => 'Vui lòng nhập số điện thoại.',
+            'so_dien_thoai.string' => 'Số điện thoại phải là chuỗi ký tự.',
+            'so_dien_thoai.size' => 'Số điện thoại phải gồm đúng 10 chữ số.',
+            'so_dien_thoai.unique' => 'Số điện thoại này đã được sử dụng.',
+            'email.required' => 'Vui lòng nhập email.',
+            'email.email' => 'Email không hợp lệ.',
+            'email.max' => 'Email không được vượt quá 100 ký tự.',
+            'email.unique' => 'Email này đã được sử dụng.',
+            'dia_chi.required' => 'Vui lòng nhập địa chỉ.',
+            'dia_chi.string' => 'Địa chỉ phải là chuỗi ký tự.',
+            'dia_chi.min' => 'Địa chỉ phải có ít nhất 5 ký tự.',
+            'dia_chi.max' => 'Địa chỉ không được vượt quá 100 ký tự.',
+            'ngay_sinh.date' => 'Ngày sinh không hợp lệ.',
+            'gioi_tinh.string' => 'Giới tính không hợp lệ.',
+            'gioi_tinh.in' => 'Giới tính chỉ được chọn Nam, Nữ hoặc Khác.',
+            'avatar.image' => 'Ảnh đại diện phải là tệp hình ảnh.',
+            'avatar.mimes' => 'Ảnh đại diện chỉ hỗ trợ JPG, JPEG, PNG hoặc WEBP.',
+            'avatar.max' => 'Ảnh đại diện không được vượt quá 2MB.',
+        ];
+    }
+
+    private function staffProfileValidationMessages(): array
+    {
+        return [
+            'ho_ten.required' => 'Vui lòng nhập họ và tên.',
+            'ho_ten.string' => 'Họ và tên phải là chuỗi ký tự.',
+            'ho_ten.min' => 'Họ và tên phải có ít nhất 5 ký tự.',
+            'ho_ten.max' => 'Họ và tên không được vượt quá 100 ký tự.',
+            'so_dien_thoai.required' => 'Vui lòng nhập số điện thoại.',
+            'so_dien_thoai.string' => 'Số điện thoại phải là chuỗi ký tự.',
+            'so_dien_thoai.size' => 'Số điện thoại phải gồm đúng 10 chữ số.',
+            'so_dien_thoai.unique' => 'Số điện thoại này đã được sử dụng.',
+            'email.required' => 'Vui lòng nhập email.',
+            'email.email' => 'Email không hợp lệ.',
+            'email.max' => 'Email không được vượt quá 100 ký tự.',
+            'email.unique' => 'Email này đã được sử dụng.',
+            'dia_chi.required' => 'Vui lòng nhập địa chỉ.',
+            'dia_chi.string' => 'Địa chỉ phải là chuỗi ký tự.',
+            'dia_chi.min' => 'Địa chỉ phải có ít nhất 5 ký tự.',
+            'dia_chi.max' => 'Địa chỉ không được vượt quá 100 ký tự.',
+            'ngay_sinh.date' => 'Ngày sinh không hợp lệ.',
+            'gioi_tinh.string' => 'Giới tính không hợp lệ.',
+            'gioi_tinh.in' => 'Giới tính chỉ được chọn Nam, Nữ hoặc Khác.',
+            'avatar.image' => 'Ảnh đại diện phải là tệp hình ảnh.',
+            'avatar.mimes' => 'Ảnh đại diện chỉ hỗ trợ JPG, JPEG, PNG hoặc WEBP.',
+            'avatar.max' => 'Ảnh đại diện không được vượt quá 2MB.',
+        ];
     }
 
     private function tokenId($token): ?int

@@ -515,7 +515,7 @@ class HoaDonController extends Controller
             'zalopay' => 'ZaloPay',
             'the_atm' => 'Thẻ ATM',
             'the_quoc_te' => 'Thẻ quốc tế',
-            'payos' => 'QR',
+            'payos' => 'PayOS',
             default => 'Tiền mặt',
         };
     }

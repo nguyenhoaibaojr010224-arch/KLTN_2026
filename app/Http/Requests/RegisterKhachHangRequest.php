@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class RegisterKhachHangRequest extends FormRequest
 {
@@ -15,7 +16,13 @@ class RegisterKhachHangRequest extends FormRequest
     {
         return [
             'ten_khach_hang' => ['required', 'string', 'min:5', 'max:100'],
-            'so_dien_thoai' => ['required', 'regex:/^\d{10}$/', 'unique:khach_hangs,so_dien_thoai'],
+            'so_dien_thoai' => [
+                'required',
+                'regex:/^\d{10}$/',
+                Rule::unique('khach_hangs', 'so_dien_thoai'),
+                Rule::unique('thong_tin_nhan_viens', 'so_dien_thoai'),
+                Rule::unique('nhan_viens', 'ten_dang_nhap'),
+            ],
             'email' => ['required', 'regex:/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.com$/', 'unique:khach_hangs,email'],
             'dia_chi' => ['required', 'string', 'min:5', 'max:100'],
             'mat_khau' => [

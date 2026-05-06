@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\CounterSalePayosSession;
 use App\Models\LichSuDonHang;
 use App\Models\ThanhToan;
 use App\Services\PayosService;
@@ -51,16 +52,57 @@ class PayosWebhookController extends Controller
                 ->lockForUpdate()
                 ->first();
 
+            $status = strtoupper((string) ($data['status'] ?? $payload['status'] ?? ''));
+            $isCanceled = in_array($status, ['CANCELLED', 'CANCELED'], true)
+                || filter_var($data['cancel'] ?? $payload['cancel'] ?? false, FILTER_VALIDATE_BOOLEAN);
+            $isPaid = $success
+                && $code === '00'
+                && ! $isCanceled
+                && ($status === '' || in_array($status, ['PAID', 'SUCCESS', 'SUCCEEDED'], true));
+            $paidAt = $this->resolvePaidAt($data);
+
             if (! $thanhToan) {
+                $counterSession = CounterSalePayosSession::query()
+                    ->where(function ($query) use ($orderCode, $paymentLinkId): void {
+                        if ($orderCode > 0) {
+                            $query->where('payos_order_code', $orderCode);
+                        }
+
+                        if ($paymentLinkId !== '') {
+                            $query->orWhere('payos_payment_link_id', $paymentLinkId);
+                        }
+                    })
+                    ->lockForUpdate()
+                    ->first();
+
+                if (! $counterSession) {
+                    return;
+                }
+
+                if ($isPaid) {
+                    app(CounterSaleController::class)->completePayosSessionFromWebhook(
+                        $counterSession,
+                        $data,
+                        $payload,
+                        $paidAt
+                    );
+
+                    return;
+                }
+
+                if ($counterSession->status !== 'paid') {
+                    $counterSession->forceFill([
+                        'status' => $isCanceled ? 'canceled' : 'failed',
+                        'payos_payment_link_id' => $paymentLinkId ?: $counterSession->payos_payment_link_id,
+                        'payos_payload' => $data ?: $payload,
+                        'error_message' => $isCanceled ? null : 'PayOS chưa xác nhận thanh toán.',
+                    ])->save();
+                }
+
                 return;
             }
 
             $wasPaid = $thanhToan->trang_thai === 'paid';
-            $isPaid = $success && $code === '00';
-            $status = strtoupper((string) ($data['status'] ?? $payload['status'] ?? ''));
-            $isCanceled = in_array($status, ['CANCELLED', 'CANCELED'], true)
-                || filter_var($data['cancel'] ?? $payload['cancel'] ?? false, FILTER_VALIDATE_BOOLEAN);
-            $paidAt = $this->resolvePaidAt($data);
 
             $thanhToan->forceFill([
                 'trang_thai' => $isPaid ? 'paid' : ($isCanceled ? 'canceled' : 'failed'),

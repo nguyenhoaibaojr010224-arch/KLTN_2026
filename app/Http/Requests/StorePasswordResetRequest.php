@@ -17,4 +17,13 @@ class StorePasswordResetRequest extends FormRequest
             'email' => ['required', 'email', 'exists:khach_hangs,email'],
         ];
     }
+
+    public function messages(): array
+    {
+        return [
+            'email.required' => 'Vui lòng nhập email.',
+            'email.email' => 'Email chưa đúng định dạng.',
+            'email.exists' => 'Email chưa đăng kí tài khoản',
+        ];
+    }
 }

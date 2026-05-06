@@ -59,7 +59,7 @@ class PasswordResetController extends Controller
         $record = PasswordReset::query()->where('token', $request->validated()['token'])->first();
 
         if (! $record) {
-            return response()->json(['message' => 'Token đặt lại mật khẩu không hợp lệ.'], 404);
+            return response()->json(['message' => 'Mã xác minh không đúng'], 422);
         }
 
         return response()->json([
@@ -81,7 +81,7 @@ class PasswordResetController extends Controller
             ->first();
 
         if (! $record) {
-            return response()->json(['message' => 'Thông tin đặt lại mật khẩu không hợp lệ.'], 404);
+            return response()->json(['message' => 'Mã xác minh không đúng'], 422);
         }
 
         if ($record->used) {

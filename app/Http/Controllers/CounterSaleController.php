@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ChiTietHoaDon;
+use App\Models\CounterSalePayosSession;
 use App\Models\HoaDon;
 use App\Models\KhachHang;
 use App\Models\KhuyenMai;
@@ -12,6 +13,7 @@ use App\Models\NhanVien;
 use App\Models\NhanVienDangNhapLog;
 use App\Models\ThanhToan;
 use App\Models\Thuoc;
+use App\Services\PayosService;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -145,7 +147,7 @@ class CounterSaleController extends Controller
             'items.*.ma_thuoc' => ['required', 'string', 'exists:thuocs,ma_thuoc'],
             'items.*.so_luong' => ['required', 'integer', 'min:1'],
             'items.*.don_vi' => ['nullable', 'string', 'max:50'],
-            'phuong_thuc_thanh_toan' => ['required', 'string', 'in:tien_mat,momo,zalopay,the_atm,the_quoc_te'],
+            'phuong_thuc_thanh_toan' => ['required', 'string', 'in:tien_mat'],
             'customer_token' => ['nullable', 'string'],
             'su_dung_diem' => ['nullable', 'boolean'],
             'ghi_chu' => ['nullable', 'string', 'max:500'],
@@ -153,6 +155,7 @@ class CounterSaleController extends Controller
             'items.required' => 'Vui lòng chọn ít nhất một sản phẩm để bán tại quầy.',
             'items.*.so_luong.min' => 'Số lượng bán phải lớn hơn 0.',
             'phuong_thuc_thanh_toan.required' => 'Vui lòng chọn phương thức thanh toán.',
+            'phuong_thuc_thanh_toan.in' => 'Thanh toán tiền mặt mới tạo hóa đơn trực tiếp. PayOS cần tạo mã QR riêng.',
         ]);
 
         $result = DB::transaction(function () use ($validated, $nhanVien): array {
@@ -239,7 +242,289 @@ class CounterSaleController extends Controller
         ], 201);
     }
 
-    private function buildSaleDetails(array $items): array
+    public function createPayos(Request $request, PayosService $payos): JsonResponse
+    {
+        $nhanVien = $request->user();
+
+        if (! $nhanVien instanceof NhanVien) {
+            return response()->json([
+                'message' => 'Chỉ nhân viên mới được bán tại quầy.',
+            ], 403);
+        }
+
+        if (! $this->hasActiveCounterSession($nhanVien, $request)) {
+            return response()->json([
+                'message' => 'Tài khoản này chưa đăng nhập kênh tại quầy.',
+            ], 403);
+        }
+
+        $validated = $request->validate([
+            'items' => ['required', 'array', 'min:1'],
+            'items.*.ma_thuoc' => ['required', 'string', 'exists:thuocs,ma_thuoc'],
+            'items.*.so_luong' => ['required', 'integer', 'min:1'],
+            'items.*.don_vi' => ['nullable', 'string', 'max:50'],
+            'phuong_thuc_thanh_toan' => ['required', 'string', 'in:payos'],
+            'customer_token' => ['nullable', 'string'],
+            'su_dung_diem' => ['nullable', 'boolean'],
+            'ghi_chu' => ['nullable', 'string', 'max:500'],
+        ], [
+            'items.required' => 'Vui lòng chọn ít nhất một sản phẩm để bán tại quầy.',
+            'items.*.so_luong.min' => 'Số lượng bán phải lớn hơn 0.',
+            'phuong_thuc_thanh_toan.required' => 'Vui lòng chọn phương thức thanh toán.',
+            'phuong_thuc_thanh_toan.in' => 'Phương thức thanh toán PayOS không hợp lệ.',
+        ]);
+
+        $session = DB::transaction(function () use ($validated, $nhanVien, $payos): CounterSalePayosSession {
+            [$khachHang, $isRegisteredCustomer] = $this->resolveSaleCustomer($validated['customer_token'] ?? null);
+            [$tongTien, $detailRows, $summaryItems] = $this->buildSaleDetails($validated['items'], false);
+            [$giamGiaDiem, $diemDaSuDung] = $isRegisteredCustomer
+                ? $this->resolveRewardPointDiscount((bool) ($validated['su_dung_diem'] ?? false), $tongTien, $khachHang)
+                : [0, 0];
+            $tienSauGiam = max($tongTien - $giamGiaDiem, 0);
+            $thueVat = $this->calculateVatAmount($tienSauGiam);
+            $tienThanhToan = $tienSauGiam + $thueVat;
+            $diemDaCong = $isRegisteredCustomer ? $this->calculateRewardPointsEarned($tongTien) : 0;
+
+            $session = CounterSalePayosSession::create([
+                'session_key' => (string) Str::uuid(),
+                'id_nhan_vien' => $nhanVien->id_nhan_vien,
+                'id_khach_hang' => $khachHang->id_khach_hang,
+                'is_registered_customer' => $isRegisteredCustomer,
+                'status' => 'pending',
+                'items_payload' => array_values($validated['items']),
+                'detail_rows' => $detailRows,
+                'summary_items' => $summaryItems,
+                'tong_tien' => $tongTien,
+                'giam_gia_diem' => $giamGiaDiem,
+                'thue_vat' => $thueVat,
+                'tien_thanh_toan' => $tienThanhToan,
+                'diem_da_su_dung' => $diemDaSuDung,
+                'diem_da_cong' => $diemDaCong,
+                'ghi_chu' => $validated['ghi_chu'] ?? null,
+            ]);
+
+            $orderCode = $this->generateCounterPayosOrderCode($session);
+            $session->forceFill(['payos_order_code' => $orderCode])->save();
+
+            try {
+                $payosLink = $payos->createPaymentLinkFromData(
+                    $orderCode,
+                    (int) round($tienThanhToan),
+                    'PHARMAGO TQ ' . $session->id,
+                    array_map(fn (array $item): array => [
+                        'name' => $item['ten'] ?? 'San pham',
+                        'quantity' => (int) ($item['so_luong'] ?? 1),
+                        'price' => (int) ($item['gia_ban'] ?? 0),
+                    ], $summaryItems)
+                );
+            } catch (\RuntimeException $exception) {
+                throw ValidationException::withMessages([
+                    'payos' => [$exception->getMessage()],
+                ]);
+            }
+
+            $session->forceFill([
+                'payos_payment_link_id' => $payosLink['payment_link_id'],
+                'payos_checkout_url' => $payosLink['checkout_url'],
+                'payos_qr_code' => $payosLink['qr_code'],
+                'payos_payload' => $payosLink['raw'],
+            ])->save();
+
+            return $session->fresh(['khachHang']);
+        });
+
+        return response()->json([
+            'message' => 'Đã tạo mã QR PayOS tại quầy.',
+            'data' => $this->formatCounterPayosSession($session),
+        ], 201);
+    }
+
+    public function payosStatus(Request $request, string $sessionKey): JsonResponse
+    {
+        $nhanVien = $request->user();
+
+        if (! $nhanVien instanceof NhanVien) {
+            return response()->json([
+                'message' => 'Chỉ nhân viên mới được bán tại quầy.',
+            ], 403);
+        }
+
+        $session = CounterSalePayosSession::query()
+            ->with(['khachHang', 'hoaDon.thanhToan'])
+            ->where('session_key', $sessionKey)
+            ->where('id_nhan_vien', $nhanVien->id_nhan_vien)
+            ->first();
+
+        if (! $session) {
+            return response()->json([
+                'message' => 'Không tìm thấy phiên PayOS tại quầy.',
+            ], 404);
+        }
+
+        return response()->json([
+            'data' => $this->formatCounterPayosSession($session),
+        ]);
+    }
+
+    public function cancelPayos(Request $request, string $sessionKey): JsonResponse
+    {
+        $nhanVien = $request->user();
+
+        if (! $nhanVien instanceof NhanVien) {
+            return response()->json([
+                'message' => 'Chỉ nhân viên mới được bán tại quầy.',
+            ], 403);
+        }
+
+        if (! $this->hasActiveCounterSession($nhanVien, $request)) {
+            return response()->json([
+                'message' => 'Tài khoản này chưa đăng nhập kênh tại quầy.',
+            ], 403);
+        }
+
+        DB::transaction(function () use ($sessionKey, $nhanVien): void {
+            $session = CounterSalePayosSession::query()
+                ->where('session_key', $sessionKey)
+                ->where('id_nhan_vien', $nhanVien->id_nhan_vien)
+                ->lockForUpdate()
+                ->first();
+
+            if (! $session) {
+                throw ValidationException::withMessages([
+                    'payos' => ['Không tìm thấy phiên PayOS tại quầy.'],
+                ]);
+            }
+
+            if ($session->status === 'paid' || $session->id_hoa_don) {
+                throw ValidationException::withMessages([
+                    'payos' => ['Phiên PayOS này đã thanh toán nên không thể hủy.'],
+                ]);
+            }
+
+            $session->forceFill([
+                'status' => 'canceled',
+                'error_message' => null,
+            ])->save();
+        });
+
+        return response()->json([
+            'message' => 'Đã hủy thanh toán PayOS tại quầy.',
+            'data' => null,
+        ]);
+    }
+
+    public function completePayosSessionFromWebhook(CounterSalePayosSession $session, array $data, array $payload, $paidAt = null): void
+    {
+        if ($session->status === 'paid' && $session->id_hoa_don) {
+            return;
+        }
+
+        if ($session->status === 'canceled') {
+            $session->forceFill([
+                'payos_payload' => $data ?: $payload,
+                'payos_paid_at' => $paidAt,
+            ])->save();
+
+            return;
+        }
+
+        $khachHang = KhachHang::query()
+            ->whereKey($session->id_khach_hang)
+            ->lockForUpdate()
+            ->first();
+
+        if (! $khachHang) {
+            $khachHang = $this->resolveWalkInCustomer();
+        }
+
+        if ($session->is_registered_customer) {
+            $khachHang->forceFill([
+                'diem_tich_luy' => max(
+                    0,
+                    (int) $khachHang->diem_tich_luy - (int) $session->diem_da_su_dung + (int) $session->diem_da_cong
+                ),
+            ])->save();
+        }
+
+        $hoaDon = HoaDon::create([
+            'ma_hoa_don' => $this->generateInvoiceCode('TQ'),
+            'id_khach_hang' => $khachHang->id_khach_hang,
+            'id_nhan_vien' => $session->id_nhan_vien,
+            'kenh_ban' => 'tai_quay',
+            'trang_thai_xu_ly' => 'hoan_thanh',
+            'tong_tien' => $session->tong_tien,
+            'giam_gia' => $session->giam_gia_diem,
+            'giam_gia_ma' => 0,
+            'giam_gia_diem' => $session->giam_gia_diem,
+            'thue_vat' => $session->thue_vat,
+            'tien_thanh_toan' => $session->tien_thanh_toan,
+            'diem_da_su_dung' => $session->diem_da_su_dung,
+            'diem_da_cong' => $session->diem_da_cong,
+            'diem_thuong_da_xu_ly' => $session->is_registered_customer,
+            'ngay_ban' => $paidAt ?: now(),
+        ]);
+
+        foreach ($session->detail_rows ?: [] as $detailRow) {
+            $loThuoc = LoThuoc::query()
+                ->whereKey((int) ($detailRow['id_lo'] ?? 0))
+                ->lockForUpdate()
+                ->first();
+            $soLuong = (int) ($detailRow['so_luong'] ?? 0);
+
+            if (! $loThuoc || $soLuong <= 0 || (int) $loThuoc->so_luong_con < $soLuong) {
+                throw ValidationException::withMessages([
+                    'items' => ['Không đủ tồn kho để hoàn tất thanh toán PayOS tại quầy.'],
+                ]);
+            }
+
+            $loThuoc->so_luong_con = max((int) $loThuoc->so_luong_con - $soLuong, 0);
+            $loThuoc->save();
+
+            ChiTietHoaDon::create([
+                'id_hoa_don' => $hoaDon->id_hoa_don,
+                'id_lo' => $loThuoc->id_lo,
+                'don_vi_ban' => $detailRow['don_vi_ban'],
+                'he_so_quy_doi_ban' => $detailRow['he_so_quy_doi_ban'],
+                'so_luong' => $soLuong,
+                'gia_ban' => $detailRow['gia_ban'],
+                'thanh_tien' => $detailRow['thanh_tien'],
+            ]);
+        }
+
+        ThanhToan::create([
+            'id_hoa_don' => $hoaDon->id_hoa_don,
+            'phuong_thuc' => 'payos',
+            'so_tien' => $session->tien_thanh_toan,
+            'thoi_gian' => $paidAt ?: now(),
+            'ma_giao_dich' => $data['reference'] ?? $data['transactionReference'] ?? $this->generateTransactionCode(),
+            'trang_thai' => 'paid',
+            'payos_order_code' => $session->payos_order_code,
+            'payos_payment_link_id' => $data['paymentLinkId'] ?? $session->payos_payment_link_id,
+            'payos_checkout_url' => $session->payos_checkout_url,
+            'payos_qr_code' => $session->payos_qr_code,
+            'payos_payload' => $data ?: $payload,
+            'payos_paid_at' => $paidAt ?: now(),
+        ]);
+
+        LichSuDonHang::create([
+            'id_hoa_don' => $hoaDon->id_hoa_don,
+            'trang_thai' => 'Hoàn thành tại quầy',
+            'ghi_chu' => $session->ghi_chu ?: 'PayOS đã xác nhận thanh toán tại quầy.',
+            'thoi_gian' => $paidAt ?: now(),
+            'id_nhan_vien' => $session->id_nhan_vien,
+        ]);
+
+        $session->forceFill([
+            'status' => 'paid',
+            'id_hoa_don' => $hoaDon->id_hoa_don,
+            'payos_payment_link_id' => $data['paymentLinkId'] ?? $session->payos_payment_link_id,
+            'payos_payload' => $data ?: $payload,
+            'payos_paid_at' => $paidAt ?: now(),
+            'error_message' => null,
+        ])->save();
+    }
+
+    private function buildSaleDetails(array $items, bool $deductStock = true): array
     {
         $requestedItems = collect($items)
             ->map(function (array $item): array {
@@ -358,7 +643,10 @@ class CounterSaleController extends Controller
                 }
 
                 $loThuoc->so_luong_con = max((int) $loThuoc->so_luong_con - $soLuongLay, 0);
-                $loThuoc->save();
+
+                if ($deductStock) {
+                    $loThuoc->save();
+                }
 
                 $thanhTienTheoLo = $soLuongCanTru === $soLuongLay
                     ? $thanhTienConLai
@@ -489,6 +777,47 @@ class CounterSaleController extends Controller
         ];
     }
 
+    private function formatCounterPayosSession(CounterSalePayosSession $session): array
+    {
+        $session->loadMissing(['khachHang', 'hoaDon']);
+
+        return [
+            'session_key' => $session->session_key,
+            'status' => $session->status,
+            'id_hoa_don' => $session->id_hoa_don,
+            'hoa_don' => $session->hoaDon ? [
+                'id_hoa_don' => $session->hoaDon->id_hoa_don,
+                'ma_hoa_don' => $session->hoaDon->ma_hoa_don,
+                'kenh_ban' => $session->hoaDon->kenh_ban,
+                'trang_thai_xu_ly' => $session->hoaDon->trang_thai_xu_ly,
+                'tien_thanh_toan' => $this->formatMoneyValue($session->hoaDon->tien_thanh_toan),
+            ] : null,
+            'items' => $session->summary_items ?: [],
+            'tong_tien' => $this->formatMoneyValue($session->tong_tien),
+            'giam_gia_diem' => $this->formatMoneyValue($session->giam_gia_diem),
+            'thue_vat' => $this->formatMoneyValue($session->thue_vat),
+            'tien_thanh_toan' => $this->formatMoneyValue($session->tien_thanh_toan),
+            'diem_da_su_dung' => (int) $session->diem_da_su_dung,
+            'diem_da_cong' => (int) $session->diem_da_cong,
+            'khach_hang_tich_diem' => $session->is_registered_customer && $session->khachHang
+                ? $this->counterCustomerPayload($session->khachHang)
+                : null,
+            'payos' => [
+                'order_code' => $session->payos_order_code ? (int) $session->payos_order_code : null,
+                'payment_link_id' => $session->payos_payment_link_id,
+                'checkout_url' => $session->payos_checkout_url,
+                'qr_code' => $session->payos_qr_code,
+                'status' => $session->payos_payload['data']['status'] ?? null,
+            ],
+            'error_message' => $session->error_message,
+        ];
+    }
+
+    private function formatMoneyValue(mixed $value): int
+    {
+        return (int) round((float) $value);
+    }
+
     private function resolveRewardPointDiscount(bool $wantsToUsePoints, int|float $amount, KhachHang $khachHang): array
     {
         if (! $wantsToUsePoints || $amount <= 0) {
@@ -584,5 +913,10 @@ class CounterSaleController extends Controller
         } while (ThanhToan::query()->where('ma_giao_dich', $code)->exists());
 
         return $code;
+    }
+
+    private function generateCounterPayosOrderCode(CounterSalePayosSession $session): int
+    {
+        return 900000000000 + (int) $session->id;
     }
 }

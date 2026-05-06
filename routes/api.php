@@ -197,6 +197,9 @@ Route::prefix('ban-tai-quay')
     ->group(function () {
         Route::post('/khach-hang/dang-nhap', [CounterSaleController::class, 'authenticateCustomer']);
         Route::post('/khach-hang/so-dien-thoai', [CounterSaleController::class, 'findCustomerByPhone']);
+        Route::post('/payos', [CounterSaleController::class, 'createPayos']);
+        Route::get('/payos/{sessionKey}', [CounterSaleController::class, 'payosStatus']);
+        Route::post('/payos/{sessionKey}/cancel', [CounterSaleController::class, 'cancelPayos']);
         Route::post('/hoa-don', [CounterSaleController::class, 'store']);
     });
 

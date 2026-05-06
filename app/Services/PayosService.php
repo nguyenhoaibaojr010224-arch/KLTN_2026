@@ -19,15 +19,22 @@ class PayosService
 
     public function createPaymentLink(HoaDon $hoaDon, array $items = []): array
     {
+        $amount = (int) round((float) $hoaDon->tien_thanh_toan);
+        $orderCode = (int) $hoaDon->id_hoa_don;
+        $description = Str::limit('PHARMAGO ' . $hoaDon->ma_hoa_don, 25, '');
+
+        return $this->createPaymentLinkFromData($orderCode, $amount, $description, $items);
+    }
+
+    public function createPaymentLinkFromData(int $orderCode, int $amount, string $description, array $items = []): array
+    {
         if (! $this->isConfigured()) {
             throw new RuntimeException('Chưa cấu hình PAYOS_CLIENT_ID, PAYOS_API_KEY hoặc PAYOS_CHECKSUM_KEY.');
         }
 
-        $amount = (int) round((float) $hoaDon->tien_thanh_toan);
-        $orderCode = (int) $hoaDon->id_hoa_don;
-        $description = Str::limit('PHARMAGO ' . $hoaDon->ma_hoa_don, 25, '');
         $returnUrl = (string) config('services.payos.return_url');
         $cancelUrl = (string) config('services.payos.cancel_url');
+        $description = Str::limit($description, 25, '');
 
         $signaturePayload = [
             'amount' => $amount,

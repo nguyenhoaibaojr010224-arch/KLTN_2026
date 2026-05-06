@@ -138,13 +138,14 @@ class NhanVienController extends Controller
                 'size:10',
                 Rule::unique('thong_tin_nhan_viens', 'so_dien_thoai'),
                 Rule::unique('nhan_viens', 'ten_dang_nhap'),
+                Rule::unique('khach_hangs', 'so_dien_thoai'),
             ],
-            'mat_khau' => 'required|string|min:6',
+            'mat_khau' => 'required|string|min:6|confirmed',
             'ho_ten' => 'required|string|min:5|max:100',
             'id_vai_tro' => 'required|exists:vai_tros,id_vai_tro',
             'id_bang_cap' => 'required|exists:bang_caps,id_bang_cap',
             'trang_thai' => 'sometimes|in:active,inactive'
-        ]);
+        ], $this->employeeValidationMessages(), $this->employeeValidationAttributes());
 
         $nhanVien = DB::transaction(function () use ($validated) {
             $nhanVien = NhanVien::create([
@@ -180,12 +181,13 @@ class NhanVienController extends Controller
                 'size:10',
                 Rule::unique('thong_tin_nhan_viens', 'so_dien_thoai')->ignore($nhanVien->id_nhan_vien, 'id_nhan_vien'),
                 Rule::unique('nhan_viens', 'ten_dang_nhap')->ignore($nhanVien->id_nhan_vien, 'id_nhan_vien'),
+                Rule::unique('khach_hangs', 'so_dien_thoai'),
             ],
             'ho_ten' => 'sometimes|required|string|min:5|max:100',
             'id_vai_tro' => 'sometimes|required|exists:vai_tros,id_vai_tro',
             'id_bang_cap' => 'sometimes|required|exists:bang_caps,id_bang_cap',
             'trang_thai' => 'sometimes|in:active,inactive'
-        ]);
+        ], $this->employeeValidationMessages(), $this->employeeValidationAttributes());
 
         DB::transaction(function () use ($nhanVien, $validated) {
             $nhanVienPayload = collect($validated)
@@ -257,8 +259,14 @@ class NhanVienController extends Controller
         }
 
         $request->validate([
-            'new_password' => 'required|string|min:6|confirmed'
-        ]);
+            'new_password' => [
+                'required',
+                'string',
+                'min:8',
+                'regex:/^(?=.*[A-Z])(?=.*[!@#$%^&*(),.?":{}|<>\[\]\/\\\\_\-+=~`;\']).+$/',
+                'confirmed',
+            ],
+        ], $this->employeeValidationMessages(), $this->employeeValidationAttributes());
 
         $nhanVien->update([
             'mat_khau' => Hash::make($request->new_password)
@@ -292,6 +300,45 @@ class NhanVienController extends Controller
     {
         return NhanVien::with('vaiTro', 'bangCap', 'thongTinNhanVien')
             ->orderBy('id_nhan_vien');
+    }
+
+    private function employeeValidationMessages(): array
+    {
+        return [
+            'so_dien_thoai.required' => 'Vui lòng nhập số điện thoại đăng nhập.',
+            'so_dien_thoai.size' => 'Số điện thoại đăng nhập phải có đúng 10 chữ số.',
+            'so_dien_thoai.unique' => 'Số điện thoại này đã được sử dụng.',
+            'mat_khau.required' => 'Vui lòng nhập mật khẩu.',
+            'mat_khau.min' => 'Mật khẩu phải có ít nhất 6 ký tự.',
+            'mat_khau.confirmed' => 'Xác nhận mật khẩu không khớp.',
+            'ho_ten.required' => 'Vui lòng nhập họ tên.',
+            'ho_ten.min' => 'Họ tên phải có ít nhất 5 ký tự.',
+            'ho_ten.max' => 'Họ tên không được vượt quá 100 ký tự.',
+            'id_vai_tro.required' => 'Vui lòng chọn vai trò.',
+            'id_vai_tro.exists' => 'Vai trò được chọn không hợp lệ.',
+            'id_bang_cap.required' => 'Vui lòng chọn bằng cấp.',
+            'id_bang_cap.exists' => 'Bằng cấp được chọn không hợp lệ.',
+            'trang_thai.in' => 'Trạng thái không hợp lệ.',
+            'new_password.required' => 'Vui lòng nhập mật khẩu mới.',
+            'new_password.min' => 'Mật khẩu mới phải có ít nhất 8 ký tự.',
+            'new_password.regex' => 'Mật khẩu mới phải có ít nhất 1 chữ in hoa và 1 ký tự đặc biệt.',
+            'new_password.confirmed' => 'Xác nhận mật khẩu mới không khớp.',
+        ];
+    }
+
+    private function employeeValidationAttributes(): array
+    {
+        return [
+            'so_dien_thoai' => 'số điện thoại đăng nhập',
+            'mat_khau' => 'mật khẩu',
+            'mat_khau_confirmation' => 'xác nhận mật khẩu',
+            'ho_ten' => 'họ tên',
+            'id_vai_tro' => 'vai trò',
+            'id_bang_cap' => 'bằng cấp',
+            'trang_thai' => 'trạng thái',
+            'new_password' => 'mật khẩu mới',
+            'new_password_confirmation' => 'xác nhận mật khẩu mới',
+        ];
     }
 
     private function defaultProfilePayload(NhanVien $nhanVien, string $phone): array

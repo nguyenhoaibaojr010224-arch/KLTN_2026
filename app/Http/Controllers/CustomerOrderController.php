@@ -656,10 +656,6 @@ class CustomerOrderController extends Controller
     {
         return match ($method) {
             'cod' => 'tien_mat',
-            'momo' => 'momo',
-            'zalopay' => 'zalopay',
-            'atm' => 'the_atm',
-            'international' => 'the_quoc_te',
             'payos' => 'payos',
             default => 'tien_mat',
         };
@@ -669,11 +665,7 @@ class CustomerOrderController extends Controller
     {
         return match ($method) {
             'cod' => 'Tiền mặt',
-            'momo' => 'MoMo',
-            'zalopay' => 'ZaloPay',
-            'atm' => 'Thẻ ATM',
-            'international' => 'Thẻ quốc tế',
-            'payos' => 'QR',
+            'payos' => 'PayOS',
             default => 'Tiền mặt',
         };
     }
@@ -686,7 +678,7 @@ class CustomerOrderController extends Controller
             'zalopay' => 'ZaloPay',
             'the_atm' => 'Thẻ ATM',
             'the_quoc_te' => 'Thẻ quốc tế',
-            'payos' => 'QR',
+            'payos' => 'PayOS',
             default => 'Tiền mặt',
         };
     }
