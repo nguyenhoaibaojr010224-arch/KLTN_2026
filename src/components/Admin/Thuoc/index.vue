@@ -12,11 +12,6 @@
           giá bán, ảnh thuốc và trạng thái kinh doanh.
         </p>
       </div>
-
-      <div class="soft-badge">
-        <i class="bi bi-person-workspace"></i>
-        {{ currentUser?.ho_ten || "Tài khoản hệ thống" }}
-      </div>
     </div>
   </section>
 
@@ -106,10 +101,11 @@
               <td>
                 <div class="d-flex align-items-start gap-3">
                   <img
-                    v-if="thuoc.hinh_anh_url"
+                    v-if="shouldShowThuocImage(thuoc)"
                     :src="thuoc.hinh_anh_url"
                     alt="Ảnh thuốc"
                     style="width: 56px; height: 56px; object-fit: cover; border-radius: 14px; border: 1px solid #d9e4ff"
+                    @error="handleThuocImageError(thuoc)"
                   />
                   <div
                     v-else
@@ -191,7 +187,14 @@
               </div>
               <div class="col-md-7">
                 <label class="form-label fw-semibold">Tên thuốc</label>
-                <input v-model.trim="form.ten_thuoc" class="form-control" placeholder="Nhập tên thuốc" />
+                <input
+                  v-model.trim="form.ten_thuoc"
+                  class="form-control"
+                  :class="{ 'is-invalid': formErrors.ten_thuoc }"
+                  placeholder="Nhập tên thuốc"
+                  @input="clearFieldError('ten_thuoc')"
+                />
+                <div v-if="formErrors.ten_thuoc" class="invalid-feedback d-block">{{ formErrors.ten_thuoc }}</div>
               </div>
             </div>
 
@@ -201,8 +204,11 @@
                 <input
                   v-model.trim="form.nhan"
                   class="form-control"
+                  :class="{ 'is-invalid': formErrors.nhan }"
                   placeholder="Ví dụ: thuốc ho, đau họng, hạ sốt"
+                  @input="clearFieldError('nhan')"
                 />
+                <div v-if="formErrors.nhan" class="invalid-feedback d-block">{{ formErrors.nhan }}</div>
                 <div class="form-text">Có thể nhập nhiều nhãn, ngăn cách bằng dấu phẩy.</div>
               </div>
               <div class="col-md-6">
@@ -210,6 +216,7 @@
                 <select
                   v-model="form.danh_muc_cha_slug"
                   class="form-select"
+                  :class="{ 'is-invalid': formErrors.danh_muc_cha_slug }"
                   @change="handleDanhMucChaChange($event.target.value)"
                 >
                   <option value="">Chọn danh mục</option>
@@ -217,6 +224,7 @@
                     {{ item.label }}
                   </option>
                 </select>
+                <div v-if="formErrors.danh_muc_cha_slug" class="invalid-feedback d-block">{{ formErrors.danh_muc_cha_slug }}</div>
               </div>
             </div>
 
@@ -227,12 +235,15 @@
                   :key="form.danh_muc_cha_slug || 'no-parent'"
                   v-model="form.danh_muc_con_slug"
                   class="form-select"
+                  :class="{ 'is-invalid': formErrors.danh_muc_con_slug }"
+                  @change="clearFieldError('danh_muc_con_slug')"
                 >
                   <option value="">Chọn</option>
                   <option v-for="item in danhMucConOptions" :key="item.slug" :value="item.slug">
                     {{ item.label }}
                   </option>
                 </select>
+                <div v-if="formErrors.danh_muc_con_slug" class="invalid-feedback d-block">{{ formErrors.danh_muc_con_slug }}</div>
               </div>
 
               <div :class="showDanhMucCon ? 'col-md-6' : 'col-12'">
@@ -240,12 +251,15 @@
                 <input
                   v-model.trim="nhaSanXuatInput"
                   class="form-control"
+                  :class="{ 'is-invalid': formErrors.nha_san_xuat }"
                   list="nha-san-xuat-options"
                   placeholder="Nhập nhà sản xuất"
+                  @input="clearFieldError('nha_san_xuat')"
                 />
                 <datalist id="nha-san-xuat-options">
                   <option v-for="item in nhaSanXuatSuggestions" :key="item" :value="item"></option>
                 </datalist>
+                <div v-if="formErrors.nha_san_xuat" class="invalid-feedback d-block">{{ formErrors.nha_san_xuat }}</div>
                 <div class="form-text">Gợi ý chỉ hiện các nhà sản xuất đã lưu thuốc thành công trước đó.</div>
               </div>
             </div>
@@ -253,7 +267,14 @@
             <div class="row g-3">
               <div class="col-md-6">
                 <label class="form-label fw-semibold">Đơn vị</label>
-                <input v-model.trim="form.don_vi_tinh" class="form-control" placeholder="Ví dụ: vỉ, gói, tuýp, ống" />
+                <input
+                  v-model.trim="form.don_vi_tinh"
+                  class="form-control"
+                  :class="{ 'is-invalid': formErrors.don_vi_tinh }"
+                  placeholder="Ví dụ: vỉ, gói, tuýp, ống"
+                  @input="clearFieldError('don_vi_tinh')"
+                />
+                <div v-if="formErrors.don_vi_tinh" class="invalid-feedback d-block">{{ formErrors.don_vi_tinh }}</div>
               </div>
               <div class="col-md-6 position-relative">
                 <label class="form-label fw-semibold">Giá bán</label>
@@ -270,9 +291,11 @@
                   type="text"
                   inputmode="numeric"
                   class="form-control"
+                  :class="{ 'is-invalid': formErrors.gia_ban }"
                   placeholder="Nhập giá bán"
-                  @input="form.gia_ban = parsePriceInput($event)"
+                  @input="form.gia_ban = parsePriceInput($event); clearFieldError('gia_ban')"
                 />
+                <div v-if="formErrors.gia_ban" class="invalid-feedback d-block">{{ formErrors.gia_ban }}</div>
               </div>
             </div>
 
@@ -282,8 +305,11 @@
                 <input
                   v-model.trim="form.don_vi_co_so"
                   class="form-control"
+                  :class="{ 'is-invalid': formErrors.don_vi_co_so }"
                   placeholder="Ví dụ: viên, ml, g"
+                  @input="clearFieldError('don_vi_co_so')"
                 />
+                <div v-if="formErrors.don_vi_co_so" class="invalid-feedback d-block">{{ formErrors.don_vi_co_so }}</div>
                 <div class="form-text">Kho và lô thuốc sẽ tính theo đơn vị này để cộng trừ tồn.</div>
               </div>
               <div class="col-md-6">
@@ -295,10 +321,13 @@
                     type="number"
                     min="1"
                     class="form-control"
+                    :class="{ 'is-invalid': formErrors.he_so_quy_doi }"
                     placeholder="Số lượng"
+                    @input="clearFieldError('he_so_quy_doi')"
                   />
                   <span class="input-group-text">{{ form.don_vi_co_so || "đơn vị tồn kho" }}</span>
                 </div>
+                <div v-if="formErrors.he_so_quy_doi" class="invalid-feedback d-block">{{ formErrors.he_so_quy_doi }}</div>
                 <div class="form-text">{{ formatUnitPreview(form.don_vi_tinh, form.he_so_quy_doi, form.don_vi_co_so) }}</div>
               </div>
             </div>
@@ -316,7 +345,9 @@
                       <input
                         v-model.trim="entry.ten_don_vi"
                         class="form-control"
+                        :class="{ 'is-invalid': formErrors.additional_units }"
                         placeholder="Ví dụ: viên, hộp"
+                        @input="clearFieldError('additional_units')"
                       />
                     </div>
                     <div class="col-md-4">
@@ -326,8 +357,9 @@
                         type="text"
                         inputmode="numeric"
                         class="form-control"
+                        :class="{ 'is-invalid': formErrors.additional_units }"
                         placeholder="Nhập giá bán cho đơn vị này"
-                        @input="entry.gia_ban = parsePriceInput($event)"
+                        @input="entry.gia_ban = parsePriceInput($event); clearFieldError('additional_units')"
                       />
                     </div>
                     <div class="col-md-4">
@@ -340,20 +372,34 @@
                   </div>
 
                 </div>
+                <div v-if="formErrors.additional_units" class="invalid-feedback d-block">{{ formErrors.additional_units }}</div>
               </div>
             </div>
 
             <div class="row g-3">
               <div class="col-md-6">
                 <label class="form-label fw-semibold">Hàm lượng</label>
-                <input v-model.trim="form.ham_luong" class="form-control" placeholder="Ví dụ: 500mg" />
+                <input
+                  v-model.trim="form.ham_luong"
+                  class="form-control"
+                  :class="{ 'is-invalid': formErrors.ham_luong }"
+                  placeholder="Ví dụ: 500mg"
+                  @input="clearFieldError('ham_luong')"
+                />
+                <div v-if="formErrors.ham_luong" class="invalid-feedback d-block">{{ formErrors.ham_luong }}</div>
               </div>
               <div class="col-md-6">
                 <label class="form-label fw-semibold">Trạng thái</label>
-                <select v-model="form.trang_thai" class="form-select">
+                <select
+                  v-model="form.trang_thai"
+                  class="form-select"
+                  :class="{ 'is-invalid': formErrors.trang_thai }"
+                  @change="clearFieldError('trang_thai')"
+                >
                   <option value="còn bán">Còn bán</option>
                   <option value="ngừng bán">Ngừng bán</option>
                 </select>
+                <div v-if="formErrors.trang_thai" class="invalid-feedback d-block">{{ formErrors.trang_thai }}</div>
               </div>
             </div>
 
@@ -362,9 +408,12 @@
               <textarea
                 v-model.trim="form.mo_ta"
                 class="form-control"
+                :class="{ 'is-invalid': formErrors.mo_ta }"
                 rows="4"
                 placeholder="Nhập mô tả ngắn để hiển thị ở phần mô tả sản phẩm cho khách hàng"
+                @input="clearFieldError('mo_ta')"
               ></textarea>
+              <div v-if="formErrors.mo_ta" class="invalid-feedback d-block">{{ formErrors.mo_ta }}</div>
               <div class="form-text">Nội dung này sẽ hiển thị ở mục mô tả sản phẩm bên giao diện khách hàng.</div>
             </div>
 
@@ -421,10 +470,12 @@
                   <input
                     ref="imageFileInput"
                     class="form-control"
+                    :class="{ 'is-invalid': formErrors.hinh_anh }"
                     type="file"
                     accept="image/png,image/jpeg,image/jpg,image/webp"
                     @change="handleImageChange"
                   />
+                  <div v-if="formErrors.hinh_anh" class="invalid-feedback d-block">{{ formErrors.hinh_anh }}</div>
                   <div class="form-text">Tải file JPG, PNG hoặc WEBP.</div>
                 </div>
                 <div class="col-md-6">
@@ -432,19 +483,22 @@
                     v-model.trim="imageUrlInput"
                     type="url"
                     class="form-control"
+                    :class="{ 'is-invalid': formErrors.hinh_anh_url }"
                     placeholder="https://example.com/image.jpg"
                     @input="handleImageUrlInput"
                   />
+                  <div v-if="formErrors.hinh_anh_url" class="invalid-feedback d-block">{{ formErrors.hinh_anh_url }}</div>
                   <div class="form-text">Hoặc dán URL ảnh công khai.</div>
                 </div>
               </div>
             </div>
 
-            <div v-if="imagePreviewUrl" class="border rounded-4 p-3 d-flex align-items-center gap-3">
+            <div v-if="imagePreviewUrl && !imagePreviewLoadFailed" class="border rounded-4 p-3 d-flex align-items-center gap-3">
               <img
                 :src="imagePreviewUrl"
                 alt="Xem trước ảnh thuốc"
                 style="width: 88px; height: 88px; object-fit: cover; border-radius: 16px; border: 1px solid #d9e4ff"
+                @error="handleImagePreviewError"
               />
               <div class="flex-grow-1">
                 <div class="fw-semibold">Ảnh xem trước</div>
@@ -452,7 +506,7 @@
                   {{ imageFile ? imageFile.name : imageUrlInput || "Đang dùng ảnh đã lưu của thuốc." }}
                 </div>
               </div>
-              <button class="btn btn-outline-secondary btn-sm" @click="clearImageSelection">Bỏ ảnh mới</button>
+              <button type="button" class="btn btn-outline-secondary btn-sm" @click="clearImageSelection">Bỏ ảnh mới</button>
             </div>
           </div>
         </div>
@@ -482,7 +536,8 @@ import {
   updateThuoc,
 } from "../../../api/thuocManagementApi";
 import { getCatalogSection } from "../../../data/catalogSections";
-import { authState, isAdminState } from "../../../lib/authStorage";
+import { isAdminState } from "../../../lib/authStorage";
+import { normalizeApiError, translateErrorMessage } from "../../../lib/errorMessages";
 import { formatIntegerInput, parseFormattedInteger } from "../../../lib/numberInput";
 import { showToast } from "../../../lib/toast";
 
@@ -509,7 +564,6 @@ export default {
 
   data() {
     return {
-      authState,
       keyword: "",
       thuocs: [],
       visibleThuocCount: THUOC_TABLE_BATCH_SIZE,
@@ -518,9 +572,12 @@ export default {
       selectedThuoc: null,
       message: "",
       error: "",
+      formErrors: {},
       imageFile: null,
       imagePreviewUrl: "",
+      imagePreviewLoadFailed: false,
       imageUrlInput: "",
+      imageLoadFailures: {},
       nhaSanXuatInput: "",
       dosageEntries: [createDosageEntry()],
       additionalUnits: [],
@@ -552,10 +609,6 @@ export default {
   },
 
   computed: {
-    currentUser() {
-      return this.authState.user;
-    },
-
     isAdminUser() {
       return isAdminState.value;
     },
@@ -743,9 +796,264 @@ export default {
         this.dosageEntries.splice(index, 1);
       },
 
-      removeAdditionalUnit(index) {
-        this.additionalUnits.splice(index, 1);
-      },
+    removeAdditionalUnit(index) {
+      this.additionalUnits.splice(index, 1);
+      this.clearFieldError("additional_units");
+    },
+
+    clearFormErrors() {
+      this.formErrors = {};
+    },
+
+    clearFieldError(field) {
+      if (!this.formErrors[field]) {
+        return;
+      }
+
+      const nextErrors = { ...this.formErrors };
+      delete nextErrors[field];
+      this.formErrors = nextErrors;
+    },
+
+    setFormErrors(errors) {
+      this.formErrors = { ...errors };
+      this.$nextTick(() => {
+        const firstInvalid = document.querySelector("#thuocModal .is-invalid");
+        firstInvalid?.scrollIntoView?.({ block: "center", behavior: "smooth" });
+        firstInvalid?.focus?.({ preventScroll: true });
+      });
+    },
+
+    isValidHttpUrl(value) {
+      const normalizedValue = String(value || "").trim();
+      if (!normalizedValue) {
+        return true;
+      }
+
+      try {
+        const parsedUrl = new URL(normalizedValue);
+        return ["http:", "https:"].includes(parsedUrl.protocol);
+      } catch {
+        return false;
+      }
+    },
+
+    collectThuocFormErrors() {
+      const errors = {};
+      const tenThuoc = String(this.form.ten_thuoc || "").trim();
+      const nhan = String(this.form.nhan || "").trim();
+      const donViChinh = String(this.form.don_vi_tinh || "").trim();
+      const donViCoSo = String(this.form.don_vi_co_so || "").trim();
+      const giaBan = Number(this.form.gia_ban || 0);
+      const heSoQuyDoi = Number(this.form.he_so_quy_doi || 0);
+      const tenNhaSanXuat = this.sanitizeNhaSanXuatName(this.nhaSanXuatInput);
+
+      if (!tenThuoc) {
+        errors.ten_thuoc = "Vui lòng nhập tên thuốc.";
+      } else if (tenThuoc.length < 5) {
+        errors.ten_thuoc = "Tên thuốc phải có ít nhất 5 ký tự.";
+      }
+
+      if (!nhan) {
+        errors.nhan = "Vui lòng nhập nhãn cho thuốc.";
+      } else if (nhan.length < 2) {
+        errors.nhan = "Nhãn thuốc phải có ít nhất 2 ký tự.";
+      }
+
+      if (!this.form.danh_muc_cha_slug) {
+        errors.danh_muc_cha_slug = "Vui lòng chọn danh mục.";
+      }
+
+      if (this.showDanhMucCon && !this.form.danh_muc_con_slug) {
+        errors.danh_muc_con_slug = `Vui lòng chọn nhánh cho nhóm ${this.selectedDanhMucChaLabel}.`;
+      }
+
+      if (
+        this.form.danh_muc_cha_slug
+        && this.selectedDanhMucSlug
+        && !this.resolveAllowedDanhMucSlugs(this.form.danh_muc_cha_slug).includes(this.selectedDanhMucSlug)
+      ) {
+        const targetField = this.showDanhMucCon ? "danh_muc_con_slug" : "danh_muc_cha_slug";
+        errors[targetField] = "Thuốc chỉ được lưu trong đúng mục con thuộc mục cha đã chọn.";
+      }
+
+      if (!tenNhaSanXuat) {
+        errors.nha_san_xuat = "Vui lòng nhập nhà sản xuất.";
+      }
+
+      if (!donViChinh) {
+        errors.don_vi_tinh = "Vui lòng nhập đơn vị bán chính.";
+      }
+
+      if (!donViCoSo) {
+        errors.don_vi_co_so = "Vui lòng nhập đơn vị tồn kho.";
+      }
+
+      if (!heSoQuyDoi || heSoQuyDoi < 1) {
+        errors.he_so_quy_doi = "Vui lòng nhập hệ số quy đổi hợp lệ.";
+      }
+
+      if (!giaBan || giaBan < 1) {
+        errors.gia_ban = "Vui lòng nhập giá bán hợp lệ.";
+      }
+
+      if (String(this.form.ham_luong || "").length > 50) {
+        errors.ham_luong = "Hàm lượng không được vượt quá 50 ký tự.";
+      }
+
+      if (String(this.form.mo_ta || "").length > 5000) {
+        errors.mo_ta = "Mô tả thuốc không được vượt quá 5000 ký tự.";
+      }
+
+      if (this.imageFile) {
+        const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
+        if (!allowedTypes.has(this.imageFile.type)) {
+          errors.hinh_anh = "Ảnh thuốc phải là JPG, PNG hoặc WEBP.";
+        } else if (this.imageFile.size > 2 * 1024 * 1024) {
+          errors.hinh_anh = "Ảnh thuốc không được vượt quá 2MB.";
+        }
+      }
+
+      if (this.imageUrlInput && !this.isValidHttpUrl(this.imageUrlInput)) {
+        errors.hinh_anh_url = "URL ảnh phải bắt đầu bằng http:// hoặc https://.";
+      }
+
+      const usedUnits = new Set(donViChinh ? [donViChinh.toLowerCase()] : []);
+      for (const [index, entry] of this.additionalUnits.entries()) {
+        const tenDonVi = String(entry.ten_don_vi || "").trim();
+
+        if (!tenDonVi) {
+          errors.additional_units = `Vui lòng nhập tên đơn vị thêm ở dòng ${index + 1}.`;
+          break;
+        }
+
+        if (usedUnits.has(tenDonVi.toLowerCase())) {
+          errors.additional_units = `Đơn vị ${tenDonVi} đang bị trùng.`;
+          break;
+        }
+
+        if (!entry.gia_ban || Number(entry.gia_ban) < 1) {
+          errors.additional_units = `Vui lòng nhập giá bán hợp lệ cho đơn vị ${tenDonVi}.`;
+          break;
+        }
+
+        entry.so_luong_quy_doi = Math.max(1, Number(entry.so_luong_quy_doi || 1));
+        usedUnits.add(tenDonVi.toLowerCase());
+      }
+
+      return errors;
+    },
+
+    translateThuocValidationMessage(message, field) {
+      const rawMessage = String(message || "").trim();
+      const normalized = rawMessage.toLowerCase();
+      const labels = {
+        ma_thuoc: "mã thuốc",
+        ten_thuoc: "tên thuốc",
+        nhan: "nhãn",
+        danh_muc_cha_slug: "danh mục",
+        danh_muc_con_slug: "nhánh",
+        danh_muc_thuoc_slug: "danh mục",
+        nha_san_xuat: "nhà sản xuất",
+        id_nha_san_xuat: "nhà sản xuất",
+        don_vi_tinh: "đơn vị",
+        don_vi_co_so: "đơn vị tồn kho",
+        he_so_quy_doi: "hệ số quy đổi",
+        gia_ban: "giá bán",
+        ham_luong: "hàm lượng",
+        mo_ta: "mô tả thuốc",
+        trang_thai: "trạng thái",
+        hinh_anh: "ảnh thuốc",
+        hinh_anh_url: "URL ảnh",
+        quy_cach_don_vi: "đơn vị thêm",
+      };
+      const label = labels[field] || "trường thông tin này";
+
+      if (!rawMessage) {
+        return `Vui lòng kiểm tra lại ${label}.`;
+      }
+
+      if (normalized.includes("required")) {
+        return ["danh_muc_cha_slug", "danh_muc_con_slug", "trang_thai"].includes(field)
+          ? `Vui lòng chọn ${label}.`
+          : `Vui lòng nhập ${label}.`;
+      }
+
+      if (normalized.includes("must be an image") || normalized.includes("image")) {
+        return "Ảnh thuốc phải là tệp hình ảnh hợp lệ.";
+      }
+
+      if (normalized.includes("mimes") || normalized.includes("jpg") || normalized.includes("jpeg") || normalized.includes("png") || normalized.includes("webp")) {
+        return "Ảnh thuốc phải là JPG, PNG hoặc WEBP.";
+      }
+
+      if (normalized.includes("url")) {
+        return "URL ảnh phải đúng định dạng và bắt đầu bằng http:// hoặc https://.";
+      }
+
+      if (normalized.includes("exists")) {
+        return "Nhà sản xuất đã chọn không hợp lệ.";
+      }
+
+      if (normalized.includes("unique")) {
+        return "Mã thuốc này đã tồn tại trong hệ thống.";
+      }
+
+      if (normalized.includes("min")) {
+        if (["gia_ban", "he_so_quy_doi"].includes(field)) {
+          return `${label.charAt(0).toUpperCase()}${label.slice(1)} phải lớn hơn 0.`;
+        }
+
+        return `${label.charAt(0).toUpperCase()}${label.slice(1)} chưa đủ độ dài yêu cầu.`;
+      }
+
+      return translateErrorMessage(rawMessage, field, labels);
+    },
+
+    mapBackendFieldToFormField(field) {
+      const fieldMap = {
+        id_nha_san_xuat: "nha_san_xuat",
+        ten_nha_san_xuat: "nha_san_xuat",
+        danh_muc_thuoc_slug: this.showDanhMucCon ? "danh_muc_con_slug" : "danh_muc_cha_slug",
+        quy_cach_don_vi: "additional_units",
+      };
+
+      return fieldMap[field] || field;
+    },
+
+    applyFormErrorsFromError(err) {
+      const backendErrors = err?.payload?.errors || err?.response?.data?.errors;
+
+      if (backendErrors) {
+        const nextErrors = {};
+        Object.entries(backendErrors).forEach(([field, messages]) => {
+          const formField = this.mapBackendFieldToFormField(field);
+          const firstMessage = Array.isArray(messages) ? messages[0] : messages;
+          nextErrors[formField] = this.translateThuocValidationMessage(firstMessage, field);
+        });
+        this.setFormErrors(nextErrors);
+        return;
+      }
+
+      const message = this.normalizeError(err);
+      const normalizedMessage = message.toLowerCase();
+      let field = "ten_thuoc";
+
+      if (normalizedMessage.includes("nhà sản xuất")) {
+        field = "nha_san_xuat";
+      } else if (normalizedMessage.includes("danh mục") || normalizedMessage.includes("mục cha")) {
+        field = this.showDanhMucCon ? "danh_muc_con_slug" : "danh_muc_cha_slug";
+      } else if (normalizedMessage.includes("nhãn")) {
+        field = "nhan";
+      } else if (normalizedMessage.includes("đơn vị")) {
+        field = "additional_units";
+      } else if (normalizedMessage.includes("giá")) {
+        field = "gia_ban";
+      }
+
+      this.setFormErrors({ [field]: message });
+    },
+
       validateAdditionalUnits() {
         const donViChinh = String(this.form.don_vi_tinh || "").trim();
         const donViCoSo = String(this.form.don_vi_co_so || "").trim();
@@ -814,11 +1122,11 @@ export default {
       },
 
       normalizeError(err) {
-        if (err?.payload?.errors) {
-          return Object.values(err.payload.errors).flat().join(" | ");
-        }
-
-      return err?.message || "Không thể xử lý dữ liệu thuốc.";
+        return normalizeApiError(err, "Không thể xử lý dữ liệu thuốc.", {
+          id_nha_san_xuat: "nhà sản xuất",
+          danh_muc_thuoc_slug: "danh mục",
+          hinh_anh_url: "URL ảnh",
+        });
     },
 
     releaseObjectPreviewUrl() {
@@ -839,10 +1147,6 @@ export default {
         .replace(/\s+/g, " ");
     },
 
-    isExternalImageReference(value) {
-      return /^https?:\/\//i.test(String(value || "").trim());
-    },
-
     resolveImagePreviewFromUrl(value) {
       const normalizedValue = String(value || "").trim();
       if (!normalizedValue) {
@@ -857,8 +1161,25 @@ export default {
       }
     },
 
-    getStoredImageUrl() {
-      return this.selectedThuoc?.hinh_anh_url || "";
+    getThuocImageKey(thuoc) {
+      return `${thuoc?.ma_thuoc || ""}:${thuoc?.hinh_anh_url || ""}`;
+    },
+
+    shouldShowThuocImage(thuoc) {
+      const imageUrl = String(thuoc?.hinh_anh_url || "").trim();
+      return Boolean(imageUrl && !this.imageLoadFailures[this.getThuocImageKey(thuoc)]);
+    },
+
+    handleThuocImageError(thuoc) {
+      const key = this.getThuocImageKey(thuoc);
+      if (!key) {
+        return;
+      }
+
+      this.imageLoadFailures = {
+        ...this.imageLoadFailures,
+        [key]: true,
+      };
     },
 
     formatCurrency(value) {
@@ -1039,6 +1360,8 @@ export default {
     },
 
     handleDanhMucChaChange(parentSlug = this.form.danh_muc_cha_slug) {
+      this.clearFieldError("danh_muc_cha_slug");
+      this.clearFieldError("danh_muc_con_slug");
       const childOptions = this.resolveDanhMucConOptions(parentSlug);
 
       if (!childOptions.some((item) => item.slug === this.form.danh_muc_con_slug)) {
@@ -1047,6 +1370,7 @@ export default {
     },
 
     fillForm(thuoc) {
+      this.clearFormErrors();
       this.form.originalId = thuoc.ma_thuoc;
       this.form.ma_thuoc = thuoc.ma_thuoc;
       this.form.ten_thuoc = thuoc.ten_thuoc || "";
@@ -1066,8 +1390,9 @@ export default {
       this.syncDanhMucFromSlug(thuoc.danh_muc_thuoc_slug);
       this.releaseObjectPreviewUrl();
       this.imageFile = null;
-      this.imageUrlInput = this.isExternalImageReference(thuoc.hinh_anh) ? thuoc.hinh_anh : "";
-      this.imagePreviewUrl = thuoc.hinh_anh_url || "";
+      this.imagePreviewLoadFailed = false;
+      this.imageUrlInput = "";
+      this.imagePreviewUrl = "";
     },
 
     async assignNextCode() {
@@ -1080,6 +1405,7 @@ export default {
     },
 
     async resetForm() {
+      this.clearFormErrors();
       this.selectedThuoc = null;
       this.form.originalId = "";
       this.form.ma_thuoc = "";
@@ -1103,6 +1429,7 @@ export default {
       this.imageFile = null;
       this.imageUrlInput = "";
       this.imagePreviewUrl = "";
+      this.imagePreviewLoadFailed = false;
       this.clearImageFileInput();
 
       await this.assignNextCode();
@@ -1116,34 +1443,49 @@ export default {
     },
 
     handleImageChange(event) {
+      this.clearFieldError("hinh_anh");
+      this.clearFieldError("hinh_anh_url");
       const file = event.target.files && event.target.files[0] ? event.target.files[0] : null;
       this.releaseObjectPreviewUrl();
       this.imageFile = file;
+      this.imagePreviewLoadFailed = false;
       if (file) {
         this.imageUrlInput = "";
         this.imagePreviewUrl = URL.createObjectURL(file);
         return;
       }
 
-      this.imagePreviewUrl = this.resolveImagePreviewFromUrl(this.imageUrlInput) || this.getStoredImageUrl();
+      this.imagePreviewUrl = this.resolveImagePreviewFromUrl(this.imageUrlInput);
     },
 
     handleImageUrlInput() {
+      this.clearFieldError("hinh_anh_url");
+      this.clearFieldError("hinh_anh");
+      this.imagePreviewLoadFailed = false;
       if (this.imageUrlInput) {
         this.releaseObjectPreviewUrl();
         this.imageFile = null;
         this.clearImageFileInput();
       }
 
-      this.imagePreviewUrl = this.resolveImagePreviewFromUrl(this.imageUrlInput) || this.getStoredImageUrl();
+      this.imagePreviewUrl = this.resolveImagePreviewFromUrl(this.imageUrlInput);
     },
 
     clearImageSelection() {
+      this.clearFieldError("hinh_anh");
+      this.clearFieldError("hinh_anh_url");
       this.releaseObjectPreviewUrl();
       this.imageFile = null;
       this.clearImageFileInput();
-      this.imageUrlInput = this.isExternalImageReference(this.selectedThuoc?.hinh_anh) ? this.selectedThuoc.hinh_anh : "";
-      this.imagePreviewUrl = this.resolveImagePreviewFromUrl(this.imageUrlInput) || this.getStoredImageUrl();
+      this.imageUrlInput = "";
+      this.imagePreviewUrl = "";
+      this.imagePreviewLoadFailed = false;
+    },
+
+    handleImagePreviewError() {
+      this.releaseObjectPreviewUrl();
+      this.imagePreviewUrl = "";
+      this.imagePreviewLoadFailed = true;
     },
 
     async resolveNhaSanXuatId() {
@@ -1290,28 +1632,19 @@ export default {
     },
 
     async saveThuoc() {
+      this.clearFormErrors();
+      this.error = "";
+
       if (!this.isAdminUser) {
-        this.error = "Chỉ quản trị viên mới có quyền thêm hoặc cập nhật thuốc.";
+        showToast("Chỉ quản trị viên mới có quyền thêm hoặc cập nhật thuốc.", "error");
         return;
       }
 
-      if (!this.form.danh_muc_cha_slug) {
-        this.error = "Vui lòng chọn mục cha cho thuốc.";
-        return;
-      }
-
-      if (!String(this.form.nhan || "").trim()) {
-        this.error = "Vui lòng nhập nhãn cho thuốc.";
-        return;
-      }
-
-      if (this.showDanhMucCon && !this.form.danh_muc_con_slug) {
-        this.error = `Vui lòng chọn nhánh cho nhóm ${this.selectedDanhMucChaLabel}.`;
-        return;
-      }
-
-      if (!this.resolveAllowedDanhMucSlugs(this.form.danh_muc_cha_slug).includes(this.selectedDanhMucSlug)) {
-        this.error = "Thuốc chỉ được lưu trong đúng mục con thuộc mục cha đã chọn.";
+      this.suggestBaseUnitFromMainUnit();
+      const formErrors = this.collectThuocFormErrors();
+      if (Object.keys(formErrors).length) {
+        this.setFormErrors(formErrors);
+        showToast("Vui lòng kiểm tra lại các trường thông tin trong biểu mẫu.", "error");
         return;
       }
 
@@ -1319,8 +1652,6 @@ export default {
       this.error = "";
 
       try {
-        this.suggestBaseUnitFromMainUnit();
-        this.validateAdditionalUnits();
         await this.resolveNhaSanXuatId();
         const payload = this.buildPayload();
 
@@ -1345,7 +1676,8 @@ export default {
         await this.loadData();
         this.thuocModal?.hide();
       } catch (err) {
-        this.error = this.normalizeError(err);
+        this.applyFormErrorsFromError(err);
+        showToast("Vui lòng kiểm tra lại các trường thông tin trong biểu mẫu.", "error");
       } finally {
         this.loading.save = false;
       }

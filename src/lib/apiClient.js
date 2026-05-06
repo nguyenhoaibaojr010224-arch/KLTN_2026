@@ -19,7 +19,7 @@ async function parseResponse(response) {
 
   if (!response.ok) {
     const message =
-      (isJson && (payload.message || payload.error)) || "Yeu cau that bai. Vui long thu lai.";
+      (isJson && (payload.message || payload.error)) || "Yêu cầu thất bại. Vui lòng thử lại.";
 
     if (response.status === 401) {
       clearAuthSession();
@@ -84,9 +84,9 @@ export async function apiClient(path, options = {}) {
     if (error?.name === "AbortError" || error === "request_timeout") {
       throw {
         status: 0,
-        message: `Khong nhan duoc phan hoi tu Laravel API tai ${API_BASE_URL} sau ${Math.round(
+        message: `Không nhận được phản hồi từ Laravel API tại ${API_BASE_URL} sau ${Math.round(
           timeoutMs / 1000
-        )} giay. Kiem tra backend da chay.`,
+        )} giây. Kiểm tra backend đã chạy.`,
         payload: null,
         cause: error,
       };
@@ -94,7 +94,7 @@ export async function apiClient(path, options = {}) {
 
     throw {
       status: 0,
-      message: `Khong the ket noi den Laravel API tai ${API_BASE_URL}. Kiem tra backend da chay va VITE_API_BASE_URL.`,
+      message: `Không thể kết nối đến Laravel API tại ${API_BASE_URL}. Kiểm tra backend đã chạy và VITE_API_BASE_URL.`,
       payload: null,
       cause: error,
     };

@@ -10,13 +10,6 @@
         <p class="hero-card__lead mb-4">
           Xem nhân viên nào đã đăng nhập, doanh thu bán hàng trong ngày và bảng xếp hạng doanh thu tháng.
         </p>
-
-        <div class="d-flex flex-wrap gap-3">
-          <span class="master-topstrip__pill">
-            <i class="bi bi-person-badge"></i>
-            Quyền hiện tại: {{ roleLabel }}
-          </span>
-        </div>
       </div>
 
       <div class="col-xl-5">
@@ -55,10 +48,10 @@
             </p>
           </div>
           <div class="staff-performance-filters">
-            <input
+            <DatePickerInput
               v-model="performanceDate"
-              type="date"
-              class="form-control form-control-sm"
+              size="sm"
+              placeholder="dd/mm/yyyy"
               aria-label="Chọn ngày xem hiệu suất"
               @change="loadStaffPerformance"
             />
@@ -261,7 +254,10 @@
 
 <script>
 import { getStaffPerformanceChart } from '../../../api/dashboardApi';
+import DatePickerInput from '../../Common/DatePickerInput.vue';
 import { authState } from '../../../lib/authStorage';
+import { formatDateInputValue, parseDateInputValue } from '../../../lib/dateInput';
+import { normalizeApiError } from '../../../lib/errorMessages';
 
 const currencyFormatter = new Intl.NumberFormat('vi-VN', {
   style: 'currency',
@@ -286,13 +282,16 @@ function toMonthInputValue(date) {
 
 export default {
   name: 'DashboardAdmin',
+  components: {
+    DatePickerInput,
+  },
 
   data() {
     const today = new Date();
 
     return {
       authState,
-      performanceDate: toDateInputValue(today),
+      performanceDate: formatDateInputValue(today),
       performanceMonth: toMonthInputValue(today),
       performanceLoading: false,
       performanceError: '',
@@ -314,18 +313,6 @@ export default {
   computed: {
     currentUserName() {
       return this.authState.user?.ho_ten || this.authState.user?.ten_khach_hang || 'Tài khoản hệ thống';
-    },
-
-    roleLabel() {
-      if (this.authState.type === 'admin') {
-        return 'Admin';
-      }
-
-      if (['staff', 'nhan_vien', 'nhanvien'].includes(this.authState.type)) {
-        return 'Nhân viên';
-      }
-
-      return 'Tài khoản';
     },
 
     todaySummary() {
@@ -388,12 +375,19 @@ export default {
 
   methods: {
     async loadStaffPerformance() {
+      const selectedDate = parseDateInputValue(this.performanceDate);
+
+      if (this.performanceDate && !selectedDate) {
+        this.performanceError = 'Ngày hiệu suất phải theo định dạng dd/mm/yyyy.';
+        return;
+      }
+
       this.performanceLoading = true;
       this.performanceError = '';
 
       try {
         const response = await getStaffPerformanceChart({
-          date: this.performanceDate,
+          date: selectedDate || toDateInputValue(new Date()),
           month: this.performanceMonth,
         });
 
@@ -405,7 +399,7 @@ export default {
         this.weekRefDate = new Date();
         this.weekMonth = toMonthInputValue(new Date());
       } catch (error) {
-        this.performanceError = error?.data?.message || error?.message || 'Không tải được dữ liệu chart.';
+        this.performanceError = normalizeApiError(error, 'Không tải được dữ liệu biểu đồ.');
       } finally {
         this.performanceLoading = false;
       }
@@ -470,7 +464,7 @@ export default {
 
         this.weekData = response.data?.tuan_nay || null;
       } catch (error) {
-        this.performanceError = error?.data?.message || error?.message || 'Không tải được dữ liệu tuần.';
+        this.performanceError = normalizeApiError(error, 'Không tải được dữ liệu tuần.');
       } finally {
         this.weekLoading = false;
       }

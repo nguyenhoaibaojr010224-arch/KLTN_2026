@@ -150,6 +150,7 @@ import {
 } from "../../../api/supportApi";
 import { getAuthType, isAuthenticatedState } from "../../../lib/authStorage";
 import { useCustomerStore } from "../../../lib/customerStore";
+import { normalizeApiError } from "../../../lib/errorMessages";
 import { SUPPORT_CHAT_OPEN_EVENT } from "../../../lib/supportChatEvents";
 import { showToast } from "../../../lib/toast";
 
@@ -170,6 +171,13 @@ const quickActions = [
 ];
 
 let pollTimer = null;
+
+function normalizeError(error, fallback = "Không thể xử lý hội thoại hỗ trợ.") {
+  return normalizeApiError(error, fallback, {
+    noi_dung: "nội dung tin nhắn",
+    message: "nội dung tin nhắn",
+  });
+}
 
 const canUseSupportChat = computed(() => !isAuthenticatedState.value || getAuthType() === "customer");
 const unreadCount = computed(() => Number(conversation.value?.so_tin_chua_doc || 0));
@@ -296,7 +304,7 @@ async function loadConversation({
     conversation.value = response?.data || null;
   } catch (error) {
     if (!silent) {
-      showToast(error?.message || "Không thể tải hội thoại hỗ trợ.", "error");
+      showToast(normalizeError(error, "Không thể tải hội thoại hỗ trợ."), "error");
     }
   } finally {
     if (!silent) {
@@ -326,7 +334,7 @@ async function sendMessage(overrideMessage = "") {
     await nextTick();
     scrollToBottom();
   } catch (error) {
-    showToast(error?.message || "Không thể gửi tin nhắn hỗ trợ.", "error");
+    showToast(normalizeError(error, "Không thể gửi tin nhắn hỗ trợ."), "error");
   } finally {
     sending.value = false;
   }

@@ -13,11 +13,6 @@
             khi khách thanh toán.
           </p>
         </div>
-
-        <div class="soft-badge">
-          <i class="bi bi-person-badge"></i>
-          {{ currentUser?.ho_ten || "Tài khoản hệ thống" }}
-        </div>
       </div>
     </section>
 
@@ -246,11 +241,17 @@
             </div>
             <div class="col-md-6">
               <label class="form-label fw-semibold">Bắt đầu</label>
-              <input v-model="promotionForm.ngay_bat_dau" type="datetime-local" class="form-control" />
+              <DateTimePickerInput
+                v-model="promotionForm.ngay_bat_dau"
+                placeholder="dd/mm/yyyy HH:mm"
+              />
             </div>
             <div class="col-md-6">
               <label class="form-label fw-semibold">Kết thúc</label>
-              <input v-model="promotionForm.ngay_ket_thuc" type="datetime-local" class="form-control" />
+              <DateTimePickerInput
+                v-model="promotionForm.ngay_ket_thuc"
+                placeholder="dd/mm/yyyy HH:mm"
+              />
             </div>
           </div>
         </div>
@@ -391,11 +392,17 @@
             </div>
             <div class="col-md-6">
               <label class="form-label fw-semibold">Bắt đầu</label>
-              <input v-model="codeForm.ngay_bat_dau" type="datetime-local" class="form-control" />
+              <DateTimePickerInput
+                v-model="codeForm.ngay_bat_dau"
+                placeholder="dd/mm/yyyy HH:mm"
+              />
             </div>
             <div class="col-md-6">
               <label class="form-label fw-semibold">Kết thúc</label>
-              <input v-model="codeForm.ngay_ket_thuc" type="datetime-local" class="form-control" />
+              <DateTimePickerInput
+                v-model="codeForm.ngay_ket_thuc"
+                placeholder="dd/mm/yyyy HH:mm"
+              />
             </div>
           </div>
         </div>
@@ -471,6 +478,7 @@
 </template>
 <script>
 import { Modal } from "bootstrap";
+import DateTimePickerInput from "../../Common/DateTimePickerInput.vue";
 import {
   createKhuyenMai,
   createOrderDiscountCode,
@@ -483,31 +491,28 @@ import {
   updateThuocPrice,
 } from "../../../api/pricingApi";
 import { getThuocList } from "../../../api/thuocManagementApi";
-import { getStoredUser } from "../../../lib/authStorage";
+import { formatDateTimeInputValue, parseDateTimeInputValue } from "../../../lib/dateInput";
+import { normalizeApiError } from "../../../lib/errorMessages";
 import { formatIntegerInput, parseFormattedInteger } from "../../../lib/numberInput";
 import { showToast } from "../../../lib/toast";
 
 function nowAsInput() {
-  const now = new Date();
-  const localDate = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
-  return localDate.toISOString().slice(0, 16);
+  return formatDateTimeInputValue(new Date());
 }
 
 function toInputDateTime(value) {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
-  return localDate.toISOString().slice(0, 16);
+  return formatDateTimeInputValue(value);
 }
 
 const THUOC_TABLE_BATCH_SIZE = 15;
 
 export default {
   name: "GiaKhuyenMaiAdmin",
+  components: {
+    DateTimePickerInput,
+  },
   data() {
     return {
-      currentUser: getStoredUser(),
       keyword: "",
       thuocs: [],
       khuyenMais: [],
@@ -611,6 +616,20 @@ export default {
       return parseFormattedInteger(event?.target?.value);
     },
 
+    parseDateTimePayload(value, label) {
+      if (!value) {
+        return { valid: true, value: null };
+      }
+
+      const parsedValue = parseDateTimeInputValue(value);
+      if (!parsedValue) {
+        showToast(`${label} phải theo định dạng dd/mm/yyyy HH:mm.`, "error");
+        return { valid: false, value: null };
+      }
+
+      return { valid: true, value: parsedValue };
+    },
+
     createPromotionForm() {
       return { id: null, ma_thuoc: "", ma_khuyen_mai: "", ten_khuyen_mai: "", mo_ta: "", loai_ap_dung: "phan_tram", gia_tri: "", nhan_hien_thi: "", ngay_bat_dau: nowAsInput(), ngay_ket_thuc: "", trang_thai: "active" };
     },
@@ -661,7 +680,7 @@ export default {
         this.orderCodes = Array.isArray(orderCodesResponse?.data) ? orderCodesResponse.data : [];
         this.resetThuocPagination();
       } catch (error) {
-        this.error = error?.message || "Không thể tải dữ liệu giá và khuyến mãi.";
+        this.error = this.normalizeError(error, "Không thể tải dữ liệu giá và khuyến mãi.");
       } finally {
         this.loading.sync = false;
       }
@@ -699,12 +718,14 @@ export default {
       return "soft-badge--blue";
     },
     normalizeError(error, fallback) {
-      const fieldErrors = error?.payload?.errors;
-      if (fieldErrors && typeof fieldErrors === "object") {
-        const firstField = Object.keys(fieldErrors)[0];
-        if (firstField && Array.isArray(fieldErrors[firstField]) && fieldErrors[firstField][0]) return fieldErrors[firstField][0];
-      }
-      return error?.message || fallback;
+      return normalizeApiError(error, fallback, {
+        ma_thuoc: "thuốc áp dụng",
+        ma_khuyen_mai: "mã nội bộ khuyến mãi",
+        ten_khuyen_mai: "tên khuyến mãi",
+        nhan_hien_thi: "nhãn hiển thị",
+        ma_giam_gia: "mã giảm giá",
+        ten_ma: "tên chương trình",
+      });
     },
     openPriceModal(thuoc) {
       this.priceForm = { ma_thuoc: thuoc.ma_thuoc, ten_thuoc: thuoc.ten_thuoc, gia_ban: Number(thuoc.gia_ban || 0) };
@@ -757,7 +778,18 @@ export default {
         showToast("Cần chọn thuốc, nhập tên và giá trị khuyến mãi hợp lệ.", "error");
         return;
       }
-      const payload = { ma_thuoc: this.promotionForm.ma_thuoc, ma_khuyen_mai: this.promotionForm.ma_khuyen_mai || null, ten_khuyen_mai: this.promotionForm.ten_khuyen_mai, mo_ta: this.promotionForm.mo_ta || null, loai_ap_dung: this.promotionForm.loai_ap_dung, gia_tri: Number(this.promotionForm.gia_tri), nhan_hien_thi: this.promotionForm.nhan_hien_thi || null, ngay_bat_dau: this.promotionForm.ngay_bat_dau || null, ngay_ket_thuc: this.promotionForm.ngay_ket_thuc || null, trang_thai: this.promotionForm.trang_thai };
+      const startDate = this.parseDateTimePayload(this.promotionForm.ngay_bat_dau, "Ngày bắt đầu");
+      const endDate = this.parseDateTimePayload(this.promotionForm.ngay_ket_thuc, "Ngày kết thúc");
+      if (!startDate.valid || !endDate.valid) {
+        return;
+      }
+
+      if (startDate.value && endDate.value && new Date(endDate.value) <= new Date(startDate.value)) {
+        showToast("Ngày kết thúc phải sau ngày bắt đầu.", "error");
+        return;
+      }
+
+      const payload = { ma_thuoc: this.promotionForm.ma_thuoc, ma_khuyen_mai: this.promotionForm.ma_khuyen_mai || null, ten_khuyen_mai: this.promotionForm.ten_khuyen_mai, mo_ta: this.promotionForm.mo_ta || null, loai_ap_dung: this.promotionForm.loai_ap_dung, gia_tri: Number(this.promotionForm.gia_tri), nhan_hien_thi: this.promotionForm.nhan_hien_thi || null, ngay_bat_dau: startDate.value, ngay_ket_thuc: endDate.value, trang_thai: this.promotionForm.trang_thai };
       this.loading.savePromotion = true;
       try {
         if (this.promotionForm.id) {
@@ -802,7 +834,18 @@ export default {
         showToast("Cần nhập mã, tên và giá trị giảm hợp lệ.", "error");
         return;
       }
-      const payload = { ma_giam_gia: this.codeForm.ma_giam_gia, ten_ma: this.codeForm.ten_ma, mo_ta: this.codeForm.mo_ta || null, loai_ap_dung: this.codeForm.loai_ap_dung, gia_tri: Number(this.codeForm.gia_tri), gia_tri_don_toi_thieu: Number(this.codeForm.gia_tri_don_toi_thieu || 0), gioi_han_moi_khach: this.codeForm.gioi_han_moi_khach ? Number(this.codeForm.gioi_han_moi_khach) : null, ngay_bat_dau: this.codeForm.ngay_bat_dau || null, ngay_ket_thuc: this.codeForm.ngay_ket_thuc || null, trang_thai: this.codeForm.trang_thai };
+      const startDate = this.parseDateTimePayload(this.codeForm.ngay_bat_dau, "Ngày bắt đầu");
+      const endDate = this.parseDateTimePayload(this.codeForm.ngay_ket_thuc, "Ngày kết thúc");
+      if (!startDate.valid || !endDate.valid) {
+        return;
+      }
+
+      if (startDate.value && endDate.value && new Date(endDate.value) <= new Date(startDate.value)) {
+        showToast("Ngày kết thúc phải sau ngày bắt đầu.", "error");
+        return;
+      }
+
+      const payload = { ma_giam_gia: this.codeForm.ma_giam_gia, ten_ma: this.codeForm.ten_ma, mo_ta: this.codeForm.mo_ta || null, loai_ap_dung: this.codeForm.loai_ap_dung, gia_tri: Number(this.codeForm.gia_tri), gia_tri_don_toi_thieu: Number(this.codeForm.gia_tri_don_toi_thieu || 0), gioi_han_moi_khach: this.codeForm.gioi_han_moi_khach ? Number(this.codeForm.gioi_han_moi_khach) : null, ngay_bat_dau: startDate.value, ngay_ket_thuc: endDate.value, trang_thai: this.codeForm.trang_thai };
       this.loading.saveCode = true;
       try {
         if (this.codeForm.id) {

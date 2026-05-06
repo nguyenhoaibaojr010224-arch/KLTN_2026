@@ -11,11 +11,6 @@
           Theo dõi tổng tồn theo đơn vị kho chuẩn, danh sách lô, hạn sử dụng và số lượng còn lại.
         </p>
       </div>
-
-      <div class="soft-badge">
-        <i class="bi bi-person-badge"></i>
-        {{ currentUser?.ho_ten || "Tài khoản hệ thống" }}
-      </div>
     </div>
   </section>
 
@@ -406,24 +401,57 @@
           <div class="row g-3">
             <div class="col-md-6">
               <label class="form-label fw-semibold">Nhà cung cấp / nhà sản xuất</label>
-              <select v-model="receiptForm.id_nha_san_xuat" class="form-select">
+              <select
+                v-model="receiptForm.id_nha_san_xuat"
+                class="form-select"
+                :class="{ 'is-invalid': receiptErrors.id_nha_san_xuat }"
+                @change="clearReceiptError('id_nha_san_xuat')"
+              >
                 <option value="">Chọn nhà cung cấp</option>
                 <option v-for="supplier in nhaSanXuats" :key="supplier.id" :value="supplier.id">
                   {{ supplier.ten_nha_san_xuat }}
                 </option>
               </select>
+              <div v-if="receiptErrors.id_nha_san_xuat" class="invalid-feedback d-block">
+                {{ receiptErrors.id_nha_san_xuat }}
+              </div>
             </div>
             <div class="col-md-6">
-              <label class="form-label fw-semibold">Số hóa đơn giấy</label>
-              <input v-model.trim="receiptForm.so_hoa_don_giay" class="form-control" placeholder="Ví dụ: HDN-000128" />
+              <label class="form-label fw-semibold">Số hóa đơn giấy <span class="text-danger">*</span></label>
+              <input
+                v-model.trim="receiptForm.so_hoa_don_giay"
+                class="form-control"
+                :class="{ 'is-invalid': receiptErrors.so_hoa_don_giay }"
+                placeholder="Ví dụ: HDN-000128"
+                @input="clearReceiptError('so_hoa_don_giay')"
+              />
+              <div v-if="receiptErrors.so_hoa_don_giay" class="invalid-feedback d-block">
+                {{ receiptErrors.so_hoa_don_giay }}
+              </div>
             </div>
             <div class="col-md-6">
               <label class="form-label fw-semibold">Ngày nhập hàng</label>
-              <input v-model="receiptForm.ngay_nhap" type="date" class="form-control" />
+              <DatePickerInput
+                v-model="receiptForm.ngay_nhap"
+                :invalid="Boolean(receiptErrors.ngay_nhap)"
+                placeholder="dd/mm/yyyy"
+                @input="clearReceiptError('ngay_nhap')"
+              />
+              <div v-if="receiptErrors.ngay_nhap" class="invalid-feedback d-block">
+                {{ receiptErrors.ngay_nhap }}
+              </div>
             </div>
             <div class="col-md-6">
               <label class="form-label fw-semibold">Ngày trên hóa đơn</label>
-              <input v-model="receiptForm.ngay_hoa_don" type="date" class="form-control" />
+              <DatePickerInput
+                v-model="receiptForm.ngay_hoa_don"
+                :invalid="Boolean(receiptErrors.ngay_hoa_don)"
+                placeholder="dd/mm/yyyy"
+                @input="clearReceiptError('ngay_hoa_don')"
+              />
+              <div v-if="receiptErrors.ngay_hoa_don" class="invalid-feedback d-block">
+                {{ receiptErrors.ngay_hoa_don }}
+              </div>
             </div>
             <div class="col-md-6">
               <label class="form-label fw-semibold">Ảnh/PDF hóa đơn giấy</label>
@@ -475,6 +503,7 @@
                   <input
                     v-model.trim="line.thuoc_keyword"
                     class="form-control"
+                    :class="{ 'is-invalid': line.errors?.id_thuoc }"
                     :list="`receipt-thuoc-options-${line.uid}`"
                     placeholder="Nhập tên thuốc hoặc mã thuốc"
                     @input="handleReceiptLineThuocInput(line)"
@@ -482,7 +511,10 @@
                   <datalist :id="`receipt-thuoc-options-${line.uid}`">
                     <option v-for="thuoc in receiptLineThuocSuggestions(line)" :key="thuoc.ma_thuoc" :value="formatThuocSuggestion(thuoc)" />
                   </datalist>
-                  <div v-if="line.id_thuoc" class="form-text text-success">
+                  <div v-if="line.errors?.id_thuoc" class="invalid-feedback d-block">
+                    {{ line.errors.id_thuoc }}
+                  </div>
+                  <div v-else-if="line.id_thuoc" class="form-text text-success">
                     Đã chọn: {{ receiptLineThuoc(line)?.ten_thuoc }} ({{ line.id_thuoc }})
                   </div>
                   <div v-else class="form-text">
@@ -491,28 +523,72 @@
                 </div>
                 <div class="col-lg-6">
                   <label class="form-label fw-semibold">Số lô</label>
-                  <input v-model.trim="line.so_lo" class="form-control" placeholder="Ví dụ: LO-2026-001" />
+                  <input
+                    v-model.trim="line.so_lo"
+                    class="form-control"
+                    :class="{ 'is-invalid': line.errors?.so_lo }"
+                    placeholder="Ví dụ: LO-2026-001"
+                    @input="clearReceiptLineError(line, 'so_lo')"
+                  />
+                  <div v-if="line.errors?.so_lo" class="invalid-feedback d-block">
+                    {{ line.errors.so_lo }}
+                  </div>
                 </div>
                 <div class="col-md-6">
                   <label class="form-label fw-semibold">Ngày sản xuất</label>
-                  <input v-model="line.ngay_san_xuat" type="date" class="form-control" />
+                  <DatePickerInput
+                    v-model="line.ngay_san_xuat"
+                    :invalid="Boolean(line.errors?.ngay_san_xuat)"
+                    placeholder="dd/mm/yyyy"
+                    @input="clearReceiptLineError(line, 'ngay_san_xuat')"
+                  />
+                  <div v-if="line.errors?.ngay_san_xuat" class="invalid-feedback d-block">
+                    {{ line.errors.ngay_san_xuat }}
+                  </div>
                 </div>
                 <div class="col-md-6">
                   <label class="form-label fw-semibold">Hạn sử dụng</label>
-                  <input v-model="line.han_su_dung" type="date" class="form-control" />
+                  <DatePickerInput
+                    v-model="line.han_su_dung"
+                    :invalid="Boolean(line.errors?.han_su_dung)"
+                    placeholder="dd/mm/yyyy"
+                    @input="clearReceiptLineError(line, 'han_su_dung')"
+                  />
+                  <div v-if="line.errors?.han_su_dung" class="invalid-feedback d-block">
+                    {{ line.errors.han_su_dung }}
+                  </div>
                 </div>
                 <div class="col-md-4">
                   <label class="form-label fw-semibold">Đơn vị nhập</label>
-                  <select v-model="line.don_vi_nhap" class="form-select">
+                  <select
+                    v-model="line.don_vi_nhap"
+                    class="form-select"
+                    :class="{ 'is-invalid': line.errors?.don_vi_nhap }"
+                    @change="clearReceiptLineError(line, 'don_vi_nhap')"
+                  >
                     <option value="">Chọn đơn vị</option>
                     <option v-for="option in receiptLineUnitOptions(line)" :key="option.lookup_key" :value="option.ten_don_vi">
                       {{ option.ten_don_vi }}
                     </option>
                   </select>
+                  <div v-if="line.errors?.don_vi_nhap" class="invalid-feedback d-block">
+                    {{ line.errors.don_vi_nhap }}
+                  </div>
                 </div>
                 <div class="col-md-4">
                   <label class="form-label fw-semibold">Số lượng nhập</label>
-                  <input v-model.number="line.so_luong_nhap_goc" type="number" min="1" class="form-control" placeholder="Ví dụ: 5" />
+                  <input
+                    v-model.number="line.so_luong_nhap_goc"
+                    type="number"
+                    min="1"
+                    class="form-control"
+                    :class="{ 'is-invalid': line.errors?.so_luong_nhap_goc }"
+                    placeholder="Ví dụ: 5"
+                    @input="clearReceiptLineError(line, 'so_luong_nhap_goc')"
+                  />
+                  <div v-if="line.errors?.so_luong_nhap_goc" class="invalid-feedback d-block">
+                    {{ line.errors.so_luong_nhap_goc }}
+                  </div>
                 </div>
                 <div class="col-md-4">
                   <label class="form-label fw-semibold">Giá nhập / đơn vị</label>
@@ -521,9 +597,13 @@
                     type="text"
                     inputmode="numeric"
                     class="form-control"
+                    :class="{ 'is-invalid': line.errors?.gia_nhap }"
                     placeholder="Ví dụ: 90,000"
-                    @input="line.gia_nhap = parsePriceInput($event)"
+                    @input="line.gia_nhap = parsePriceInput($event); clearReceiptLineError(line, 'gia_nhap')"
                   />
+                  <div v-if="line.errors?.gia_nhap" class="invalid-feedback d-block">
+                    {{ line.errors.gia_nhap }}
+                  </div>
                 </div>
               </div>
 
@@ -592,11 +672,17 @@
           <div class="row g-3 mt-1">
             <div class="col-md-6">
               <label class="form-label fw-semibold">Ngày sản xuất</label>
-              <input v-model="lotForm.ngay_san_xuat" type="date" class="form-control" />
+              <DatePickerInput
+                v-model="lotForm.ngay_san_xuat"
+                placeholder="dd/mm/yyyy"
+              />
             </div>
             <div class="col-md-6">
               <label class="form-label fw-semibold">Hạn sử dụng</label>
-              <input v-model="lotForm.han_su_dung" type="date" class="form-control" />
+              <DatePickerInput
+                v-model="lotForm.han_su_dung"
+                placeholder="dd/mm/yyyy"
+              />
             </div>
           </div>
 
@@ -662,6 +748,7 @@
 
 <script>
 import { Modal } from "bootstrap";
+import DatePickerInput from "../../Common/DatePickerInput.vue";
 import {
   createLoThuoc,
   createPhieuNhap,
@@ -673,7 +760,8 @@ import {
   searchThuocs,
   updateLoThuoc,
 } from "../../../api/inventoryApi";
-import { getStoredUser, isAdminUser } from "../../../lib/authStorage";
+import { isAdminUser } from "../../../lib/authStorage";
+import { normalizeApiError } from "../../../lib/errorMessages";
 import { formatIntegerInput, parseFormattedInteger } from "../../../lib/numberInput";
 import { showToast } from "../../../lib/toast";
 
@@ -738,10 +826,33 @@ function buildThuocUnitOptions(thuoc) {
   });
 }
 
+function createEmptyReceiptErrors() {
+  return {
+    id_nha_san_xuat: "",
+    so_hoa_don_giay: "",
+    ngay_nhap: "",
+    ngay_hoa_don: "",
+  };
+}
+
+function createEmptyReceiptLineErrors() {
+  return {
+    id_thuoc: "",
+    so_lo: "",
+    ngay_san_xuat: "",
+    han_su_dung: "",
+    don_vi_nhap: "",
+    so_luong_nhap_goc: "",
+    gia_nhap: "",
+  };
+}
+
 export default {
+  components: {
+    DatePickerInput,
+  },
   data() {
     return {
-      currentUser: getStoredUser(),
       keyword: "",
       thuocs: [],
       loThuocs: [],
@@ -771,6 +882,7 @@ export default {
         ghi_chu: "",
         chi_tiets: [],
       },
+      receiptErrors: createEmptyReceiptErrors(),
       lotForm: {
         id_lo: null,
         id_thuoc: "",
@@ -909,12 +1021,134 @@ export default {
       return parseFormattedInteger(event?.target?.value);
     },
 
-    normalizeError(err) {
-      if (err?.payload?.errors) {
-        return Object.values(err.payload.errors).flat().join(" | ");
+    formatReceiptDateValue(value) {
+      const raw = String(value || "").trim();
+      if (!raw) {
+        return "";
       }
 
-      return err?.message || "Không thể tải dữ liệu tồn kho.";
+      if (/^\d{2}\/\d{2}\/\d{4}$/.test(raw)) {
+        return raw;
+      }
+
+      const isoMatch = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (isoMatch) {
+        return `${isoMatch[3]}/${isoMatch[2]}/${isoMatch[1]}`;
+      }
+
+      return raw;
+    },
+
+    formatReceiptDateTyping(value) {
+      const digits = String(value || "").replace(/\D/g, "").slice(0, 8);
+      const day = digits.slice(0, 2);
+      const month = digits.slice(2, 4);
+      const year = digits.slice(4, 8);
+
+      return [day, month, year].filter(Boolean).join("/");
+    },
+
+    handleReceiptDateInput(target, field, event) {
+      target[field] = this.formatReceiptDateTyping(event?.target?.value);
+    },
+
+    parseReceiptDateValue(value) {
+      const raw = String(value || "").trim();
+      const match = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+
+      if (!match) {
+        return "";
+      }
+
+      const day = Number(match[1]);
+      const month = Number(match[2]);
+      const year = Number(match[3]);
+      const date = new Date(year, month - 1, day);
+      const isValid = date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
+
+      if (!isValid) {
+        return "";
+      }
+
+      return `${match[3]}-${match[2]}-${match[1]}`;
+    },
+
+    normalizeError(err) {
+      return normalizeApiError(err, "Không thể tải dữ liệu tồn kho.", {
+        id_nha_san_xuat: "nhà cung cấp",
+        so_hoa_don_giay: "số hóa đơn giấy",
+        id_thuoc: "thuốc áp dụng",
+        chi_tiets: "danh sách thuốc trong phiếu",
+        "chi_tiets.id_thuoc": "thuốc áp dụng",
+        "chi_tiets.so_lo": "số lô",
+        "chi_tiets.ngay_san_xuat": "ngày sản xuất",
+        "chi_tiets.han_su_dung": "hạn sử dụng",
+        "chi_tiets.don_vi_nhap": "đơn vị nhập",
+        "chi_tiets.so_luong_nhap_goc": "số lượng nhập",
+        "chi_tiets.gia_nhap": "giá nhập",
+      });
+    },
+    clearReceiptError(field) {
+      if (Object.prototype.hasOwnProperty.call(this.receiptErrors, field)) {
+        this.receiptErrors[field] = "";
+      }
+    },
+    ensureReceiptLineErrors(line) {
+      if (!line.errors) {
+        line.errors = createEmptyReceiptLineErrors();
+      }
+
+      return line.errors;
+    },
+    clearReceiptLineError(line, field) {
+      const errors = this.ensureReceiptLineErrors(line);
+      if (Object.prototype.hasOwnProperty.call(errors, field)) {
+        errors[field] = "";
+      }
+    },
+    resetReceiptErrors() {
+      this.receiptErrors = createEmptyReceiptErrors();
+      this.receiptForm.chi_tiets.forEach((line) => {
+        line.errors = createEmptyReceiptLineErrors();
+      });
+    },
+    applyReceiptBackendErrors(err) {
+      const backendErrors = err?.payload?.errors || err?.response?.data?.errors;
+      if (!backendErrors || typeof backendErrors !== "object") {
+        return false;
+      }
+
+      const topErrors = createEmptyReceiptErrors();
+      const lineErrors = this.receiptForm.chi_tiets.map(() => createEmptyReceiptLineErrors());
+      let hasErrors = false;
+
+      Object.entries(backendErrors).forEach(([field, messages]) => {
+        const message = normalizeApiError({ payload: { errors: { [field]: messages } } }, "Dữ liệu không hợp lệ.");
+        const lineMatch = String(field).match(/^chi_tiets\.(\d+)\.(.+)$/);
+
+        if (lineMatch) {
+          const lineIndex = Number(lineMatch[1]);
+          const lineField = lineMatch[2];
+
+          if (lineErrors[lineIndex] && Object.prototype.hasOwnProperty.call(lineErrors[lineIndex], lineField)) {
+            lineErrors[lineIndex][lineField] = message;
+            hasErrors = true;
+          }
+          return;
+        }
+
+        if (Object.prototype.hasOwnProperty.call(topErrors, field)) {
+          topErrors[field] = message;
+          hasErrors = true;
+        }
+      });
+
+      this.receiptErrors = topErrors;
+      this.receiptForm.chi_tiets.forEach((line, index) => {
+        line.errors = lineErrors[index] || createEmptyReceiptLineErrors();
+      });
+
+      return hasErrors;
     },
     getLoaiThuocName(thuoc) {
       return (
@@ -1026,7 +1260,7 @@ export default {
     todayInputValue() {
       const today = new Date();
       today.setMinutes(today.getMinutes() - today.getTimezoneOffset());
-      return today.toISOString().slice(0, 10);
+      return this.formatReceiptDateValue(today.toISOString().slice(0, 10));
     },
     createEmptyReceiptLine(seed = {}) {
       const resolvedThuocId = seed.id_thuoc || "";
@@ -1037,11 +1271,12 @@ export default {
         id_thuoc: resolvedThuocId,
         thuoc_keyword: thuoc ? this.formatThuocSuggestion(thuoc) : "",
         so_lo: seed.so_lo || "",
-        ngay_san_xuat: seed.ngay_san_xuat || "",
-        han_su_dung: seed.han_su_dung || "",
+        ngay_san_xuat: this.formatReceiptDateValue(seed.ngay_san_xuat || ""),
+        han_su_dung: this.formatReceiptDateValue(seed.han_su_dung || ""),
         don_vi_nhap: seed.don_vi_nhap || this.defaultUnitForThuoc(thuoc),
         so_luong_nhap_goc: seed.so_luong_nhap_goc || null,
         gia_nhap: seed.gia_nhap || null,
+        errors: createEmptyReceiptLineErrors(),
       };
     },
     resetReceiptForm(seed = {}) {
@@ -1058,6 +1293,7 @@ export default {
         ghi_chu: "",
         chi_tiets: [this.createEmptyReceiptLine(seed)],
       };
+      this.receiptErrors = createEmptyReceiptErrors();
 
       // Reset input file
       if (this.$refs.chungTuFileInput) {
@@ -1117,6 +1353,7 @@ export default {
         .map((item) => item.thuoc);
     },
     handleReceiptLineThuocInput(line) {
+      this.clearReceiptLineError(line, "id_thuoc");
       const keyword = normalizeSearchText(line?.thuoc_keyword);
       const matchedThuoc = this.thuocRows.find((thuoc) => {
         const suggestion = normalizeSearchText(this.formatThuocSuggestion(thuoc));
@@ -1200,43 +1437,89 @@ export default {
       this.openReceiptForm({ id_thuoc: idThuoc });
     },
     validateReceiptForm() {
+      const errors = createEmptyReceiptErrors();
+      let firstMessage = "";
+      const setFirstMessage = (message) => {
+        if (!firstMessage) {
+          firstMessage = message;
+        }
+      };
+
       if (!this.receiptForm.id_nha_san_xuat) {
-        return "Vui lòng chọn nhà cung cấp.";
+        errors.id_nha_san_xuat = "Vui lòng chọn nhà cung cấp.";
+        setFirstMessage(errors.id_nha_san_xuat);
+      }
+
+      if (!this.receiptForm.so_hoa_don_giay) {
+        errors.so_hoa_don_giay = "Vui lòng nhập số hóa đơn giấy.";
+        setFirstMessage(errors.so_hoa_don_giay);
       }
 
       if (!this.receiptForm.ngay_nhap) {
-        return "Vui lòng chọn ngày nhập hàng.";
+        errors.ngay_nhap = "Vui lòng nhập ngày nhập hàng.";
+        setFirstMessage(errors.ngay_nhap);
+      } else if (!this.parseReceiptDateValue(this.receiptForm.ngay_nhap)) {
+        errors.ngay_nhap = "Ngày nhập hàng phải theo định dạng dd/mm/yyyy.";
+        setFirstMessage(errors.ngay_nhap);
+      }
+
+      if (this.receiptForm.ngay_hoa_don && !this.parseReceiptDateValue(this.receiptForm.ngay_hoa_don)) {
+        errors.ngay_hoa_don = "Ngày trên hóa đơn phải theo định dạng dd/mm/yyyy.";
+        setFirstMessage(errors.ngay_hoa_don);
       }
 
       for (const [index, line] of this.receiptForm.chi_tiets.entries()) {
         const lineNumber = index + 1;
+        const lineErrors = createEmptyReceiptLineErrors();
+        const setLineError = (field, message) => {
+          lineErrors[field] = message;
+          setFirstMessage(`Dòng ${lineNumber}: ${message}`);
+        };
 
         if (!line.id_thuoc) {
-          return `Dòng ${lineNumber}: vui lòng chọn thuốc.`;
+          setLineError("id_thuoc", "Vui lòng chọn thuốc áp dụng.");
         }
 
         if (!line.so_lo) {
-          return `Dòng ${lineNumber}: vui lòng nhập số lô.`;
+          setLineError("so_lo", "Vui lòng nhập số lô.");
         }
 
-        if (!line.ngay_san_xuat || !line.han_su_dung) {
-          return `Dòng ${lineNumber}: vui lòng nhập ngày sản xuất và hạn sử dụng.`;
+        const manufactureDate = this.parseReceiptDateValue(line.ngay_san_xuat);
+        const expiryDate = this.parseReceiptDateValue(line.han_su_dung);
+
+        if (!line.ngay_san_xuat) {
+          setLineError("ngay_san_xuat", "Vui lòng nhập ngày sản xuất.");
+        } else if (!manufactureDate) {
+          setLineError("ngay_san_xuat", "Ngày sản xuất phải theo định dạng dd/mm/yyyy.");
+        }
+
+        if (!line.han_su_dung) {
+          setLineError("han_su_dung", "Vui lòng nhập hạn sử dụng.");
+        } else if (!expiryDate) {
+          setLineError("han_su_dung", "Hạn sử dụng phải theo định dạng dd/mm/yyyy.");
+        }
+
+        if (manufactureDate && expiryDate && new Date(expiryDate) <= new Date(manufactureDate)) {
+          setLineError("han_su_dung", "Hạn sử dụng phải sau ngày sản xuất.");
         }
 
         if (!line.don_vi_nhap) {
-          return `Dòng ${lineNumber}: vui lòng chọn đơn vị nhập.`;
+          setLineError("don_vi_nhap", "Vui lòng chọn đơn vị nhập.");
         }
 
         if (!line.so_luong_nhap_goc || Number(line.so_luong_nhap_goc) < 1) {
-          return `Dòng ${lineNumber}: vui lòng nhập số lượng nhập hợp lệ.`;
+          setLineError("so_luong_nhap_goc", "Vui lòng nhập số lượng nhập hợp lệ.");
         }
 
         if (!line.gia_nhap || Number(line.gia_nhap) < 1) {
-          return `Dòng ${lineNumber}: vui lòng nhập giá nhập hợp lệ.`;
+          setLineError("gia_nhap", "Vui lòng nhập giá nhập hợp lệ.");
         }
+
+        line.errors = lineErrors;
       }
 
-      return "";
+      this.receiptErrors = errors;
+      return firstMessage;
     },
     async saveReceipt() {
       if (!this.isAdminUser) {
@@ -1250,18 +1533,20 @@ export default {
         return;
       }
 
+      const receiptNgayNhap = this.parseReceiptDateValue(this.receiptForm.ngay_nhap);
+      const receiptNgayHoaDon = this.parseReceiptDateValue(this.receiptForm.ngay_hoa_don);
       const payload = {
         id_nha_san_xuat: this.receiptForm.id_nha_san_xuat,
-        so_hoa_don_giay: this.receiptForm.so_hoa_don_giay || null,
-        ngay_hoa_don: this.receiptForm.ngay_hoa_don || null,
-        ngay_nhap: this.receiptForm.ngay_nhap,
+        so_hoa_don_giay: this.receiptForm.so_hoa_don_giay,
+        ngay_hoa_don: receiptNgayHoaDon || null,
+        ngay_nhap: receiptNgayNhap,
         chung_tu_url: this.receiptForm.chung_tu_url || null,
         ghi_chu: this.receiptForm.ghi_chu || null,
         chi_tiets: this.receiptForm.chi_tiets.map((line) => ({
           id_thuoc: line.id_thuoc,
           so_lo: line.so_lo,
-          ngay_san_xuat: line.ngay_san_xuat,
-          han_su_dung: line.han_su_dung,
+          ngay_san_xuat: this.parseReceiptDateValue(line.ngay_san_xuat),
+          han_su_dung: this.parseReceiptDateValue(line.han_su_dung),
           don_vi_nhap: line.don_vi_nhap,
           so_luong_nhap_goc: Number(line.so_luong_nhap_goc),
           gia_nhap: Number(line.gia_nhap),
@@ -1276,7 +1561,11 @@ export default {
         await this.loadInventory();
         this.receiptFormModal?.hide();
       } catch (err) {
-        showToast(this.normalizeError(err), "error");
+        if (this.applyReceiptBackendErrors(err)) {
+          showToast("Vui lòng kiểm tra lại các trường thông tin trong phiếu nhập.", "error");
+        } else {
+          showToast(this.normalizeError(err), "error");
+        }
       } finally {
         this.loading.saveReceipt = false;
       }
@@ -1339,8 +1628,8 @@ export default {
         id_lo: lot.id_lo || null,
         id_thuoc: resolvedThuocId,
         so_lo: lot.so_lo || "",
-        ngay_san_xuat: lot.ngay_san_xuat || "",
-        han_su_dung: lot.han_su_dung || "",
+        ngay_san_xuat: this.formatReceiptDateValue(lot.ngay_san_xuat || ""),
+        han_su_dung: this.formatReceiptDateValue(lot.han_su_dung || ""),
         don_vi_nhap: lot.don_vi_nhap || defaultUnit,
         so_luong_nhap_goc: lot.so_luong_nhap_goc || null,
         so_luong_con: lot.so_luong_con ?? lot.so_luong_nhap ?? null,
@@ -1372,6 +1661,19 @@ export default {
         return;
       }
 
+      const lotManufactureDate = this.parseReceiptDateValue(this.lotForm.ngay_san_xuat);
+      const lotExpiryDate = this.parseReceiptDateValue(this.lotForm.han_su_dung);
+
+      if (!lotManufactureDate || !lotExpiryDate) {
+        showToast("Ngày sản xuất và hạn sử dụng phải theo định dạng dd/mm/yyyy.", "error");
+        return;
+      }
+
+      if (new Date(lotExpiryDate) <= new Date(lotManufactureDate)) {
+        showToast("Hạn sử dụng phải sau ngày sản xuất.", "error");
+        return;
+      }
+
       if (!this.lotForm.don_vi_nhap) {
         showToast("Vui lòng chọn đơn vị nhập.", "error");
         return;
@@ -1390,8 +1692,8 @@ export default {
       const payload = {
         id_thuoc: this.lotForm.id_thuoc,
         so_lo: this.lotForm.so_lo,
-        ngay_san_xuat: this.lotForm.ngay_san_xuat,
-        han_su_dung: this.lotForm.han_su_dung,
+        ngay_san_xuat: lotManufactureDate,
+        han_su_dung: lotExpiryDate,
         don_vi_nhap: this.lotForm.don_vi_nhap,
         gia_nhap: Number(this.lotForm.gia_nhap),
       };

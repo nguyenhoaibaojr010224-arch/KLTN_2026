@@ -89,7 +89,13 @@
 
               <div class="pc-form-field">
                 <label>Email</label>
-                <input v-model="profileDraft.email" type="email" />
+                <input
+                  v-model="profileDraft.email"
+                  class="pc-input-locked"
+                  type="email"
+                  disabled
+                  title="Email là thông tin duy nhất, không thể chỉnh sửa."
+                />
               </div>
 
               <div class="pc-form-field">
@@ -99,7 +105,10 @@
 
               <div class="pc-form-field">
                 <label>Ngày sinh</label>
-                <input v-model="profileDraft.ngaySinh" type="date" />
+                <DatePickerInput
+                  v-model="profileDraft.ngaySinh"
+                  placeholder="dd/mm/yyyy"
+                />
               </div>
 
               <div class="pc-form-field">
@@ -124,11 +133,25 @@
                   <div class="pc-password-form__grid">
                     <div class="pc-form-field">
                       <label>Mật khẩu hiện tại</label>
-                      <input v-model="passwordDraft.currentPassword" type="password" autocomplete="current-password" />
+                      <input
+                        v-model="passwordDraft.currentPassword"
+                        type="password"
+                        autocomplete="current-password"
+                        :class="{ 'is-invalid': passwordErrors.currentPassword }"
+                        @input="clearPasswordError('currentPassword')"
+                      />
+                      <div v-if="passwordErrors.currentPassword" class="pc-field-error">{{ passwordErrors.currentPassword }}</div>
                     </div>
                     <div class="pc-form-field">
                       <label>Mật khẩu mới</label>
-                      <input v-model="passwordDraft.newPassword" type="password" autocomplete="new-password" />
+                      <input
+                        v-model="passwordDraft.newPassword"
+                        type="password"
+                        autocomplete="new-password"
+                        :class="{ 'is-invalid': passwordErrors.newPassword }"
+                        @input="clearPasswordError('newPassword')"
+                      />
+                      <div v-if="passwordErrors.newPassword" class="pc-field-error">{{ passwordErrors.newPassword }}</div>
                     </div>
                     <div class="pc-form-field">
                       <label>Xác nhận mật khẩu mới</label>
@@ -136,7 +159,10 @@
                         v-model="passwordDraft.confirmPassword"
                         type="password"
                         autocomplete="new-password"
+                        :class="{ 'is-invalid': passwordErrors.confirmPassword }"
+                        @input="clearPasswordError('confirmPassword')"
                       />
+                      <div v-if="passwordErrors.confirmPassword" class="pc-field-error">{{ passwordErrors.confirmPassword }}</div>
                     </div>
                   </div>
                   <div class="pc-password-form__actions">
@@ -547,10 +573,14 @@
 </template>
 
 <script>
+import DatePickerInput from "../../Common/DatePickerInput.vue";
 import { getAuthType } from "../../../lib/authStorage";
 import { getCustomerOrderDiscountCodes } from "../../../api/pricingApi";
 import { changePasswordApi } from "../../../api/profileApi";
 import { useCustomerStore } from "../../../lib/customerStore";
+import { formatDateInputValue, parseDateInputValue } from "../../../lib/dateInput";
+import { translateErrorMessage } from "../../../lib/errorMessages";
+import { validateStrongPassword } from "../../../lib/passwordRules";
 import { showToast } from "../../../lib/toast";
 
 function createEmptyAddressDraft(profile) {
@@ -608,6 +638,9 @@ function normalizeAddressDraft(address) {
 
 export default {
   name: "ProfileClient",
+  components: {
+    DatePickerInput,
+  },
 
   data() {
     const customerStore = useCustomerStore();
@@ -641,10 +674,15 @@ export default {
         soDienThoai: state.profile.soDienThoai,
         email: state.profile.email,
         diaChi: state.profile.diaChi,
-        ngaySinh: state.profile.ngaySinh,
+        ngaySinh: formatDateInputValue(state.profile.ngaySinh),
         gioiTinh: state.profile.gioiTinh,
       },
       passwordDraft: {
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      },
+      passwordErrors: {
         currentPassword: "",
         newPassword: "",
         confirmPassword: "",
@@ -689,7 +727,7 @@ export default {
           soDienThoai: value.soDienThoai || "",
           email: value.email || "",
           diaChi: value.diaChi || "",
-          ngaySinh: value.ngaySinh || "",
+          ngaySinh: formatDateInputValue(value.ngaySinh),
           gioiTinh: value.gioiTinh || "",
         };
       },
@@ -853,46 +891,8 @@ export default {
         "dang_cho_thanh_toan",
         "waiting",
       ]);
-      const closedStatuses = new Set([
-        "paid",
-        "success",
-        "completed",
-        "da_thanh_toan",
-        "thanh_toan_thanh_cong",
-        "failed",
-        "fail",
-        "cancelled",
-        "canceled",
-        "da_huy",
-        "expired",
-        "het_han",
-      ]);
 
-      if (closedStatuses.has(status)) {
-        return false;
-      }
-
-      if (pendingStatuses.has(status)) {
-        return true;
-      }
-
-      const orderStatus = this.normalizePaymentStatus(order?.trangThai || order?.trangThaiXuLy || "");
-      const closedOrderStatuses = new Set([
-        "da_xac_nhan",
-        "da_thanh_toan",
-        "thanh_toan",
-        "hoan_thanh",
-        "thanh_cong",
-        "da_huy",
-        "huy",
-        "tu_choi",
-      ]);
-
-      if (closedOrderStatuses.has(orderStatus)) {
-        return false;
-      }
-
-      return ["cho_xac_nhan", "cho_thanh_toan"].includes(orderStatus);
+      return pendingStatuses.has(status);
     },
     continuePayosPayment(order) {
       const checkoutUrl = this.getPayosCheckoutUrl(order);
@@ -925,10 +925,85 @@ export default {
       if (fieldErrors && typeof fieldErrors === "object") {
         const firstField = Object.keys(fieldErrors)[0];
         const firstMessage = Array.isArray(fieldErrors[firstField]) ? fieldErrors[firstField][0] : fieldErrors[firstField];
-        if (firstMessage) return firstMessage;
+        if (firstMessage) return this.translateProfileValidationMessage(firstMessage, firstField);
       }
 
-      return error?.payload?.message || error?.response?.data?.message || error?.message || fallbackMessage;
+      const message = error?.payload?.message || error?.response?.data?.message || error?.message || fallbackMessage;
+      return this.translateProfileValidationMessage(message);
+    },
+    translateProfileValidationMessage(message, field = "") {
+      const rawMessage = String(message || "").trim();
+
+      if (!rawMessage) {
+        return "Không thể thực hiện yêu cầu. Vui lòng thử lại.";
+      }
+
+      const fieldLabels = {
+        ten_khach_hang: "họ và tên",
+        "ten khach hang": "họ và tên",
+        ho_ten: "họ và tên",
+        "ho ten": "họ và tên",
+        so_dien_thoai: "số điện thoại",
+        "so dien thoai": "số điện thoại",
+        email: "email",
+        dia_chi: "địa chỉ",
+        "dia chi": "địa chỉ",
+        ngay_sinh: "ngày sinh",
+        "ngay sinh": "ngày sinh",
+        gioi_tinh: "giới tính",
+        "gioi tinh": "giới tính",
+        avatar: "ảnh đại diện",
+      };
+      const normalized = rawMessage
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/đ/g, "d");
+
+      const englishFieldMatch = normalized.match(/^the (.+?) field /);
+      const selectedFieldMatch = normalized.match(/^the selected (.+?) is invalid/);
+      const fieldKey = englishFieldMatch?.[1] || selectedFieldMatch?.[1] || "";
+      const fieldLabel = fieldLabels[fieldKey] || fieldLabels[fieldKey.replace(/\s+/g, "_")] || "thông tin";
+
+      if (normalized.includes("field is required")) {
+        return `Vui lòng nhập ${fieldLabel}.`;
+      }
+
+      if (normalized.includes("must be at least")) {
+        const minValue = normalized.match(/at least (\d+)/)?.[1];
+        return `${this.capitalizeFirst(fieldLabel)} phải có ít nhất ${minValue || ""} ký tự.`.replace("  ", " ");
+      }
+
+      if (normalized.includes("may not be greater than")) {
+        const maxValue = normalized.match(/greater than (\d+)/)?.[1];
+        return `${this.capitalizeFirst(fieldLabel)} không được vượt quá ${maxValue || ""} ký tự.`.replace("  ", " ");
+      }
+
+      if (normalized.includes("must be a valid email")) {
+        return "Email không hợp lệ.";
+      }
+
+      if (normalized.includes("has already been taken")) {
+        return `${this.capitalizeFirst(fieldLabel)} này đã được sử dụng.`;
+      }
+
+      if (normalized.includes("must be a date") || normalized.includes("not a valid date")) {
+        return "Ngày sinh không hợp lệ.";
+      }
+
+      if (normalized.includes("selected") && normalized.includes("is invalid")) {
+        return "Giới tính chỉ được chọn Nam, Nữ hoặc Khác.";
+      }
+
+      if (normalized.includes("must be an image")) {
+        return "Ảnh đại diện phải là tệp hình ảnh.";
+      }
+
+      return translateErrorMessage(rawMessage, field, fieldLabels);
+    },
+    capitalizeFirst(value) {
+      const text = String(value || "");
+      return text ? text.charAt(0).toUpperCase() + text.slice(1) : text;
     },
     async loadDiscountCodes() {
       this.discountCodesLoading = true;
@@ -981,9 +1056,48 @@ export default {
         newPassword: "",
         confirmPassword: "",
       };
+      this.passwordErrors = {
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      };
+    },
+    clearPasswordError(field) {
+      if (Object.prototype.hasOwnProperty.call(this.passwordErrors, field)) {
+        this.passwordErrors[field] = "";
+      }
+    },
+    validatePasswordDraft() {
+      const errors = {
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      };
+
+      if (!this.passwordDraft.currentPassword) {
+        errors.currentPassword = "Vui lòng nhập mật khẩu hiện tại.";
+      }
+
+      errors.newPassword = validateStrongPassword(this.passwordDraft.newPassword, "Mật khẩu mới");
+
+      if (!this.passwordDraft.confirmPassword) {
+        errors.confirmPassword = "Vui lòng xác nhận mật khẩu mới.";
+      } else if (this.passwordDraft.confirmPassword !== this.passwordDraft.newPassword) {
+        errors.confirmPassword = "Xác nhận mật khẩu mới không khớp.";
+      }
+
+      this.passwordErrors = errors;
+      return !Object.values(errors).some(Boolean);
     },
     async saveProfile() {
       try {
+        const birthDate = parseDateInputValue(this.profileDraft.ngaySinh);
+
+        if (this.profileDraft.ngaySinh && !birthDate) {
+          showToast("Ngày sinh phải theo định dạng dd/mm/yyyy.", "error");
+          return;
+        }
+
         const payload = new FormData();
         const authType = getAuthType();
 
@@ -994,12 +1108,11 @@ export default {
         }
 
         payload.append("so_dien_thoai", this.profileDraft.soDienThoai || "");
-        payload.append("email", this.profileDraft.email || "");
         payload.append("dia_chi", this.profileDraft.diaChi || "");
         payload.append("gioi_tinh", this.profileDraft.gioiTinh || "");
 
-        if (this.profileDraft.ngaySinh) {
-          payload.append("ngay_sinh", this.profileDraft.ngaySinh);
+        if (birthDate) {
+          payload.append("ngay_sinh", birthDate);
         }
 
         if (this.avatarFile) {
@@ -1022,25 +1135,20 @@ export default {
       }
     },
     async submitPasswordChange() {
-      if (!this.passwordDraft.currentPassword || !this.passwordDraft.newPassword || !this.passwordDraft.confirmPassword) {
-        showToast("Vui lòng nhập đầy đủ thông tin đổi mật khẩu.", "error");
-        return;
-      }
-
-      if (this.passwordDraft.newPassword !== this.passwordDraft.confirmPassword) {
-        showToast("Xác nhận mật khẩu mới không khớp.", "error");
+      if (!this.validatePasswordDraft()) {
+        showToast("Vui lòng kiểm tra lại các trường thông tin bên trên.", "error");
         return;
       }
 
       try {
-        const response = await changePasswordApi({
+        await changePasswordApi({
           current_password: this.passwordDraft.currentPassword,
           new_password: this.passwordDraft.newPassword,
           new_password_confirmation: this.passwordDraft.confirmPassword,
         });
 
         this.cancelPasswordForm();
-        showToast(response?.message || "Đổi mật khẩu thành công.");
+        showToast("Đổi mật khẩu thành công.");
       } catch (error) {
         showToast(this.extractErrorMessage(error, "Không thể đổi mật khẩu."), "error");
       }
@@ -1399,6 +1507,23 @@ export default {
   justify-content: flex-end;
   gap: 12px;
   margin-top: 14px;
+}
+
+.pc-input-locked:disabled {
+  cursor: not-allowed;
+  background: #f1f5f9;
+  color: #64748b;
+  -webkit-text-fill-color: #64748b;
+}
+
+.pc-field-error {
+  margin-top: 6px;
+  color: #dc3545;
+  font-size: 0.9rem;
+}
+
+.pc-form-field input.is-invalid {
+  border-color: #dc3545;
 }
 
 @media (max-width: 767.98px) {

@@ -187,6 +187,8 @@
 <script>
 import { register, resendEmailVerification, verifyEmailCode } from "../../../api/authApi";
 import { setAuthSession } from "../../../lib/authStorage";
+import { normalizeApiError, translateErrorMessage } from "../../../lib/errorMessages";
+import { validateStrongPassword } from "../../../lib/passwordRules";
 
 export default {
   data() {
@@ -243,14 +245,16 @@ export default {
         return "Mật khẩu phải có ít nhất 8 ký tự, gồm 1 chữ in hoa và 1 ký tự đặc biệt.";
       }
 
-      return message;
+      return translateErrorMessage(message);
     },
     normalizeError(err, fallback = "Yêu cầu thất bại.") {
       if (err?.payload?.errors) {
-        return Object.values(err.payload.errors).flat().map(this.translateServerMessage).join(" | ");
+        return Object.entries(err.payload.errors)
+          .flatMap(([field, messages]) => (Array.isArray(messages) ? messages : [messages]).map((message) => translateErrorMessage(message, field)))
+          .join(" | ");
       }
 
-      return this.translateServerMessage(err?.message) || fallback;
+      return normalizeApiError(err, fallback);
     },
     validateField(field) {
       const value = String(this.form[field] || "").trim();
@@ -275,13 +279,7 @@ export default {
           if (value.length < 5) return "Địa chỉ phải có ít nhất 5 ký tự.";
           return "";
         case "mat_khau":
-          if (!this.form.mat_khau) return "Vui lòng nhập mật khẩu.";
-          if (this.form.mat_khau.length < 8) return "Mật khẩu phải có ít nhất 8 ký tự.";
-          if (!/[A-Z]/.test(this.form.mat_khau)) return "Mật khẩu phải có ít nhất 1 chữ in hoa.";
-          if (!/[!@#$%^&*(),.?\":{}|<>_\-[\]\\\/+=~`';]/.test(this.form.mat_khau)) {
-            return "Mật khẩu phải có ít nhất 1 ký tự đặc biệt.";
-          }
-          return "";
+          return validateStrongPassword(this.form.mat_khau, "Mật khẩu");
         case "mat_khau_confirmation":
           if (!this.form.mat_khau_confirmation) return "Vui lòng xác nhận mật khẩu.";
           if (this.form.mat_khau_confirmation !== this.form.mat_khau) return "Xác nhận mật khẩu không khớp.";
@@ -326,7 +324,7 @@ export default {
     },
     async dangKy() {
       if (!this.validateForm(true)) {
-        this.formError = "Vui lòng kiểm tra lại các trường thông tin bên dưới.";
+        this.formError = "Vui lòng kiểm tra lại các trường thông tin bên trên";
         return;
       }
 
@@ -383,7 +381,7 @@ export default {
         this.showVerificationModal = false;
         this.$router.push("/");
       } catch (err) {
-        this.verificationError = this.normalizeError(err, "Mã xác minh không hợp lệ.");
+        this.verificationError = this.normalizeError(err, "Mã xác minh không đúng");
       } finally {
         this.verificationLoading = false;
       }

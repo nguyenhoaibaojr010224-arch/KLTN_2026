@@ -276,6 +276,7 @@ import {
 import { buildPrescriptionConsultMessage, isPrescriptionProduct as isPrescriptionProductFlag } from '../../../lib/prescriptionProducts';
 import { useCustomerStore } from '../../../lib/customerStore';
 import { isAuthenticated } from '../../../lib/authStorage';
+import { normalizeApiError } from '../../../lib/errorMessages';
 import { applyProductUnitSelection, getDefaultProductUnit, getProductUnitLabel, getProductUnitOption, getProductUnitOptions, getProductUnitStock } from '../../../lib/productUnits';
 import { openSupportChat } from '../../../lib/supportChatEvents';
 import { showToast } from '../../../lib/toast';
@@ -517,7 +518,7 @@ export default {
         const response = await getCatalogThuocs(this.keyword);
         this.products = response.data || [];
       } catch (error) {
-        this.catalogError = error?.message || 'Không tải được danh mục thuốc.';
+        this.catalogError = normalizeApiError(error, 'Không tải được danh mục thuốc.');
       } finally {
         this.loadingProducts = false;
       }
@@ -530,7 +531,7 @@ export default {
         this.selectedProductUnit = getDefaultProductUnit(response.data);
         this.isSelectedProductDescriptionExpanded = false;
       } catch (error) {
-        this.catalogError = error?.message || 'Không tải được chi tiết sản phẩm.';
+        this.catalogError = normalizeApiError(error, 'Không tải được chi tiết sản phẩm.');
       }
     },
 

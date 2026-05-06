@@ -229,6 +229,7 @@ import {
   getSupportConversations,
   sendSupportMessage,
 } from "../../../api/supportApi";
+import { normalizeApiError } from "../../../lib/errorMessages";
 import { showToast } from "../../../lib/toast";
 
 const route = useRoute();
@@ -247,6 +248,13 @@ const messagesRef = ref(null);
 
 let pollTimer = null;
 let activeConversationRequestId = 0;
+
+function normalizeError(error, fallback = "Không thể xử lý yêu cầu hỗ trợ.") {
+  return normalizeApiError(error, fallback, {
+    noi_dung: "nội dung phản hồi",
+    message: "nội dung phản hồi",
+  });
+}
 
 const filteredConversations = computed(() => {
   if (!keyword.value) {
@@ -348,7 +356,7 @@ async function loadConversations({ silent = false } = {}) {
     }
   } catch (error) {
     if (!silent) {
-      showToast(error?.message || "Không thể tải danh sách hội thoại.", "error");
+      showToast(normalizeError(error, "Không thể tải danh sách hội thoại."), "error");
     }
   } finally {
     if (!silent) {
@@ -395,7 +403,7 @@ async function openConversation(
     syncConversationSummary(activeConversation.value, { markRead: true });
   } catch (error) {
     if (requestId === activeConversationRequestId) {
-      showToast(error?.message || "Không thể tải hội thoại chi tiết.", "error");
+      showToast(normalizeError(error, "Không thể tải hội thoại chi tiết."), "error");
     }
   } finally {
     if (!silent && requestId === activeConversationRequestId) {
@@ -418,7 +426,7 @@ async function sendReply() {
     syncConversationSummary(activeConversation.value, { markRead: true });
     showToast("Đã gửi phản hồi cho khách hàng.");
   } catch (error) {
-    showToast(error?.message || "Không thể gửi phản hồi.", "error");
+    showToast(normalizeError(error, "Không thể gửi phản hồi."), "error");
   } finally {
     sendingReply.value = false;
   }
@@ -437,7 +445,7 @@ async function handleCloseConversation() {
     syncConversationSummary(activeConversation.value, { markRead: true });
     showToast("Đã đóng hội thoại hỗ trợ.");
   } catch (error) {
-    showToast(error?.message || "Không thể đóng hội thoại.", "error");
+    showToast(normalizeError(error, "Không thể đóng hội thoại."), "error");
   } finally {
     closingConversation.value = false;
   }
@@ -473,7 +481,7 @@ async function handleDeleteConversation() {
 
     showToast("Đã xóa hội thoại hỗ trợ.");
   } catch (error) {
-    showToast(error?.message || "Không thể xóa hội thoại.", "error");
+    showToast(normalizeError(error, "Không thể xóa hội thoại."), "error");
   } finally {
     deletingConversation.value = false;
   }

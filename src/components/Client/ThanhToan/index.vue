@@ -98,7 +98,7 @@
                   <img v-if="method.logo" :src="method.logo" :alt="method.label" class="pc-payment-method__logo-image" />
                   <span v-else-if="method.id === 'cod'" class="pc-payment-method__logo-text">COD</span>
                   <span v-else-if="method.id === 'atm'" class="pc-payment-method__logo-text">ATM</span>
-                  <span v-else-if="method.id === 'payos'" class="pc-payment-method__logo-text">QR</span>
+                  <span v-else-if="method.id === 'payos'" class="pc-payment-method__logo-text">PayOS</span>
                   <i v-else class="bi bi-credit-card-2-front"></i>
                 </span>
                 <span class="pc-payment-method__label">{{ method.label }}</span>
@@ -109,23 +109,6 @@
 
         <div class="col-xl-4">
           <aside class="pc-summary-stack">
-            <div class="pc-summary-card">
-              <div class="pc-summary-card__line">
-                <span>Hóa đơn VAT</span>
-                <button type="button">Yêu cầu xuất hóa đơn</button>
-              </div>
-            </div>
-
-            <div class="pc-summary-card">
-              <div class="pc-summary-card__line">
-                <span>Ẩn thông tin sản phẩm</span>
-                <label class="form-check form-switch">
-                  <input v-model="state.hideProductInfo" class="form-check-input" type="checkbox" role="switch" />
-                </label>
-              </div>
-              <p>Thông tin sản phẩm sẽ được ẩn trên phiếu gửi hàng.</p>
-            </div>
-
             <div class="pc-summary-card">
               <h2>Đơn hàng</h2>
               <div class="pc-summary-card__line pc-summary-card__line--link">
@@ -197,7 +180,7 @@
                 <strong>{{ formatCurrency(vatAmount) }}</strong>
               </div>
               <div class="pc-summary-card__line">
-                <span>Điểm dự kiến cộng</span>
+                <span>Điểm</span>
                 <strong class="text-primary">+{{ formatNumber(estimatedRewardPointsEarned) }} điểm</strong>
               </div>
               <div class="pc-summary-card__total">
@@ -377,9 +360,8 @@ import { Modal } from "bootstrap";
 import { cancelPayosOrder, createCheckoutOrder } from "../../../api/orderApi";
 import { getAvailableOrderDiscountCodes, validatePromotionCode } from "../../../api/pricingApi";
 import { useCustomerStore } from "../../../lib/customerStore";
+import { normalizeApiError } from "../../../lib/errorMessages";
 import { showToast } from "../../../lib/toast";
-import momoLogo from "../../../assets/payment/momo-logo.jpg";
-import zaloPayLogo from "../../../assets/payment/zalopay.webp";
 
 function cleanupBootstrapModalArtifacts() {
   if (typeof document === "undefined") return;
@@ -408,11 +390,7 @@ export default {
       availablePromotionCodes: [],
       paymentMethods: [
         { id: "cod", label: "Tiền mặt" },
-        { id: "momo", label: "MoMo", logo: momoLogo },
-        { id: "zalopay", label: "ZaloPay", logo: zaloPayLogo },
-        { id: "atm", label: "Thẻ ATM" },
-        { id: "international", label: "Thẻ quốc tế" },
-        { id: "payos", label: "PayOS QR / Ngân hàng" },
+        { id: "payos", label: "PayOS" },
       ],
     };
   },
@@ -532,19 +510,15 @@ export default {
         maximumFractionDigits: 0,
       }).format(Number(value || 0));
     },
-    extractErrorMessage(error, fallbackMessage) {
-      const fieldErrors = error?.payload?.errors || error?.response?.data?.errors;
-
-      if (fieldErrors && typeof fieldErrors === "object") {
-        const firstField = Object.keys(fieldErrors)[0];
-        const firstMessage = Array.isArray(fieldErrors[firstField]) ? fieldErrors[firstField][0] : fieldErrors[firstField];
-
-        if (firstMessage) {
-          return firstMessage;
-        }
-      }
-
-      return error?.payload?.message || error?.response?.data?.message || error?.message || fallbackMessage;
+    extractErrorMessage(error, fallbackMessage = "Đã xảy ra lỗi. Vui lòng thử lại.") {
+      return normalizeApiError(error, fallbackMessage, {
+        ten_khach_hang: "tên khách hàng",
+        so_dien_thoai: "số điện thoại",
+        dia_chi_giao_hang: "địa chỉ giao hàng",
+        phuong_thuc_thanh_toan: "phương thức thanh toán",
+        ma_giam_gia: "mã giảm giá",
+        tong_tam_tinh: "tổng tiền sản phẩm",
+      });
     },
     async handlePayosCancelReturn() {
       const query = this.$route.query || {};
@@ -613,7 +587,7 @@ export default {
       } catch (error) {
         this.availablePromotionCodes = [];
         if (!silent) {
-          showToast(error?.message || "Không thể tải danh sách mã giảm giá.", "error");
+          showToast(this.extractErrorMessage(error, "Không thể tải danh sách mã giảm giá."), "error");
         }
       } finally {
         this.availableCodesLoading = false;
@@ -685,7 +659,7 @@ export default {
         }
       } catch (error) {
         this.customerStore.clearAppliedPromotion();
-        this.promotionError = error?.message || "Không áp dụng được mã giảm giá.";
+        this.promotionError = this.extractErrorMessage(error, "Không áp dụng được mã giảm giá.");
         if (!silent) {
           showToast(this.promotionError, "error");
         }
@@ -819,17 +793,8 @@ export default {
   color: #1c5db6;
 }
 
-.pc-payment-method__logo--atm .pc-payment-method__logo-text {
-  color: #1474b8;
-}
-
 .pc-payment-method__logo--payos .pc-payment-method__logo-text {
   color: #0f766e;
-}
-
-.pc-payment-method__logo--international {
-  color: #1a5fb5;
-  font-size: 1.35rem;
 }
 
 .pc-payment-method__label {

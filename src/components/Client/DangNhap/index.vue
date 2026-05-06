@@ -324,6 +324,8 @@ import {
   verifyEmailCode,
 } from "../../../api/authApi";
 import { setAuthSession } from "../../../lib/authStorage";
+import { normalizeApiError } from "../../../lib/errorMessages";
+import { validateStrongPassword } from "../../../lib/passwordRules";
 
 export default {
   data() {
@@ -366,11 +368,12 @@ export default {
   },
   methods: {
     normalizeError(err) {
-      if (err?.payload?.errors) {
-        return Object.values(err.payload.errors).flat().join(" | ");
-      }
-
-      return err?.message || "Đăng nhập thất bại.";
+      return normalizeApiError(err, "Đăng nhập thất bại.", {
+        tai_khoan: "email hoặc số điện thoại",
+        email: "email",
+        password: "mật khẩu",
+        mat_khau: "mật khẩu",
+      });
     },
     isVerificationRequiredError(err) {
       return err?.status === 403 && err?.payload?.verification_required;
@@ -431,11 +434,12 @@ export default {
       this.verificationError = "";
     },
     normalizeForgotError(err, fallback = "Yêu cầu thất bại.") {
-      if (err?.payload?.errors) {
-        return Object.values(err.payload.errors).flat().join(" | ");
-      }
-
-      return err?.message || fallback;
+      return normalizeApiError(err, fallback, {
+        email: "email",
+        code: "mã xác minh",
+        password: "mật khẩu mới",
+        password_confirmation: "xác nhận mật khẩu mới",
+      });
     },
     openForgotPassword() {
       this.showForgotPasswordModal = true;
@@ -491,8 +495,9 @@ export default {
         isValid = false;
       }
 
-      if (!this.forgotForm.password || this.forgotForm.password.length < 6) {
-        this.forgotErrors.password = "Mật khẩu mới phải có ít nhất 6 ký tự.";
+      const passwordError = validateStrongPassword(this.forgotForm.password, "Mật khẩu mới");
+      if (passwordError) {
+        this.forgotErrors.password = passwordError;
         isValid = false;
       }
 
@@ -597,7 +602,7 @@ export default {
         }
 
         if (this.isActiveStaffSessionError(err)) {
-          this.error = err?.message || "Hiện tại hệ thống đang có người đăng nhập";
+          this.error = normalizeApiError(err, "Hiện tại hệ thống đang có người đăng nhập");
           return;
         }
 
@@ -641,7 +646,7 @@ export default {
         this.message = response.message || "Xác minh email thành công.";
         this.redirectAfterLogin(response.type, response.login_channel);
       } catch (err) {
-        this.verificationError = this.normalizeForgotError(err, "Mã xác minh không hợp lệ.");
+        this.verificationError = this.normalizeForgotError(err, "Mã xác minh không đúng");
       } finally {
         this.verificationLoading = false;
       }

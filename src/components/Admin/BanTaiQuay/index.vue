@@ -13,10 +13,6 @@
       </div>
 
       <div class="d-flex flex-wrap align-items-start gap-2">
-        <div class="soft-badge">
-          <i class="bi bi-person-workspace"></i>
-          {{ employeeName }}
-        </div>
         <button class="btn btn-outline-primary" type="button" @click="loadProducts" :disabled="loading">
           <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
           Tải lại
@@ -238,10 +234,7 @@
           <label class="form-label fw-semibold">Phương thức thanh toán</label>
           <select v-model="paymentMethod" class="form-select">
             <option value="tien_mat">Tiền mặt</option>
-            <option value="momo">MoMo</option>
-            <option value="zalopay">ZaloPay</option>
-            <option value="the_atm">Thẻ ATM</option>
-            <option value="the_quoc_te">Thẻ quốc tế</option>
+            <option value="payos">PayOS</option>
           </select>
         </div>
 
@@ -259,12 +252,87 @@
     </div>
   </section>
 
+  <div
+    ref="payosModalEl"
+    class="modal fade counter-payos-modal"
+    tabindex="-1"
+    aria-labelledby="counterPayosModalTitle"
+    aria-hidden="true"
+    data-bs-backdrop="static"
+    data-bs-keyboard="false"
+  >
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div>
+            <h5 id="counterPayosModalTitle" class="modal-title">Thanh toán PayOS tại quầy</h5>
+            <p class="text-secondary mb-0">Chỉ tạo hóa đơn khi PayOS báo thanh toán thành công.</p>
+          </div>
+        </div>
+        <div class="modal-body">
+          <div v-if="payosSession" class="counter-payos-box">
+            <div class="counter-payos-amount">
+              <span>Số tiền cần thanh toán</span>
+              <strong>{{ formatCurrency(payosSession.tien_thanh_toan) }}</strong>
+            </div>
+
+            <div class="counter-payos-qr">
+              <img v-if="payosQrImageSrc" :src="payosQrImageSrc" alt="Mã QR PayOS" />
+              <div v-else class="counter-payos-qr__fallback">
+                <i class="bi bi-qr-code"></i>
+                <span>Mở trang PayOS để hiển thị mã QR thanh toán.</span>
+              </div>
+            </div>
+
+            <dl class="counter-payos-meta">
+              <div>
+                <dt>Mã PayOS</dt>
+                <dd>{{ payosSession.payos?.order_code || "-" }}</dd>
+              </div>
+              <div>
+                <dt>Trạng thái</dt>
+                <dd>{{ payosStatusLabel }}</dd>
+              </div>
+            </dl>
+
+            <div class="counter-payos-state">
+              <span v-if="payosSession.status === 'pending'" class="spinner-border spinner-border-sm"></span>
+              <i v-else-if="payosSession.status === 'paid'" class="bi bi-check-circle-fill"></i>
+              <i v-else class="bi bi-exclamation-circle-fill"></i>
+              <span>{{ payosStateText }}</span>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary" type="button" @click="openPayosCheckout" :disabled="!payosCheckoutUrl">
+            Mở PayOS
+          </button>
+          <button
+            class="btn btn-outline-danger"
+            type="button"
+            @click="cancelPayosCheckout"
+            :disabled="payosCanceling || payosSession?.status === 'paid'"
+          >
+            <span v-if="payosCanceling" class="spinner-border spinner-border-sm me-2"></span>
+            Hủy
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </template>
 
 <script>
+import { Modal } from "bootstrap";
 import { getCatalogThuocs } from "../../../api/catalogApi";
-import { createCounterSale, findCounterCustomerByPhone } from "../../../api/counterSaleApi";
-import { authState } from "../../../lib/authStorage";
+import {
+  cancelCounterPayosPayment,
+  createCounterPayosPayment,
+  createCounterSale,
+  findCounterCustomerByPhone,
+  getCounterPayosStatus,
+} from "../../../api/counterSaleApi";
 import {
   buildProductUnitCartKey,
   getDefaultProductUnit,
@@ -272,6 +340,7 @@ import {
   getProductUnitOptions,
   getProductUnitStock,
 } from "../../../lib/productUnits";
+import { normalizeApiError } from "../../../lib/errorMessages";
 import { showToast } from "../../../lib/toast";
 
 export default {
@@ -293,12 +362,14 @@ export default {
       phoneLookupError: "",
       checkingOut: false,
       lastInvoice: null,
+      payosModal: null,
+      payosSession: null,
+      payosPollingTimer: null,
+      payosPolling: false,
+      payosCanceling: false,
     };
   },
   computed: {
-    employeeName() {
-      return authState.user?.ho_ten || authState.user?.ten_nhan_vien || authState.user?.name || "Nhân viên tại quầy";
-    },
     cartItemCount() {
       return this.cart.reduce((total, item) => total + Number(item.so_luong || 0), 0);
     },
@@ -334,11 +405,52 @@ export default {
       return this.selectedCustomer ? Math.floor(this.subtotal / 1000) : 0;
     },
     checkoutDisabled() {
-      return this.checkingOut || !this.cart.length;
+      return this.checkingOut || Boolean(this.payosSession) || !this.cart.length;
+    },
+    payosCheckoutUrl() {
+      return this.payosSession?.payos?.checkout_url || "";
+    },
+    payosQrImageSrc() {
+      const qrCode = this.payosSession?.payos?.qr_code || "";
+
+      return qrCode.startsWith("data:image") || qrCode.startsWith("http") ? qrCode : "";
+    },
+    payosStatusLabel() {
+      const status = this.payosSession?.status || "pending";
+      const labels = {
+        pending: "Đang chờ thanh toán",
+        paid: "Đã thanh toán",
+        canceled: "Đã hủy",
+        failed: "Thanh toán lỗi",
+      };
+
+      return labels[status] || status;
+    },
+    payosStateText() {
+      const status = this.payosSession?.status || "pending";
+
+      if (status === "paid") {
+        return "PayOS đã xác nhận thanh toán. Hệ thống đang hoàn tất hóa đơn.";
+      }
+
+      if (status === "canceled") {
+        return "Phiên PayOS đã hủy. Giỏ hàng vẫn được giữ để chọn lại phương thức.";
+      }
+
+      if (status === "failed") {
+        return "PayOS chưa xác nhận thanh toán. Có thể hủy và tạo lại phiên mới.";
+      }
+
+      return "Đang chờ khách thanh toán trên PayOS.";
     },
   },
   mounted() {
+    this.payosModal = Modal.getOrCreateInstance(this.$refs.payosModalEl);
     this.loadProducts();
+  },
+  beforeUnmount() {
+    this.stopPayosPolling();
+    this.payosModal?.dispose();
   },
   methods: {
     formatCurrency(value) {
@@ -352,8 +464,12 @@ export default {
       return new Intl.NumberFormat("vi-VN").format(Number(value || 0));
     },
     normalizeError(error, fallback) {
-      const firstErrors = error?.errors ? Object.values(error.errors).flat() : [];
-      return firstErrors[0] || error?.message || fallback;
+      return normalizeApiError(error, fallback, {
+        customer_phone: "số điện thoại khách hàng",
+        so_dien_thoai: "số điện thoại khách hàng",
+        items: "giỏ hàng",
+        payment_method: "phương thức thanh toán",
+      });
     },
     async loadProducts() {
       this.loading = true;
@@ -482,6 +598,23 @@ export default {
         this.phoneLookupLoading = false;
       }
     },
+    buildCheckoutPayload() {
+      const payload = {
+        phuong_thuc_thanh_toan: this.paymentMethod,
+        items: this.cart.map((item) => ({
+          ma_thuoc: item.ma_thuoc,
+          don_vi: item.don_vi,
+          so_luong: Number(item.so_luong || 1),
+        })),
+      };
+
+      if (this.customerToken) {
+        payload.customer_token = this.customerToken;
+        payload.su_dung_diem = this.usePoints;
+      }
+
+      return payload;
+    },
     async checkout() {
       if (this.checkoutDisabled) {
         return;
@@ -495,18 +628,11 @@ export default {
       this.checkingOut = true;
 
       try {
-        const payload = {
-          phuong_thuc_thanh_toan: this.paymentMethod,
-          items: this.cart.map((item) => ({
-            ma_thuoc: item.ma_thuoc,
-            don_vi: item.don_vi,
-            so_luong: Number(item.so_luong || 1),
-          })),
-        };
+        const payload = this.buildCheckoutPayload();
 
-        if (this.customerToken) {
-          payload.customer_token = this.customerToken;
-          payload.su_dung_diem = this.usePoints;
+        if (this.paymentMethod === "payos") {
+          await this.startPayosCheckout(payload);
+          return;
         }
 
         const response = await createCounterSale(payload);
@@ -525,6 +651,109 @@ export default {
         showToast(this.normalizeError(error, "Không tạo được hóa đơn tại quầy."), "error", 4200);
       } finally {
         this.checkingOut = false;
+      }
+    },
+    async startPayosCheckout(payload) {
+      const response = await createCounterPayosPayment(payload);
+      this.payosSession = response?.data || null;
+      this.payosModal?.show();
+      this.startPayosPolling();
+      showToast("Đã tạo phiên PayOS. Hóa đơn sẽ được tạo sau khi thanh toán thành công.");
+    },
+    startPayosPolling() {
+      this.stopPayosPolling();
+      this.pollPayosStatus();
+      this.payosPollingTimer = window.setInterval(() => {
+        this.pollPayosStatus();
+      }, 2500);
+    },
+    stopPayosPolling() {
+      if (this.payosPollingTimer) {
+        window.clearInterval(this.payosPollingTimer);
+        this.payosPollingTimer = null;
+      }
+    },
+    async pollPayosStatus() {
+      const sessionKey = this.payosSession?.session_key;
+
+      if (!sessionKey || this.payosPolling) {
+        return;
+      }
+
+      this.payosPolling = true;
+
+      try {
+        const response = await getCounterPayosStatus(sessionKey);
+        this.payosSession = response?.data || this.payosSession;
+        this.handlePayosStatus();
+      } catch (error) {
+        showToast(this.normalizeError(error, "Không kiểm tra được trạng thái PayOS."), "error", 4200);
+      } finally {
+        this.payosPolling = false;
+      }
+    },
+    handlePayosStatus() {
+      const status = this.payosSession?.status;
+
+      if (status === "paid") {
+        this.lastInvoice = this.payosSession?.hoa_don || null;
+        this.cart = [];
+
+        if (this.payosSession?.khach_hang_tich_diem) {
+          this.selectedCustomer = this.payosSession.khach_hang_tich_diem;
+          this.customerPhone = this.selectedCustomer?.so_dien_thoai || this.customerPhone;
+          this.usePoints = false;
+        }
+
+        this.stopPayosPolling();
+        this.payosModal?.hide();
+        this.payosSession = null;
+        showToast("PayOS đã thanh toán thành công. Đã tạo hóa đơn tại quầy.");
+        this.loadProducts();
+        return;
+      }
+
+      if (status === "canceled") {
+        this.stopPayosPolling();
+        this.payosModal?.hide();
+        this.payosSession = null;
+        showToast("Đã hủy thanh toán PayOS tại quầy. Giỏ hàng vẫn được giữ.");
+        return;
+      }
+
+      if (status === "failed") {
+        this.stopPayosPolling();
+        this.payosModal?.hide();
+        this.payosSession = null;
+        showToast("PayOS chưa thanh toán thành công. Giỏ hàng vẫn được giữ.", "error", 4200);
+      }
+    },
+    openPayosCheckout() {
+      if (!this.payosCheckoutUrl) {
+        return;
+      }
+
+      window.open(this.payosCheckoutUrl, "_blank", "noopener,noreferrer");
+    },
+    async cancelPayosCheckout() {
+      const sessionKey = this.payosSession?.session_key;
+
+      if (!sessionKey || this.payosSession?.status === "paid") {
+        return;
+      }
+
+      this.payosCanceling = true;
+
+      try {
+        await cancelCounterPayosPayment(sessionKey);
+        this.stopPayosPolling();
+        this.payosModal?.hide();
+        this.payosSession = null;
+        showToast("Đã hủy thanh toán PayOS tại quầy. Giỏ hàng vẫn được giữ.");
+      } catch (error) {
+        showToast(this.normalizeError(error, "Không hủy được phiên PayOS tại quầy."), "error", 4200);
+      } finally {
+        this.payosCanceling = false;
       }
     },
   },
@@ -909,6 +1138,109 @@ export default {
 
 .counter-empty--cart {
   min-height: 180px;
+}
+
+.counter-payos-modal .modal-content {
+  border: 0;
+  border-radius: 18px;
+  box-shadow: 0 24px 70px rgba(15, 31, 79, 0.22);
+}
+
+.counter-payos-modal .modal-header {
+  border-bottom: 1px solid rgba(22, 82, 197, 0.12);
+}
+
+.counter-payos-box {
+  display: grid;
+  gap: 16px;
+}
+
+.counter-payos-amount {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+  border-radius: 14px;
+  background: #f7faff;
+}
+
+.counter-payos-amount span,
+.counter-payos-meta dt {
+  color: #64748b;
+}
+
+.counter-payos-amount strong {
+  color: #0d2b55;
+  font-size: 1.3rem;
+  font-weight: 900;
+}
+
+.counter-payos-qr {
+  display: grid;
+  place-items: center;
+  min-height: 220px;
+  border: 1px dashed rgba(22, 82, 197, 0.24);
+  border-radius: 16px;
+  background: #fff;
+}
+
+.counter-payos-qr img {
+  display: block;
+  width: min(240px, 100%);
+  height: auto;
+}
+
+.counter-payos-qr__fallback {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  padding: 24px;
+  color: #526887;
+  text-align: center;
+}
+
+.counter-payos-qr__fallback i {
+  color: #1652c5;
+  font-size: 3rem;
+}
+
+.counter-payos-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+
+.counter-payos-meta > div {
+  padding: 12px;
+  border-radius: 14px;
+  background: #f7faff;
+}
+
+.counter-payos-meta dd {
+  margin: 4px 0 0;
+  color: #0d2b55;
+  font-weight: 900;
+  overflow-wrap: anywhere;
+}
+
+.counter-payos-state {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: #eaf4ff;
+  color: #0d2b55;
+  font-weight: 800;
+}
+
+.counter-payos-state .bi-check-circle-fill {
+  color: #16a34a;
+}
+
+.counter-payos-state .bi-exclamation-circle-fill {
+  color: #dc2626;
 }
 
 @media (max-width: 1199.98px) {

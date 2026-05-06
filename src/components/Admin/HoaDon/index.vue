@@ -185,9 +185,14 @@
       <textarea
         v-model.trim="rejectModal.reason"
         class="form-control"
+        :class="{ 'is-invalid': rejectModal.reasonError }"
         rows="5"
         placeholder="Ví dụ: Sản phẩm trong đơn hiện không đủ tồn kho."
+        @input="rejectModal.reasonError = ''"
       ></textarea>
+      <div v-if="rejectModal.reasonError" class="invalid-feedback d-block">
+        {{ rejectModal.reasonError }}
+      </div>
 
       <div class="order-modal__actions">
         <button class="btn btn-outline-secondary" type="button" :disabled="rejectModal.loading" @click="closeRejectModal">
@@ -210,6 +215,7 @@ import {
   rejectHoaDon,
   searchHoaDons,
 } from "../../../api/hoaDonApi";
+import { normalizeApiError } from "../../../lib/errorMessages";
 import { showToast } from "../../../lib/toast";
 
 const HOA_DON_TABLE_BATCH_SIZE = 15;
@@ -243,6 +249,7 @@ export default {
         open: false,
         order: null,
         reason: "",
+        reasonError: "",
         loading: false,
       },
     };
@@ -259,7 +266,7 @@ export default {
       return this.hoaDons.length > this.visibleHoaDonCount;
     },
     rejectSubmitDisabled() {
-      return this.rejectModal.loading || this.rejectModal.reason.length < 5;
+      return this.rejectModal.loading;
     },
   },
 
@@ -302,11 +309,9 @@ export default {
 
   methods: {
     normalizeError(error) {
-      if (error?.payload?.errors) {
-        return Object.values(error.payload.errors).flat().join(" | ");
-      }
-
-      return error?.payload?.message || error?.message || "Không thể tải dữ liệu hóa đơn.";
+      return normalizeApiError(error, "Không thể tải dữ liệu hóa đơn.", {
+        ly_do_tu_choi: "lý do từ chối",
+      });
     },
     formatCurrency(value) {
       return new Intl.NumberFormat("vi-VN", {
@@ -499,8 +504,8 @@ export default {
       this.processingId = hoaDon.id_hoa_don;
 
       try {
-        const response = await confirmHoaDon(hoaDon.id_hoa_don);
-        showToast(response?.message || "Xác nhận đơn hàng thành công.");
+        await confirmHoaDon(hoaDon.id_hoa_don);
+        showToast("Xác nhận đơn hàng thành công.");
         await this.refreshCurrentView();
       } catch (error) {
         showToast(this.normalizeError(error), "error");
@@ -512,6 +517,7 @@ export default {
       this.rejectModal.open = true;
       this.rejectModal.order = hoaDon;
       this.rejectModal.reason = "";
+      this.rejectModal.reasonError = "";
       this.rejectModal.loading = false;
     },
     closeRejectModal() {
@@ -522,9 +528,16 @@ export default {
       this.rejectModal.open = false;
       this.rejectModal.order = null;
       this.rejectModal.reason = "";
+      this.rejectModal.reasonError = "";
     },
     async submitReject() {
-      if (this.rejectSubmitDisabled || !this.rejectModal.order) {
+      if (this.rejectModal.loading || !this.rejectModal.order) {
+        return;
+      }
+
+      if (this.rejectModal.reason.trim().length < 5) {
+        this.rejectModal.reasonError = "Vui lòng nhập lý do từ chối ít nhất 5 ký tự.";
+        showToast(this.rejectModal.reasonError, "error");
         return;
       }
 
@@ -532,14 +545,19 @@ export default {
       this.processingId = this.rejectModal.order.id_hoa_don;
 
       try {
-        const response = await rejectHoaDon(this.rejectModal.order.id_hoa_don, {
+        await rejectHoaDon(this.rejectModal.order.id_hoa_don, {
           ly_do_tu_choi: this.rejectModal.reason,
         });
-        showToast(response?.message || "Đã từ chối đơn hàng.");
+        showToast("Đã từ chối đơn hàng.");
         this.rejectModal.open = false;
         await this.refreshCurrentView();
       } catch (error) {
-        showToast(this.normalizeError(error), "error");
+        if (error?.payload?.errors?.ly_do_tu_choi) {
+          this.rejectModal.reasonError = this.normalizeError(error);
+          showToast(this.rejectModal.reasonError, "error");
+        } else {
+          showToast(this.normalizeError(error), "error");
+        }
       } finally {
         this.rejectModal.loading = false;
         this.processingId = null;

@@ -169,6 +169,7 @@
 
 <script>
 import { getKhachHang, getKhachHangs, searchKhachHangs } from "../../../api/khachHangApi";
+import { normalizeApiError } from "../../../lib/errorMessages";
 import { showToast } from "../../../lib/toast";
 
 export default {
@@ -210,11 +211,7 @@ export default {
 
   methods: {
     normalizeError(error, fallback = "Không thể tải dữ liệu khách hàng.") {
-      if (error?.payload?.errors) {
-        return Object.values(error.payload.errors).flat().join(" | ");
-      }
-
-      return error?.payload?.message || error?.message || fallback;
+      return normalizeApiError(error, fallback);
     },
     formatCurrency(value) {
       return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(Number(value || 0));

@@ -12,17 +12,6 @@
             Quản lý danh sách nhân viên, quyền truy cập, trạng thái làm việc và mật khẩu đăng nhập trên một màn hình.
           </p>
         </div>
-
-        <div class="d-flex flex-column align-items-xl-end gap-2">
-          <span class="soft-badge soft-badge--teal">
-            <i class="bi bi-person-badge"></i>
-            {{ currentUser?.ho_ten || "Chưa đăng nhập" }}
-          </span>
-          <span class="soft-badge">
-            <i class="bi bi-shield-lock"></i>
-            {{ roleLabel(currentUser?.vai_tro?.ten_vai_tro) }}
-          </span>
-        </div>
       </div>
     </section>
 
@@ -168,53 +157,112 @@
               <input
                 v-model.trim="form.so_dien_thoai"
                 class="form-control"
+                :class="{ 'is-invalid': formErrors.so_dien_thoai }"
+                type="tel"
+                inputmode="numeric"
                 maxlength="10"
                 placeholder="Ví dụ: 0901234567"
+                @input="clearFormFieldError('so_dien_thoai')"
               />
+              <div v-if="formErrors.so_dien_thoai" class="invalid-feedback d-block">
+                {{ formErrors.so_dien_thoai }}
+              </div>
             </div>
 
             <div class="col-md-6">
               <label class="form-label fw-semibold">Họ tên</label>
-              <input v-model.trim="form.ho_ten" class="form-control" />
+              <input
+                v-model.trim="form.ho_ten"
+                class="form-control"
+                :class="{ 'is-invalid': formErrors.ho_ten }"
+                @input="clearFormFieldError('ho_ten')"
+              />
+              <div v-if="formErrors.ho_ten" class="invalid-feedback d-block">
+                {{ formErrors.ho_ten }}
+              </div>
             </div>
 
             <div class="col-md-6">
               <label class="form-label fw-semibold">Vai trò</label>
-              <select v-model="form.id_vai_tro" class="form-select">
+              <select
+                v-model="form.id_vai_tro"
+                class="form-select"
+                :class="{ 'is-invalid': formErrors.id_vai_tro }"
+                @change="clearFormFieldError('id_vai_tro')"
+              >
                 <option value="">Chọn vai trò</option>
                 <option v-for="vaiTro in vaiTros" :key="vaiTro.id_vai_tro" :value="String(vaiTro.id_vai_tro)">
                   {{ roleLabel(vaiTro.ten_vai_tro) }}
                 </option>
               </select>
+              <div v-if="formErrors.id_vai_tro" class="invalid-feedback d-block">
+                {{ formErrors.id_vai_tro }}
+              </div>
             </div>
 
             <div class="col-md-6">
               <label class="form-label fw-semibold">Bằng cấp</label>
-              <select v-model="form.id_bang_cap" class="form-select">
+              <select
+                v-model="form.id_bang_cap"
+                class="form-select"
+                :class="{ 'is-invalid': formErrors.id_bang_cap }"
+                @change="clearFormFieldError('id_bang_cap')"
+              >
                 <option value="">Chọn bằng cấp</option>
                 <option v-for="bangCap in bangCaps" :key="bangCap.id_bang_cap" :value="String(bangCap.id_bang_cap)">
                   {{ bangCap.ten_bang_cap }}
                 </option>
               </select>
+              <div v-if="formErrors.id_bang_cap" class="invalid-feedback d-block">
+                {{ formErrors.id_bang_cap }}
+              </div>
             </div>
 
             <div class="col-md-6">
               <label class="form-label fw-semibold">Trạng thái</label>
-              <select v-model="form.trang_thai" class="form-select">
+              <select
+                v-model="form.trang_thai"
+                class="form-select"
+                :class="{ 'is-invalid': formErrors.trang_thai }"
+                @change="clearFormFieldError('trang_thai')"
+              >
                 <option value="active">Đang hoạt động</option>
                 <option value="inactive">Tạm khóa</option>
               </select>
+              <div v-if="formErrors.trang_thai" class="invalid-feedback d-block">
+                {{ formErrors.trang_thai }}
+              </div>
             </div>
 
             <template v-if="!isEditing">
               <div class="col-md-6">
                 <label class="form-label fw-semibold">Mật khẩu</label>
-                <input v-model="form.mat_khau" type="password" class="form-control" />
+                <input
+                  v-model="form.mat_khau"
+                  type="password"
+                  class="form-control"
+                  :class="{ 'is-invalid': formErrors.mat_khau }"
+                  autocomplete="new-password"
+                  @input="clearFormFieldError('mat_khau')"
+                />
+                <div v-if="formErrors.mat_khau" class="invalid-feedback d-block">
+                  {{ formErrors.mat_khau }}
+                </div>
               </div>
 
               <div class="col-md-6">
                 <label class="form-label fw-semibold">Xác nhận mật khẩu</label>
-                <input v-model="form.mat_khau_confirmation" type="password" class="form-control" />
+                <input
+                  v-model="form.mat_khau_confirmation"
+                  type="password"
+                  class="form-control"
+                  :class="{ 'is-invalid': formErrors.mat_khau_confirmation }"
+                  autocomplete="new-password"
+                  @input="clearFormFieldError('mat_khau_confirmation')"
+                />
+                <div v-if="formErrors.mat_khau_confirmation" class="invalid-feedback d-block">
+                  {{ formErrors.mat_khau_confirmation }}
+                </div>
               </div>
             </template>
           </form>
@@ -248,12 +296,32 @@
           <div class="vstack gap-3">
             <div>
               <label class="form-label fw-semibold">Mật khẩu mới</label>
-              <input v-model="passwordForm.new_password" type="password" class="form-control" />
+              <input
+                v-model="passwordForm.new_password"
+                type="password"
+                class="form-control"
+                :class="{ 'is-invalid': passwordErrors.new_password }"
+                autocomplete="new-password"
+                @input="clearPasswordFieldError('new_password')"
+              />
+              <div v-if="passwordErrors.new_password" class="invalid-feedback d-block">
+                {{ passwordErrors.new_password }}
+              </div>
             </div>
 
             <div>
               <label class="form-label fw-semibold">Xác nhận mật khẩu mới</label>
-              <input v-model="passwordForm.new_password_confirmation" type="password" class="form-control" />
+              <input
+                v-model="passwordForm.new_password_confirmation"
+                type="password"
+                class="form-control"
+                :class="{ 'is-invalid': passwordErrors.new_password_confirmation }"
+                autocomplete="new-password"
+                @input="clearPasswordFieldError('new_password_confirmation')"
+              />
+              <div v-if="passwordErrors.new_password_confirmation" class="invalid-feedback d-block">
+                {{ passwordErrors.new_password_confirmation }}
+              </div>
             </div>
           </div>
         </div>
@@ -316,10 +384,9 @@
           <div class="row g-3 align-items-end mb-4">
             <div class="col-md-5 col-lg-4">
               <label class="form-label fw-semibold">Chọn ngày làm việc</label>
-              <input
+              <DatePickerInput
                 v-model="selectedWorkSessionDate"
-                type="date"
-                class="form-control"
+                placeholder="dd/mm/yyyy"
                 @change="handleWorkSessionDateChange"
               />
             </div>
@@ -501,6 +568,7 @@
 
 <script>
 import { Modal } from "bootstrap";
+import DatePickerInput from "../../Common/DatePickerInput.vue";
 import { getBangCaps, getVaiTros } from "../../../api/referenceApi";
 import {
   changeNhanVienPassword,
@@ -513,6 +581,9 @@ import {
   updateNhanVien,
 } from "../../../api/nhanVienApi";
 import { getStoredUser, updateAuthUser } from "../../../lib/authStorage";
+import { parseDateInputValue } from "../../../lib/dateInput";
+import { normalizeApiError } from "../../../lib/errorMessages";
+import { validateStrongPassword } from "../../../lib/passwordRules";
 import { showToast } from "../../../lib/toast";
 
 function createEmptyForm() {
@@ -527,7 +598,26 @@ function createEmptyForm() {
   };
 }
 
+function createEmptyFormErrors() {
+  return {
+    so_dien_thoai: "",
+    ho_ten: "",
+    id_vai_tro: "",
+    id_bang_cap: "",
+    trang_thai: "",
+    mat_khau: "",
+    mat_khau_confirmation: "",
+  };
+}
+
 function createEmptyPasswordForm() {
+  return {
+    new_password: "",
+    new_password_confirmation: "",
+  };
+}
+
+function createEmptyPasswordErrors() {
   return {
     new_password: "",
     new_password_confirmation: "",
@@ -570,6 +660,9 @@ function createEmptySalesData() {
 
 export default {
   name: "NhanVienAdmin",
+  components: {
+    DatePickerInput,
+  },
   data() {
     return {
       currentUser: getStoredUser(),
@@ -586,7 +679,9 @@ export default {
       salesData: createEmptySalesData(),
       selectedSalesSessionId: null,
       form: createEmptyForm(),
+      formErrors: createEmptyFormErrors(),
       passwordForm: createEmptyPasswordForm(),
+      passwordErrors: createEmptyPasswordErrors(),
       deleteTarget: null,
       formModal: null,
       passwordModal: null,
@@ -784,9 +879,193 @@ export default {
     },
     normalizeError(err, fallback = "Đã xảy ra lỗi.") {
       if (err?.payload?.errors) {
-        return Object.values(err.payload.errors).flat().join(" | ");
+        return Object.entries(err.payload.errors)
+          .flatMap(([field, messages]) => (Array.isArray(messages) ? messages : [messages]).map((message) => this.translateValidationMessage(field, message)))
+          .join(" | ");
       }
-      return err?.payload?.message || err?.message || fallback;
+      return normalizeApiError(err, fallback, {
+        so_dien_thoai: "số điện thoại đăng nhập",
+        ho_ten: "họ tên",
+        id_vai_tro: "vai trò",
+        id_bang_cap: "bằng cấp",
+      });
+    },
+    translateValidationMessage(field, message) {
+      const text = String(message || "").trim();
+      const lower = text.toLowerCase();
+      const labels = {
+        so_dien_thoai: "số điện thoại đăng nhập",
+        ho_ten: "họ tên",
+        id_vai_tro: "vai trò",
+        id_bang_cap: "bằng cấp",
+        trang_thai: "trạng thái",
+        mat_khau: "mật khẩu",
+        mat_khau_confirmation: "xác nhận mật khẩu",
+        new_password: "mật khẩu mới",
+        new_password_confirmation: "xác nhận mật khẩu mới",
+      };
+      const label = labels[field] || "thông tin";
+
+      if (!text) {
+        return "Dữ liệu không hợp lệ.";
+      }
+
+      if (lower.includes("required")) {
+        return field === "id_vai_tro" || field === "id_bang_cap" || field === "trang_thai"
+          ? `Vui lòng chọn ${label}.`
+          : `Vui lòng nhập ${label}.`;
+      }
+
+      if (lower.includes("unique") || lower.includes("already been taken")) {
+        return "Số điện thoại này đã được sử dụng.";
+      }
+
+      if (lower.includes("confirmed") || lower.includes("confirmation")) {
+        return "Xác nhận mật khẩu không khớp.";
+      }
+
+      if (lower.includes("size") && field === "so_dien_thoai") {
+        return "Số điện thoại đăng nhập phải có đúng 10 chữ số.";
+      }
+
+      if (lower.includes("min") && (field.includes("password") || field.includes("mat_khau"))) {
+        return "Mật khẩu phải có ít nhất 6 ký tự.";
+      }
+
+      if (lower.includes("min") && field === "ho_ten") {
+        return "Họ tên phải có ít nhất 5 ký tự.";
+      }
+
+      if (lower.includes("exists")) {
+        return "Dữ liệu được chọn không hợp lệ.";
+      }
+
+      if (lower.includes("invalid") || lower.includes("in:")) {
+        return "Dữ liệu không hợp lệ.";
+      }
+
+      return text;
+    },
+    firstValidationMessage(messages) {
+      if (Array.isArray(messages)) {
+        return messages[0] || "";
+      }
+
+      return messages || "";
+    },
+    clearFormErrors() {
+      this.formErrors = createEmptyFormErrors();
+    },
+    clearPasswordErrors() {
+      this.passwordErrors = createEmptyPasswordErrors();
+    },
+    clearFormFieldError(field) {
+      if (Object.prototype.hasOwnProperty.call(this.formErrors, field)) {
+        this.formErrors[field] = "";
+      }
+    },
+    clearPasswordFieldError(field) {
+      if (Object.prototype.hasOwnProperty.call(this.passwordErrors, field)) {
+        this.passwordErrors[field] = "";
+      }
+    },
+    applyApiFieldErrors(errors, target = "form") {
+      if (!errors || typeof errors !== "object") {
+        return false;
+      }
+
+      const errorBag = target === "password" ? createEmptyPasswordErrors() : createEmptyFormErrors();
+
+      Object.keys(errorBag).forEach((field) => {
+        if (errors[field]) {
+          const message = this.firstValidationMessage(errors[field]);
+          const normalizedMessage = this.translateValidationMessage(field, message);
+          const isConfirmationError = String(message || "").toLowerCase().includes("confirm")
+            || normalizedMessage.toLowerCase().includes("xác nhận");
+
+          if (isConfirmationError && field === "mat_khau" && errorBag.mat_khau_confirmation !== undefined) {
+            errorBag.mat_khau_confirmation = normalizedMessage;
+            return;
+          }
+
+          if (isConfirmationError && field === "new_password" && errorBag.new_password_confirmation !== undefined) {
+            errorBag.new_password_confirmation = normalizedMessage;
+            return;
+          }
+
+          errorBag[field] = normalizedMessage;
+        }
+      });
+
+      if (target === "password") {
+        this.passwordErrors = errorBag;
+      } else {
+        this.formErrors = errorBag;
+      }
+
+      return Object.values(errorBag).some(Boolean);
+    },
+    validateEmployeeForm() {
+      const errors = createEmptyFormErrors();
+      const phone = String(this.form.so_dien_thoai || "").trim();
+      const fullName = String(this.form.ho_ten || "").trim();
+
+      if (!phone) {
+        errors.so_dien_thoai = "Vui lòng nhập số điện thoại đăng nhập.";
+      } else if (!/^\d{10}$/.test(phone)) {
+        errors.so_dien_thoai = "Số điện thoại đăng nhập phải có đúng 10 chữ số.";
+      }
+
+      if (!fullName) {
+        errors.ho_ten = "Vui lòng nhập họ tên.";
+      } else if (fullName.length < 5) {
+        errors.ho_ten = "Họ tên phải có ít nhất 5 ký tự.";
+      }
+
+      if (!this.form.id_vai_tro) {
+        errors.id_vai_tro = "Vui lòng chọn vai trò.";
+      }
+
+      if (!this.form.id_bang_cap) {
+        errors.id_bang_cap = "Vui lòng chọn bằng cấp.";
+      }
+
+      if (!["active", "inactive"].includes(this.form.trang_thai)) {
+        errors.trang_thai = "Vui lòng chọn trạng thái hợp lệ.";
+      }
+
+      if (!this.isEditing) {
+        if (!this.form.mat_khau) {
+          errors.mat_khau = "Vui lòng nhập mật khẩu.";
+        } else if (this.form.mat_khau.length < 6) {
+          errors.mat_khau = "Mật khẩu phải có ít nhất 6 ký tự.";
+        }
+
+        if (!this.form.mat_khau_confirmation) {
+          errors.mat_khau_confirmation = "Vui lòng nhập xác nhận mật khẩu.";
+        } else if (this.form.mat_khau_confirmation !== this.form.mat_khau) {
+          errors.mat_khau_confirmation = "Xác nhận mật khẩu không khớp.";
+        }
+      }
+
+      this.formErrors = errors;
+
+      return !Object.values(errors).some(Boolean);
+    },
+    validatePasswordForm() {
+      const errors = createEmptyPasswordErrors();
+
+      errors.new_password = validateStrongPassword(this.passwordForm.new_password, "Mật khẩu mới");
+
+      if (!this.passwordForm.new_password_confirmation) {
+        errors.new_password_confirmation = "Vui lòng nhập xác nhận mật khẩu mới.";
+      } else if (this.passwordForm.new_password_confirmation !== this.passwordForm.new_password) {
+        errors.new_password_confirmation = "Xác nhận mật khẩu mới không khớp.";
+      }
+
+      this.passwordErrors = errors;
+
+      return !Object.values(errors).some(Boolean);
     },
     applySelectedToForm(nhanVien) {
       this.form = {
@@ -801,7 +1080,9 @@ export default {
     },
     resetForm() {
       this.form = createEmptyForm();
+      this.clearFormErrors();
       this.passwordForm = createEmptyPasswordForm();
+      this.clearPasswordErrors();
     },
     setSelectedNhanVien(nhanVien) {
       this.selectedId = nhanVien.id_nhan_vien;
@@ -936,7 +1217,13 @@ export default {
         return;
       }
 
-      await this.applyWorkSessionFilter("date", this.selectedWorkSessionDate);
+      const selectedDate = parseDateInputValue(this.selectedWorkSessionDate);
+      if (!selectedDate) {
+        showToast("Ngày làm việc phải theo định dạng dd/mm/yyyy.", "error");
+        return;
+      }
+
+      await this.applyWorkSessionFilter("date", selectedDate);
     },
     async clearWorkSessionDateFilter() {
       this.selectedWorkSessionDate = "";
@@ -973,11 +1260,13 @@ export default {
     openEditModal(nhanVien) {
       this.setSelectedNhanVien(nhanVien);
       this.applySelectedToForm(nhanVien);
+      this.clearFormErrors();
       this.formModal.show();
     },
     openPasswordModal(nhanVien) {
       this.setSelectedNhanVien(nhanVien);
       this.passwordForm = createEmptyPasswordForm();
+      this.clearPasswordErrors();
       this.passwordModal.show();
     },
     openDeleteModal(nhanVien) {
@@ -986,6 +1275,11 @@ export default {
       this.deleteModal.show();
     },
     async handleSubmit() {
+      if (!this.validateEmployeeForm()) {
+        showToast("Vui lòng kiểm tra lại các trường thông tin bên trên.", "error");
+        return;
+      }
+
       this.loading.submit = true;
       try {
         if (this.isEditing) {
@@ -1024,7 +1318,11 @@ export default {
 
         await this.loadNhanViens();
       } catch (err) {
-        showToast(this.normalizeError(err, "Không thể lưu thông tin nhân viên."), "error");
+        if (this.applyApiFieldErrors(err?.payload?.errors, "form")) {
+          showToast("Vui lòng kiểm tra lại các trường thông tin bên trên.", "error");
+        } else {
+          showToast(this.normalizeError(err, "Không thể lưu thông tin nhân viên."), "error");
+        }
       } finally {
         this.loading.submit = false;
       }
@@ -1032,6 +1330,11 @@ export default {
     async handleChangePassword() {
       if (!this.selectedNhanVien) {
         showToast("Hãy chọn nhân viên trước khi đổi mật khẩu.", "error");
+        return;
+      }
+
+      if (!this.validatePasswordForm()) {
+        showToast("Vui lòng kiểm tra lại các trường thông tin bên trên.", "error");
         return;
       }
 
@@ -1043,9 +1346,14 @@ export default {
         });
         this.passwordModal.hide();
         this.passwordForm = createEmptyPasswordForm();
+        this.clearPasswordErrors();
         showToast(`Đã đổi mật khẩu cho ${this.selectedNhanVien.ho_ten}.`);
       } catch (err) {
-        showToast(this.normalizeError(err, "Không thể đổi mật khẩu nhân viên."), "error");
+        if (this.applyApiFieldErrors(err?.payload?.errors, "password")) {
+          showToast("Vui lòng kiểm tra lại các trường thông tin bên trên.", "error");
+        } else {
+          showToast(this.normalizeError(err, "Không thể đổi mật khẩu nhân viên."), "error");
+        }
       } finally {
         this.loading.password = false;
       }
