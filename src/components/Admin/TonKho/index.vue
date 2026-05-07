@@ -1748,7 +1748,7 @@ export default {
         this.loading.inventory = false;
       }
     },
-    async handleSearch() {
+    async handleSearch(silent = false) {
       if (!this.keyword) {
         return;
       }
@@ -1760,9 +1760,17 @@ export default {
         this.thuocs = thuocData;
         this.loThuocs = loData;
         this.selectedThuoc = null;
-        showToast(`Tìm thấy ${this.thuocs.length} thuốc và ${this.loThuocs.length} lô phù hợp.`, "success");
+        if (!silent) {
+          showToast(`Tìm thấy ${this.thuocs.length} thuốc và ${this.loThuocs.length} lô phù hợp.`, "success");
+          this.$router.replace({
+            path: "/ton-kho",
+            query: this.keyword ? { q: this.keyword } : {},
+          });
+        }
       } catch (err) {
-        showToast(this.normalizeError(err), "error");
+        if (!silent) {
+          showToast(this.normalizeError(err), "error");
+        }
       } finally {
         this.loading.search = false;
       }
@@ -1770,10 +1778,33 @@ export default {
     resetView() {
       this.keyword = "";
       this.selectedThuoc = null;
+      this.$router.replace({
+        path: "/ton-kho",
+        query: {},
+      });
       this.loadInventory();
     },
   },
   watch: {
+    "$route.query.q": {
+      handler(nextValue) {
+        const nextKeyword = String(nextValue || "").trim();
+
+        if (nextKeyword === this.keyword) {
+          return;
+        }
+
+        this.keyword = nextKeyword;
+
+        if (nextKeyword) {
+          this.handleSearch(true);
+          return;
+        }
+
+        this.selectedThuoc = null;
+        this.loadInventory();
+      },
+    },
     "$route.query.alert"() {
       this.openAlertFromRouteQuery();
     },
@@ -1781,6 +1812,11 @@ export default {
   async mounted() {
     this.ensureModal();
     await this.loadInventory();
+    const routeKeyword = String(this.$route.query.q || "").trim();
+    if (routeKeyword) {
+      this.keyword = routeKeyword;
+      await this.handleSearch(true);
+    }
     this.openAlertFromRouteQuery();
   },
   beforeUnmount() {

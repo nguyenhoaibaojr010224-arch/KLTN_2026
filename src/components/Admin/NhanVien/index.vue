@@ -775,6 +775,10 @@ export default {
     this.passwordModal = new Modal(this.$refs.passwordModalEl);
     this.deleteModal = new Modal(this.$refs.deleteModalEl);
     this.workSessionModal = new Modal(this.$refs.workSessionModalEl);
+    const routeKeyword = String(this.$route.query.q || "").trim();
+    if (routeKeyword) {
+      this.keyword = routeKeyword;
+    }
     this.bootstrapData();
   },
   beforeUnmount() {
@@ -782,6 +786,30 @@ export default {
     this.passwordModal?.dispose();
     this.deleteModal?.dispose();
     this.workSessionModal?.dispose();
+  },
+  watch: {
+    "$route.query.q": {
+      handler(nextValue) {
+        const nextKeyword = String(nextValue || "").trim();
+
+        if (nextKeyword === this.keyword) {
+          return;
+        }
+
+        this.keyword = nextKeyword;
+
+        if (nextKeyword) {
+          this.handleSearch(true);
+          return;
+        }
+
+        this.selectedId = null;
+        this.workSessionData = createEmptyWorkSessionData();
+        this.salesData = createEmptySalesData();
+        this.selectedSalesSessionId = null;
+        this.loadNhanViens();
+      },
+    },
   },
   methods: {
     roleLabel(value) {
@@ -1102,7 +1130,13 @@ export default {
     },
     async bootstrapData() {
       try {
-        await Promise.all([this.loadMeta(), this.loadNhanViens()]);
+        await this.loadMeta();
+        if (this.keyword) {
+          await this.handleSearch(true);
+          return;
+        }
+
+        await this.loadNhanViens();
       } catch (err) {
         showToast(this.normalizeError(err, "Không thể tải dữ liệu nhân viên."), "error");
       }
@@ -1229,7 +1263,7 @@ export default {
       this.selectedWorkSessionDate = "";
       await this.applyWorkSessionFilter();
     },
-    async handleSearch() {
+    async handleSearch(silent = false) {
       if (!this.keyword) {
         await this.loadNhanViens({ notifySuccess: true });
         return;
@@ -1242,9 +1276,17 @@ export default {
         this.workSessionData = createEmptyWorkSessionData();
         this.salesData = createEmptySalesData();
         this.selectedSalesSessionId = null;
-        showToast(`Tìm thấy ${this.nhanViens.length} nhân viên phù hợp.`);
+        if (!silent) {
+          showToast(`Tìm thấy ${this.nhanViens.length} nhân viên phù hợp.`);
+          this.$router.replace({
+            path: "/nhan-viens",
+            query: this.keyword ? { q: this.keyword } : {},
+          });
+        }
       } catch (err) {
-        showToast(this.normalizeError(err, "Không thể tìm kiếm nhân viên."), "error");
+        if (!silent) {
+          showToast(this.normalizeError(err, "Không thể tìm kiếm nhân viên."), "error");
+        }
       } finally {
         this.loading.search = false;
       }
@@ -1397,6 +1439,10 @@ export default {
       this.salesData = createEmptySalesData();
       this.selectedSalesSessionId = null;
       this.resetForm();
+      this.$router.replace({
+        path: "/nhan-viens",
+        query: {},
+      });
       await this.loadNhanViens({ notifySuccess: true });
     },
   },

@@ -101,7 +101,13 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="hoaDon in visibleHoaDons" :key="hoaDon.id_hoa_don">
+          <tr
+            v-for="hoaDon in visibleHoaDons"
+            :key="hoaDon.id_hoa_don"
+            class="invoice-row"
+            title="Click để xem sản phẩm trong hóa đơn"
+            @click="openDetailModal(hoaDon)"
+          >
             <td class="fw-semibold">{{ hoaDon.ma_hoa_don }}</td>
             <td>
               <div>{{ hoaDon.khach_hang?.ten_khach_hang || "-" }}</div>
@@ -137,7 +143,7 @@
                   class="btn btn-sm btn-success"
                   type="button"
                   :disabled="processingId === hoaDon.id_hoa_don"
-                  @click="confirmOrder(hoaDon)"
+                  @click.stop="confirmOrder(hoaDon)"
                 >
                   <span v-if="processingId === hoaDon.id_hoa_don" class="spinner-border spinner-border-sm me-1"></span>
                   Xác nhận
@@ -146,7 +152,7 @@
                   class="btn btn-sm btn-outline-danger"
                   type="button"
                   :disabled="processingId === hoaDon.id_hoa_don"
-                  @click="openRejectModal(hoaDon)"
+                  @click.stop="openRejectModal(hoaDon)"
                 >
                   Từ chối
                 </button>
@@ -167,6 +173,85 @@
       <button class="btn btn-outline-primary px-4" type="button" @click="showMoreHoaDons">Xem thêm</button>
     </div>
   </section>
+
+  <div v-if="detailModal.open" class="order-modal" role="dialog" aria-modal="true">
+    <div class="order-modal__backdrop" @click="closeDetailModal"></div>
+    <div class="order-modal__panel order-modal__panel--wide">
+      <button class="order-modal__close" type="button" aria-label="Đóng" @click="closeDetailModal">
+        <i class="bi bi-x-lg"></i>
+      </button>
+
+      <div class="soft-badge soft-badge--blue mb-3">
+        <i class="bi bi-bag-check"></i>
+        Chi tiết hóa đơn
+      </div>
+      <h3>{{ detailModal.order?.ma_hoa_don }}</h3>
+      <p>Danh sách sản phẩm khách đã mua trong hóa đơn này.</p>
+
+      <div class="invoice-detail-summary">
+        <div>
+          <span>Khách hàng</span>
+          <strong>{{ detailModal.order?.khach_hang?.ten_khach_hang || "-" }}</strong>
+        </div>
+        <div>
+          <span>Kênh bán</span>
+          <strong>{{ channelLabel(detailModal.order?.kenh_ban) }}</strong>
+        </div>
+        <div>
+          <span>Ngày bán</span>
+          <strong>{{ formatDate(detailModal.order?.ngay_ban) }}</strong>
+        </div>
+        <div>
+          <span>Thanh toán</span>
+          <strong>{{ formatCurrency(detailModal.order?.tien_thanh_toan) }}</strong>
+        </div>
+      </div>
+
+      <div v-if="detailModal.loading" class="master-empty">
+        <span class="spinner-border spinner-border-sm me-2"></span>
+        Đang tải sản phẩm trong hóa đơn...
+      </div>
+
+      <div v-else-if="detailModal.items.length" class="table-responsive invoice-detail-table">
+        <table class="table align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Sản phẩm</th>
+              <th>Số lô</th>
+              <th class="text-center">Số lượng</th>
+              <th class="text-end">Giá bán</th>
+              <th class="text-end">Thành tiền</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="item in detailModal.items" :key="item.id">
+              <td>
+                <div class="fw-semibold">{{ orderItemProductName(item) }}</div>
+                <div class="small text-secondary">{{ orderItemProductCode(item) }}</div>
+              </td>
+              <td>{{ item.lo_thuoc?.so_lo || "-" }}</td>
+              <td class="text-center">
+                {{ item.so_luong }}
+                <span v-if="item.don_vi_ban">{{ item.don_vi_ban }}</span>
+              </td>
+              <td class="text-end">{{ formatCurrency(item.gia_ban) }}</td>
+              <td class="text-end fw-semibold">{{ formatCurrency(item.thanh_tien) }}</td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr>
+              <th colspan="4" class="text-end">Tổng tiền sản phẩm</th>
+              <th class="text-end">{{ formatCurrency(detailSubtotal) }}</th>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      <div v-else class="master-empty">
+        <p class="mb-0 fw-semibold">Hóa đơn này chưa có sản phẩm.</p>
+      </div>
+    </div>
+  </div>
 
   <div v-if="rejectModal.open" class="order-modal" role="dialog" aria-modal="true">
     <div class="order-modal__backdrop" @click="closeRejectModal"></div>
@@ -210,6 +295,7 @@
 <script>
 import {
   confirmHoaDon,
+  getHoaDonChiTiets,
   getHoaDons,
   getHoaDonStatistics,
   rejectHoaDon,
@@ -252,6 +338,12 @@ export default {
         reasonError: "",
         loading: false,
       },
+      detailModal: {
+        open: false,
+        order: null,
+        items: [],
+        loading: false,
+      },
     };
   },
 
@@ -268,11 +360,14 @@ export default {
     rejectSubmitDisabled() {
       return this.rejectModal.loading;
     },
+    detailSubtotal() {
+      return this.detailModal.items.reduce((total, item) => total + Number(item.thanh_tien || 0), 0);
+    },
   },
 
   mounted() {
     if (this.keyword) {
-      this.handleSearch();
+      this.handleSearch(true);
       this.loadStatistics();
       this.startAutoRefresh();
       return;
@@ -329,6 +424,12 @@ export default {
         dateStyle: "short",
         timeStyle: "short",
       }).format(new Date(value));
+    },
+    orderItemProductName(item) {
+      return item?.lo_thuoc?.thuoc?.ten_thuoc || item?.thuoc?.ten_thuoc || "Sản phẩm chưa có tên";
+    },
+    orderItemProductCode(item) {
+      return item?.lo_thuoc?.thuoc?.ma_thuoc || item?.lo_thuoc?.id_thuoc || "-";
     },
     channelLabel(channel) {
       return channel === "tai_quay" ? "Tại quầy" : "Hệ thống";
@@ -467,7 +568,7 @@ export default {
       }
     },
     async refreshCurrentView() {
-      if (this.rejectModal.open || this.loading.list || this.loading.search || this.loading.stats) {
+      if (this.rejectModal.open || this.detailModal.open || this.loading.list || this.loading.search || this.loading.stats) {
         return;
       }
 
@@ -499,6 +600,30 @@ export default {
         query: {},
       });
       this.loadAll();
+    },
+    async openDetailModal(hoaDon) {
+      this.detailModal.open = true;
+      this.detailModal.order = hoaDon;
+      this.detailModal.items = [];
+      this.detailModal.loading = true;
+
+      try {
+        const response = await getHoaDonChiTiets(hoaDon.id_hoa_don);
+        this.detailModal.items = Array.isArray(response?.data) ? response.data : [];
+      } catch (error) {
+        showToast(this.normalizeError(error, "Không thể tải sản phẩm trong hóa đơn."), "error");
+      } finally {
+        this.detailModal.loading = false;
+      }
+    },
+    closeDetailModal() {
+      if (this.detailModal.loading) {
+        return;
+      }
+
+      this.detailModal.open = false;
+      this.detailModal.order = null;
+      this.detailModal.items = [];
     },
     async confirmOrder(hoaDon) {
       this.processingId = hoaDon.id_hoa_don;
@@ -573,6 +698,14 @@ export default {
   color: #b91c1c;
 }
 
+.invoice-row {
+  cursor: pointer;
+}
+
+.invoice-row:hover > td {
+  background: #f8fbff;
+}
+
 .order-modal {
   position: fixed;
   inset: 0;
@@ -598,6 +731,12 @@ export default {
   border-radius: 22px;
   background: #fff;
   box-shadow: 0 28px 80px rgba(15, 23, 42, 0.28);
+}
+
+.order-modal__panel--wide {
+  width: min(980px, 100%);
+  max-height: min(86vh, 760px);
+  overflow: auto;
 }
 
 .order-modal__close {
@@ -634,9 +773,53 @@ export default {
   margin-top: 18px;
 }
 
+.invoice-detail-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.invoice-detail-summary > div {
+  padding: 14px;
+  border: 1px solid rgba(22, 82, 197, 0.1);
+  border-radius: 16px;
+  background: #f8fbff;
+}
+
+.invoice-detail-summary span,
+.invoice-detail-summary strong {
+  display: block;
+}
+
+.invoice-detail-summary span {
+  color: #64748b;
+  font-size: 0.84rem;
+}
+
+.invoice-detail-summary strong {
+  margin-top: 4px;
+  color: #0f172a;
+}
+
+.invoice-detail-table {
+  border: 1px solid rgba(22, 82, 197, 0.1);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.invoice-detail-table thead,
+.invoice-detail-table tfoot {
+  background: #f8fbff;
+}
+
 @media (max-width: 767.98px) {
   .order-modal__actions > .btn {
     width: 100%;
+  }
+
+  .invoice-detail-summary {
+    grid-template-columns: 1fr;
   }
 }
 </style>

@@ -206,7 +206,37 @@ export default {
   },
 
   mounted() {
+    const routeKeyword = String(this.$route.query.q || "").trim();
+    if (routeKeyword) {
+      this.keyword = routeKeyword;
+      this.handleSearch(true);
+      return;
+    }
+
     this.loadKhachHangs();
+  },
+
+  watch: {
+    "$route.query.q": {
+      handler(nextValue) {
+        const nextKeyword = String(nextValue || "").trim();
+
+        if (nextKeyword === this.keyword) {
+          return;
+        }
+
+        this.keyword = nextKeyword;
+
+        if (nextKeyword) {
+          this.handleSearch(true);
+          return;
+        }
+
+        this.selectedId = null;
+        this.selectedCustomer = null;
+        this.loadKhachHangs();
+      },
+    },
   },
 
   methods: {
@@ -235,7 +265,7 @@ export default {
         this.loading.list = false;
       }
     },
-    async handleSearch() {
+    async handleSearch(silent = false) {
       if (!this.keyword) {
         await this.loadKhachHangs();
         return;
@@ -248,9 +278,17 @@ export default {
         this.khachHangs = Array.isArray(response?.data) ? response.data : [];
         this.selectedId = null;
         this.selectedCustomer = null;
-        showToast(`Tìm thấy ${this.khachHangs.length} khách hàng phù hợp.`);
+        if (!silent) {
+          showToast(`Tìm thấy ${this.khachHangs.length} khách hàng phù hợp.`);
+          this.$router.replace({
+            path: "/khach-hangs",
+            query: this.keyword ? { q: this.keyword } : {},
+          });
+        }
       } catch (error) {
-        showToast(this.normalizeError(error, "Không thể tìm kiếm khách hàng."), "error");
+        if (!silent) {
+          showToast(this.normalizeError(error, "Không thể tìm kiếm khách hàng."), "error");
+        }
       } finally {
         this.loading.search = false;
       }
@@ -273,6 +311,10 @@ export default {
       this.keyword = "";
       this.selectedId = null;
       this.selectedCustomer = null;
+      this.$router.replace({
+        path: "/khach-hangs",
+        query: {},
+      });
       this.loadKhachHangs();
     },
   },

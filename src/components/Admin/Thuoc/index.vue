@@ -136,7 +136,7 @@
                   <button
                     v-if="isAdminUser"
                     class="btn btn-sm btn-outline-danger"
-                    @click="removeThuoc(thuoc)"
+                    @click="openDeleteModal(thuoc)"
                     :disabled="loading.deleteId === thuoc.ma_thuoc"
                   >
                     <span v-if="loading.deleteId === thuoc.ma_thuoc" class="spinner-border spinner-border-sm me-2"></span>
@@ -521,6 +521,39 @@
       </div>
     </div>
   </div>
+
+  <div ref="deleteModalEl" class="modal fade" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 shadow-lg">
+        <div class="modal-header">
+          <div>
+            <h5 class="modal-title fw-bold mb-1">Xóa thuốc</h5>
+            <p class="mb-0 text-secondary small">Thao tác này sẽ xóa thuốc khỏi danh sách quản lý.</p>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+        </div>
+
+        <div class="modal-body">
+          <p class="mb-2">
+            Bạn có chắc muốn xóa thuốc
+            <strong>{{ deleteTarget?.ten_thuoc || "đã chọn" }}</strong>
+            không?
+          </p>
+          <p v-if="deleteTarget?.ma_thuoc" class="mb-0 text-secondary small">
+            Mã thuốc: {{ deleteTarget.ma_thuoc }}
+          </p>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
+          <button type="button" class="btn btn-danger" @click="confirmDeleteThuoc" :disabled="loading.deleteId !== null || !deleteTarget">
+            <span v-if="loading.deleteId !== null" class="spinner-border spinner-border-sm me-2"></span>
+            Xóa thuốc
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script>
@@ -582,6 +615,8 @@ export default {
       dosageEntries: [createDosageEntry()],
       additionalUnits: [],
       thuocModal: null,
+      deleteModal: null,
+      deleteTarget: null,
       loading: {
         sync: false,
         search: false,
@@ -699,9 +734,18 @@ export default {
     },
   },
 
-  mounted() {
+  async mounted() {
     this.ensureModal();
     this.loadNhaSanXuatSuggestions();
+    const routeKeyword = String(this.$route.query.q || "").trim();
+
+    if (routeKeyword) {
+      this.keyword = routeKeyword;
+      await this.loadData();
+      await this.handleSearch(true);
+      return;
+    }
+
     this.loadData();
   },
 
@@ -710,12 +754,39 @@ export default {
     if (this.thuocModal) {
       this.thuocModal.dispose();
     }
+    if (this.deleteModal) {
+      this.deleteModal.dispose();
+    }
+  },
+
+  watch: {
+    "$route.query.q": {
+      handler(nextValue) {
+        const nextKeyword = String(nextValue || "").trim();
+
+        if (nextKeyword === this.keyword) {
+          return;
+        }
+
+        this.keyword = nextKeyword;
+
+        if (nextKeyword) {
+          this.handleSearch(true);
+          return;
+        }
+
+        this.loadData();
+      },
+    },
   },
 
     methods: {
       ensureModal() {
         if (!this.thuocModal && this.$refs.thuocModalEl) {
           this.thuocModal = new Modal(this.$refs.thuocModalEl);
+        }
+        if (!this.deleteModal && this.$refs.deleteModalEl) {
+          this.deleteModal = new Modal(this.$refs.deleteModalEl);
         }
       },
 
@@ -1439,6 +1510,10 @@ export default {
       this.keyword = "";
       this.message = "";
       this.error = "";
+      this.$router.replace({
+        path: "/thuocs",
+        query: {},
+      });
       this.loadData();
     },
 
@@ -1583,7 +1658,7 @@ export default {
       }
     },
 
-    async handleSearch() {
+    async handleSearch(silent = false) {
       if (!this.keyword) {
         return;
       }
@@ -1596,6 +1671,12 @@ export default {
         this.selectedThuoc = null;
         this.resetThuocPagination();
         this.message = `Tìm thấy ${this.thuocs.length} thuốc phù hợp.`;
+        if (!silent) {
+          this.$router.replace({
+            path: "/thuocs",
+            query: { q: this.keyword },
+          });
+        }
       } catch (err) {
         this.error = this.normalizeError(err);
       } finally {
@@ -1683,9 +1764,23 @@ export default {
       }
     },
 
-      async removeThuoc(thuoc) {
+      openDeleteModal(thuoc) {
         if (!this.isAdminUser) {
           this.error = "Chỉ quản trị viên mới có quyền xóa thuốc.";
+          showToast(this.error, "error");
+          return;
+        }
+
+        this.deleteTarget = thuoc;
+        this.error = "";
+        this.ensureModal();
+        this.deleteModal?.show();
+      },
+
+      async confirmDeleteThuoc() {
+        const thuoc = this.deleteTarget;
+
+        if (!thuoc) {
           return;
         }
 
@@ -1699,6 +1794,8 @@ export default {
           }
           await this.loadData();
           showToast(`Đã xóa thuốc ${thuoc.ten_thuoc}.`);
+          this.deleteTarget = null;
+          this.deleteModal?.hide();
         } catch (err) {
           const message = this.normalizeError(err);
           this.error = message;

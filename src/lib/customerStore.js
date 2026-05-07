@@ -252,10 +252,14 @@ function normalizeAddressValue(value) {
   return String(value || "").trim();
 }
 
+function normalizePhoneValue(value) {
+  return normalizeAddressValue(value).replaceAll("*", "0").replace(/\D/g, "").slice(0, 10);
+}
+
 function createAddressFingerprint(address) {
   return [
     normalizeAddressValue(address?.hoTen).toLowerCase(),
-    normalizeAddressValue(address?.soDienThoai),
+    normalizePhoneValue(address?.soDienThoai),
     normalizeAddressValue(address?.tinhThanh),
     normalizeAddressValue(address?.quanHuyen),
     normalizeAddressValue(address?.phuongXa),
@@ -265,10 +269,11 @@ function createAddressFingerprint(address) {
 }
 
 function normalizeAddressRecord(address, profileData = buildProfile(), index = 0) {
+  const phone = normalizePhoneValue(address?.soDienThoai || profileData?.soDienThoai);
   const fallbackFingerprint = createAddressFingerprint({
     ...address,
     hoTen: address?.hoTen || profileData?.hoTen || "Khách hàng",
-    soDienThoai: address?.soDienThoai || String(profileData?.soDienThoai || "").replaceAll("*", "0"),
+    soDienThoai: phone,
     loaiDiaChi: address?.loaiDiaChi || "Nhà riêng",
   });
 
@@ -276,7 +281,7 @@ function normalizeAddressRecord(address, profileData = buildProfile(), index = 0
     ...address,
     id: address?.id || `addr-${getStorageScopeId()}-${fallbackFingerprint || index}`,
     hoTen: address?.hoTen || profileData?.hoTen || "Khách hàng",
-    soDienThoai: address?.soDienThoai || String(profileData?.soDienThoai || "").replaceAll("*", "0"),
+    soDienThoai: phone,
     tinhThanh: address?.tinhThanh || "",
     quanHuyen: address?.quanHuyen || "",
     phuongXa: address?.phuongXa || "",
@@ -307,7 +312,7 @@ function normalizeApiAddressRecord(address, profileData = buildProfile(), index 
 function serializeAddressPayload(address) {
   return {
     ho_ten: address?.hoTen || "Khách hàng",
-    so_dien_thoai: String(address?.soDienThoai || "").replaceAll("*", "0"),
+    so_dien_thoai: normalizePhoneValue(address?.soDienThoai),
     tinh_thanh: address?.tinhThanh || "",
     quan_huyen: address?.quanHuyen || "",
     phuong_xa: address?.phuongXa || "",

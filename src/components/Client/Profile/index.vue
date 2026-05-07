@@ -199,6 +199,7 @@
                   <p>{{ formatFullAddress(address) }}</p>
                 </div>
                 <div class="pc-address-card__actions">
+                  <span v-if="address.macDinh" class="pc-address-card__tag pc-address-card__tag--default">Mặc định</span>
                   <span class="pc-address-card__tag">{{ address.loaiDiaChi }}</span>
                   <button type="button" class="btn btn-sm btn-outline-primary" @click="openEditAddressModal(address)">
                     Chỉnh sửa
@@ -508,7 +509,16 @@
 
           <div class="pc-form-field">
             <label>Số điện thoại</label>
-            <input v-model="addressDraft.soDienThoai" type="text" placeholder="Nhập số điện thoại" />
+            <input
+              v-model="addressDraft.soDienThoai"
+              type="tel"
+              inputmode="numeric"
+              maxlength="10"
+              placeholder="Nhập số điện thoại"
+              :class="{ 'is-invalid': addressErrors.soDienThoai }"
+              @input="handleAddressPhoneInput"
+            />
+            <div v-if="addressErrors.soDienThoai" class="pc-field-error">{{ addressErrors.soDienThoai }}</div>
           </div>
 
           <div class="pc-form-field">
@@ -583,11 +593,15 @@ import { translateErrorMessage } from "../../../lib/errorMessages";
 import { validateStrongPassword } from "../../../lib/passwordRules";
 import { showToast } from "../../../lib/toast";
 
+function normalizePhoneDigits(value) {
+  return String(value || "").replace(/\D/g, "").slice(0, 10);
+}
+
 function createEmptyAddressDraft(profile) {
   return {
     id: null,
     hoTen: profile.hoTen || "",
-    soDienThoai: String(profile.soDienThoai || "").replaceAll("*", "0"),
+    soDienThoai: normalizePhoneDigits(String(profile.soDienThoai || "").replaceAll("*", "0")),
     tinhThanh: "",
     quanHuyen: "",
     phuongXa: "",
@@ -618,6 +632,7 @@ const LOCATION_OPTIONS = {
 function normalizeAddressDraft(address) {
   const draft = {
     ...address,
+    soDienThoai: normalizePhoneDigits(address?.soDienThoai),
     tinhThanh: address?.tinhThanh || "",
     quanHuyen: address?.quanHuyen || "",
     phuongXa: address?.phuongXa || "",
@@ -686,6 +701,9 @@ export default {
         currentPassword: "",
         newPassword: "",
         confirmPassword: "",
+      },
+      addressErrors: {
+        soDienThoai: "",
       },
       addressDraft: createEmptyAddressDraft(state.profile),
     };
@@ -880,6 +898,24 @@ export default {
       }
 
       if (!this.getPayosCheckoutUrl(order)) {
+        return false;
+      }
+
+      if (order?.payosPaidAt || order?.payos?.paid_at || order?.payos?.paidAt || order?.thoiGianThanhToan) {
+        return false;
+      }
+
+      const orderStatus = this.normalizePaymentStatus(order?.trangThaiXuLy || order?.trangThai || "");
+      const completedOrderStatuses = new Set([
+        "da_xac_nhan",
+        "hoan_thanh",
+        "thanh_cong",
+        "completed",
+        "complete",
+        "success",
+      ]);
+
+      if (completedOrderStatuses.has(orderStatus)) {
         return false;
       }
 
@@ -1155,15 +1191,27 @@ export default {
     },
     openAddAddressModal() {
       this.addressDraft = normalizeAddressDraft(createEmptyAddressDraft(this.state.profile));
+      this.resetAddressErrors();
       this.showAddressModal = true;
     },
     openEditAddressModal(address) {
       this.addressDraft = normalizeAddressDraft({ ...address });
+      this.resetAddressErrors();
       this.showAddressModal = true;
     },
     closeAddressModal() {
       this.showAddressModal = false;
       this.addressDraft = normalizeAddressDraft(createEmptyAddressDraft(this.state.profile));
+      this.resetAddressErrors();
+    },
+    resetAddressErrors() {
+      this.addressErrors = {
+        soDienThoai: "",
+      };
+    },
+    handleAddressPhoneInput() {
+      this.addressDraft.soDienThoai = normalizePhoneDigits(this.addressDraft.soDienThoai);
+      this.addressErrors.soDienThoai = "";
     },
     toggleOrderDetails(orderId) {
       this.expandedOrderId = this.expandedOrderId === orderId ? null : orderId;
@@ -1226,6 +1274,13 @@ export default {
     },
     async submitAddress() {
       const normalizedDraft = normalizeAddressDraft({ ...this.addressDraft });
+      this.resetAddressErrors();
+
+      if (!/^\d{10}$/.test(normalizedDraft.soDienThoai)) {
+        this.addressErrors.soDienThoai = "Số điện thoại người nhận phải gồm đúng 10 chữ số.";
+        showToast("Vui lòng kiểm tra lại số điện thoại người nhận.", "error");
+        return;
+      }
 
       if (!normalizedDraft.tinhThanh || !normalizedDraft.quanHuyen || !normalizedDraft.phuongXa) {
         showToast("Vui lòng chọn đúng Tỉnh/Thành phố, Quận/Huyện và Phường/Xã.", "error");
@@ -1236,8 +1291,17 @@ export default {
         await this.customerStore.saveAddress(normalizedDraft);
         this.showAddressModal = false;
         this.addressDraft = normalizeAddressDraft(createEmptyAddressDraft(this.state.profile));
+        this.resetAddressErrors();
         showToast("Đã lưu địa chỉ nhận hàng.");
       } catch (error) {
+        const fieldErrors = error?.payload?.errors || error?.response?.data?.errors;
+        const phoneError = fieldErrors?.so_dien_thoai;
+        const phoneMessage = Array.isArray(phoneError) ? phoneError[0] : phoneError;
+
+        if (phoneMessage) {
+          this.addressErrors.soDienThoai = this.translateProfileValidationMessage(phoneMessage, "so_dien_thoai");
+        }
+
         showToast(this.extractErrorMessage(error, "Không thể lưu địa chỉ nhận hàng."), "error");
       }
     },
@@ -1406,7 +1470,26 @@ export default {
 .pc-address-card__actions {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 12px;
+}
+
+.pc-address-card__tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #eef4ff;
+  color: #1652c5;
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+.pc-address-card__tag--default {
+  background: #e6f8f5;
+  color: #047c6c;
 }
 
 .pc-discount-list {

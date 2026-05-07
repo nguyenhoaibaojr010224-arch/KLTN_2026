@@ -307,7 +307,14 @@
                   <td class="text-end">
                     <div class="d-flex justify-content-end flex-wrap gap-2">
                       <button class="btn btn-sm btn-outline-primary" @click="editPromotion(item)">Sửa</button>
-                      <button class="btn btn-sm btn-outline-danger" @click="removePromotion(item)">Xóa</button>
+                      <button
+                        class="btn btn-sm btn-outline-danger"
+                        @click="openPromotionDeleteModal(item)"
+                        :disabled="loading.deletePromotionId === item.id"
+                      >
+                        <span v-if="loading.deletePromotionId === item.id" class="spinner-border spinner-border-sm me-2"></span>
+                        Xóa
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -318,6 +325,47 @@
             <p class="mb-2 fw-semibold">Chưa có khuyến mãi thuốc.</p>
             <p class="mb-0 text-secondary">Tạo khuyến mãi mới để bắt đầu áp dụng cho sản phẩm.</p>
           </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div ref="promotionDeleteModalEl" class="modal fade" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 shadow-lg">
+        <div class="modal-header">
+          <div>
+            <h5 class="modal-title fw-bold mb-1">Xóa khuyến mãi thuốc</h5>
+            <p class="mb-0 text-secondary small">Thao tác này sẽ xóa chương trình giảm giá khỏi thuốc áp dụng.</p>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+        </div>
+
+        <div class="modal-body">
+          <p class="mb-2">
+            Bạn có chắc muốn xóa khuyến mãi
+            <strong>{{ promotionDeleteTarget?.ten_khuyen_mai || "đã chọn" }}</strong>
+            không?
+          </p>
+          <p v-if="promotionDeleteTarget?.ten_thuoc" class="mb-1 text-secondary small">
+            Thuốc áp dụng: {{ promotionDeleteTarget.ten_thuoc }}
+          </p>
+          <p v-if="promotionDeleteTarget?.ma_thuoc" class="mb-0 text-secondary small">
+            Mã thuốc: {{ promotionDeleteTarget.ma_thuoc }}
+          </p>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
+          <button
+            type="button"
+            class="btn btn-danger"
+            @click="confirmDeletePromotion"
+            :disabled="loading.deletePromotionId !== null || !promotionDeleteTarget"
+          >
+            <span v-if="loading.deletePromotionId !== null" class="spinner-border spinner-border-sm me-2"></span>
+            Xóa khuyến mãi
+          </button>
         </div>
       </div>
     </div>
@@ -524,10 +572,13 @@ export default {
         savePrice: false,
         savePromotion: false,
         saveCode: false,
+        deletePromotionId: null,
       },
       priceModal: null,
       promotionModal: null,
       promotionListModal: null,
+      promotionDeleteModal: null,
+      promotionDeleteTarget: null,
       codeModal: null,
       codeListModal: null,
       priceForm: {
@@ -603,6 +654,7 @@ export default {
     this.priceModal = new Modal(this.$refs.priceModalEl);
     this.promotionModal = new Modal(this.$refs.promotionModalEl);
     this.promotionListModal = new Modal(this.$refs.promotionListModalEl);
+    this.promotionDeleteModal = new Modal(this.$refs.promotionDeleteModalEl);
     this.codeModal = new Modal(this.$refs.codeModalEl);
     this.codeListModal = new Modal(this.$refs.codeListModalEl);
     this.loadData();
@@ -807,14 +859,25 @@ export default {
         this.loading.savePromotion = false;
       }
     },
-    async removePromotion(item) {
-      if (!window.confirm(`Xóa khuyến mãi "${item.ten_khuyen_mai}"?`)) return;
+    openPromotionDeleteModal(item) {
+      this.promotionDeleteTarget = item;
+      this.promotionDeleteModal.show();
+    },
+    async confirmDeletePromotion() {
+      const item = this.promotionDeleteTarget;
+      if (!item) return;
+
+      this.loading.deletePromotionId = item.id;
       try {
         await deleteKhuyenMai(item.id);
         showToast("Xóa khuyến mãi thuốc thành công.");
         await this.loadData();
+        this.promotionDeleteTarget = null;
+        this.promotionDeleteModal.hide();
       } catch (error) {
         showToast(this.normalizeError(error, "Không thể xóa khuyến mãi thuốc."), "error");
+      } finally {
+        this.loading.deletePromotionId = null;
       }
     },
     openPromotionListModal() {

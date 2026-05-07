@@ -4,6 +4,10 @@ export function getHoaDons() {
   return apiClient("/hoa-dons");
 }
 
+export function getHoaDonChiTiets(id) {
+  return apiClient(`/hoa-dons/${id}/chi-tiets`);
+}
+
 export function searchHoaDons(keyword) {
   const query = new URLSearchParams({ q: keyword });
 
