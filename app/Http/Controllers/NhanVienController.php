@@ -136,6 +136,7 @@ class NhanVienController extends Controller
                 'required',
                 'string',
                 'size:10',
+                'regex:/^\d{10}$/',
                 Rule::unique('thong_tin_nhan_viens', 'so_dien_thoai'),
                 Rule::unique('nhan_viens', 'ten_dang_nhap'),
                 Rule::unique('khach_hangs', 'so_dien_thoai'),
@@ -179,6 +180,7 @@ class NhanVienController extends Controller
                 'required',
                 'string',
                 'size:10',
+                'regex:/^\d{10}$/',
                 Rule::unique('thong_tin_nhan_viens', 'so_dien_thoai')->ignore($nhanVien->id_nhan_vien, 'id_nhan_vien'),
                 Rule::unique('nhan_viens', 'ten_dang_nhap')->ignore($nhanVien->id_nhan_vien, 'id_nhan_vien'),
                 Rule::unique('khach_hangs', 'so_dien_thoai'),
@@ -307,6 +309,7 @@ class NhanVienController extends Controller
         return [
             'so_dien_thoai.required' => 'Vui lòng nhập số điện thoại đăng nhập.',
             'so_dien_thoai.size' => 'Số điện thoại đăng nhập phải có đúng 10 chữ số.',
+            'so_dien_thoai.regex' => 'Số điện thoại đăng nhập phải có đúng 10 chữ số.',
             'so_dien_thoai.unique' => 'Số điện thoại này đã được sử dụng.',
             'mat_khau.required' => 'Vui lòng nhập mật khẩu.',
             'mat_khau.min' => 'Mật khẩu phải có ít nhất 6 ký tự.',

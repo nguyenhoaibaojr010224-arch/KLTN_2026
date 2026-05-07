@@ -22,6 +22,7 @@ class StoreThongTinNhanVienRequest extends FormRequest
                 'required',
                 'string',
                 'size:10',
+                'regex:/^\d{10}$/',
                 Rule::unique('thong_tin_nhan_viens', 'so_dien_thoai'),
                 Rule::unique('nhan_viens', 'ten_dang_nhap')->ignore($idNhanVien, 'id_nhan_vien'),
                 Rule::unique('khach_hangs', 'so_dien_thoai'),
@@ -38,6 +39,7 @@ class StoreThongTinNhanVienRequest extends FormRequest
         return [
             'so_dien_thoai.required' => 'Vui lòng nhập số điện thoại.',
             'so_dien_thoai.size' => 'Số điện thoại phải gồm đúng 10 chữ số.',
+            'so_dien_thoai.regex' => 'Số điện thoại phải gồm đúng 10 chữ số.',
             'so_dien_thoai.unique' => 'Số điện thoại này đã được sử dụng.',
         ];
     }

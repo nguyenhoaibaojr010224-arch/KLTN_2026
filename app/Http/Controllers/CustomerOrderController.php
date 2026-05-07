@@ -16,6 +16,7 @@ use App\Models\NhanVien;
 use App\Models\NhanVienDangNhapLog;
 use App\Models\ThanhToan;
 use App\Models\Thuoc;
+use App\Services\PayosPaymentSyncService;
 use App\Services\PayosService;
 use App\Services\RewardPointService;
 use Illuminate\Http\JsonResponse;
@@ -34,7 +35,7 @@ class CustomerOrderController extends Controller
     private const REWARD_REDEEM_POINTS = 1000;
     private const REWARD_REDEEM_VALUE = 10000;
 
-    public function index(Request $request): JsonResponse
+    public function index(Request $request, PayosPaymentSyncService $payosSync): JsonResponse
     {
         $khachHang = $request->user();
 
@@ -51,6 +52,13 @@ class CustomerOrderController extends Controller
             ->orderByDesc('ngay_ban')
             ->orderByDesc('id_hoa_don')
             ->get();
+
+        $hoaDons
+            ->filter(fn (HoaDon $hoaDon): bool => $hoaDon->thanhToan?->phuong_thuc === 'payos'
+                && $hoaDon->thanhToan?->trang_thai !== 'paid')
+            ->each(fn (HoaDon $hoaDon) => $payosSync->syncHoaDon($hoaDon));
+
+        $hoaDons->load($this->customerOrderRelations());
 
         return response()->json([
             'message' => 'Lay lich su don hang thanh cong.',

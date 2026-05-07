@@ -86,6 +86,39 @@ class PayosService
         ];
     }
 
+    public function getPaymentLinkInformation(int|string $id): array
+    {
+        if (! $this->isConfigured()) {
+            throw new RuntimeException('Chua cau hinh PAYOS_CLIENT_ID, PAYOS_API_KEY hoac PAYOS_CHECKSUM_KEY.');
+        }
+
+        try {
+            $response = Http::acceptJson()
+                ->withHeaders([
+                    'x-client-id' => $this->clientId(),
+                    'x-api-key' => $this->apiKey(),
+                ])
+                ->get($this->baseUrl() . '/v2/payment-requests/' . rawurlencode((string) $id))
+                ->throw()
+                ->json();
+        } catch (RequestException $exception) {
+            $message = $exception->response?->json('desc')
+                ?: $exception->response?->json('message')
+                ?: 'Khong lay duoc trang thai thanh toan PayOS.';
+
+            throw new RuntimeException($message, previous: $exception);
+        }
+
+        if (($response['code'] ?? null) !== '00' || ! is_array($response['data'] ?? null)) {
+            throw new RuntimeException((string) ($response['desc'] ?? 'PayOS tu choi lay trang thai thanh toan.'));
+        }
+
+        return [
+            'data' => $response['data'],
+            'raw' => $response,
+        ];
+    }
+
     public function verifyWebhook(array $payload): bool
     {
         $data = $payload['data'] ?? null;

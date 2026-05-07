@@ -100,12 +100,13 @@ class CounterSaleController extends Controller
         }
 
         $validated = $request->validate([
-            'so_dien_thoai' => ['required', 'string', 'max:20'],
+            'so_dien_thoai' => ['required', 'string', 'regex:/^\d{10}$/'],
         ], [
             'so_dien_thoai.required' => 'Vui lòng nhập số điện thoại khách hàng.',
+            'so_dien_thoai.regex' => 'Số điện thoại khách hàng phải gồm đúng 10 chữ số.',
         ]);
 
-        $phone = preg_replace('/\D+/', '', (string) $validated['so_dien_thoai']);
+        $phone = (string) $validated['so_dien_thoai'];
 
         $khachHang = KhachHang::query()
             ->where('so_dien_thoai', $phone)

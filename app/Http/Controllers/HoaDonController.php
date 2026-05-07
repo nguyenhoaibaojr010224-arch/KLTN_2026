@@ -14,6 +14,7 @@ use App\Models\LoThuoc;
 use App\Models\MaGiamGiaLuotDung;
 use App\Models\NhanVien;
 use App\Models\NhanVienDangNhapLog;
+use App\Services\PayosPaymentSyncService;
 use App\Services\RewardPointService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -201,7 +202,7 @@ class HoaDonController extends Controller
         ]);
     }
 
-    public function confirm(Request $request, int $id, RewardPointService $rewardPoints): JsonResponse
+    public function confirm(Request $request, int $id, RewardPointService $rewardPoints, PayosPaymentSyncService $payosSync): JsonResponse
     {
         if (! $this->canProcessSystemOrder($request)) {
             return response()->json([
@@ -212,6 +213,16 @@ class HoaDonController extends Controller
         $validated = $request->validate([
             'ghi_chu' => ['nullable', 'string', 'max:500'],
         ]);
+
+        $preloadedOrder = HoaDon::query()
+            ->with('thanhToan')
+            ->whereKey($id)
+            ->first();
+
+        if ($preloadedOrder?->thanhToan?->phuong_thuc === 'payos'
+            && $preloadedOrder->thanhToan?->trang_thai !== 'paid') {
+            $payosSync->syncHoaDon($preloadedOrder);
+        }
 
         $hoaDon = DB::transaction(function () use ($request, $id, $validated, $rewardPoints): HoaDon {
             $hoaDon = HoaDon::query()

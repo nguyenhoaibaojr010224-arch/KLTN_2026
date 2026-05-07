@@ -125,7 +125,7 @@ class CustomerAddressController extends Controller
     {
         return $request->validate([
             'ho_ten' => ['required', 'string', 'min:2', 'max:100'],
-            'so_dien_thoai' => ['required', 'string', 'min:9', 'max:20'],
+            'so_dien_thoai' => ['required', 'string', 'regex:/^\d{10}$/'],
             'tinh_thanh' => ['nullable', 'string', 'max:100'],
             'quan_huyen' => ['nullable', 'string', 'max:100'],
             'phuong_xa' => ['nullable', 'string', 'max:100'],
@@ -135,6 +135,7 @@ class CustomerAddressController extends Controller
         ], [
             'ho_ten.required' => 'Vui lòng nhập họ tên người nhận.',
             'so_dien_thoai.required' => 'Vui lòng nhập số điện thoại người nhận.',
+            'so_dien_thoai.regex' => 'Số điện thoại người nhận phải gồm đúng 10 chữ số.',
             'so_nha.required' => 'Vui lòng nhập số nhà hoặc địa chỉ chi tiết.',
             'loai_dia_chi.required' => 'Vui lòng chọn loại địa chỉ.',
         ]);

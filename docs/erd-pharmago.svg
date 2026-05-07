@@ -1,0 +1,506 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="3000" height="2100" viewBox="0 0 3000 2100">
+  <defs>
+    <pattern id="smallGrid" width="18" height="18" patternUnits="userSpaceOnUse"><path d="M 18 0 L 0 0 0 18" fill="none" stroke="#e8e8e8" stroke-width="1"/></pattern>
+    <pattern id="grid" width="90" height="90" patternUnits="userSpaceOnUse"><rect width="90" height="90" fill="url(#smallGrid)"/><path d="M 90 0 L 0 0 0 90" fill="none" stroke="#d0d0d0" stroke-width="1.4"/></pattern>
+    <style><![CDATA[
+      text { font-family: "Times New Roman", Times, serif; fill: #111111; }
+      .title { font-size: 34px; font-weight: bold; }
+      .subtitle { font-size: 18px; fill: #333333; }
+      .table-title { font-size: 18px; font-weight: bold; }
+      .col { font-size: 17px; }
+      .pk { font-weight: bold; }
+      .rel { font-family: Arial, sans-serif; font-size: 20px; font-weight: bold; }
+    ]]></style>
+  </defs>
+  <rect width="100%" height="100%" fill="#ffffff"/>
+  <rect width="100%" height="100%" fill="url(#grid)"/>
+  <text x="80" y="50" class="title">So do thuc the lien ket PharmaGo</text>
+  <text x="80" y="78" class="subtitle">Dua tren migrations va Eloquent models - bo cac bang ky thuat de so do gon va de doc.</text>
+  <g><polyline points="380.0,148.0 406.0,148.0 406.0,270.0 480.0,270.0" fill="none" stroke="#111111" stroke-width="2" stroke-linejoin="miter"/>
+      <text x="396" y="169" class="rel">||</text>
+      <text x="462" y="257" class="rel">&lt;</text>
+<polyline points="380.0,355.0 418.0,355.0 418.0,270.0 480.0,270.0" fill="none" stroke="#111111" stroke-width="2" stroke-linejoin="miter"/>
+      <text x="396" y="344" class="rel">||</text>
+      <text x="462" y="293" class="rel">&lt;</text>
+<polyline points="820.0,270.0 875.0,270.0 875.0,203.0 930.0,203.0" fill="none" stroke="#111111" stroke-width="2" stroke-linejoin="miter"/>
+      <text x="836" y="259" class="rel">||</text>
+      <text x="912" y="226" class="rel">&lt;</text>
+<polyline points="820.0,270.0 887.0,270.0 887.0,503.0 930.0,503.0" fill="none" stroke="#111111" stroke-width="2" stroke-linejoin="miter"/>
+      <text x="836" y="291" class="rel">||</text>
+      <text x="912" y="490" class="rel">&lt;</text>
+<polyline points="380.0,808.0 464.0,808.0 464.0,985.0 500.0,985.0" fill="none" stroke="#111111" stroke-width="2" stroke-linejoin="miter"/>
+      <text x="396" y="829" class="rel">||</text>
+      <text x="482" y="972" class="rel">&lt;</text>
+<polyline points="400.0,1107.0 426.0,1107.0 426.0,985.0 500.0,985.0" fill="none" stroke="#111111" stroke-width="2" stroke-linejoin="miter"/>
+      <text x="416" y="1096" class="rel">||</text>
+      <text x="482" y="1008" class="rel">&lt;</text>
+<polyline points="880.0,985.0 943.0,985.0 943.0,986.0 1030.0,986.0" fill="none" stroke="#111111" stroke-width="2" stroke-linejoin="miter"/>
+      <text x="896" y="1006" class="rel">||</text>
+      <text x="1012" y="973" class="rel">&lt;</text>
+<polyline points="400.0,1107.0 450.0,1107.0 450.0,1383.0 500.0,1383.0" fill="none" stroke="#111111" stroke-width="2" stroke-linejoin="miter"/>
+      <text x="416" y="1128" class="rel">||</text>
+      <text x="482" y="1370" class="rel">&lt;</text>
+<polyline points="880.0,1383.0 967.0,1383.0 967.0,1410.0 1030.0,1410.0" fill="none" stroke="#111111" stroke-width="2" stroke-linejoin="miter"/>
+      <text x="896" y="1404" class="rel">||</text>
+      <text x="1012" y="1397" class="rel">&lt;</text>
+<polyline points="1210.0,1132.0 1210.0,1235.0 1220.0,1235.0 1220.0,1290.0" fill="none" stroke="#111111" stroke-width="2" stroke-linejoin="miter"/>
+      <text x="1226" y="1153" class="rel">||</text>
+      <text x="1202" y="1277" class="rel">&lt;</text>
+<polyline points="1860.0,226.0 1896.0,226.0 1896.0,226.0 1980.0,226.0" fill="none" stroke="#111111" stroke-width="2" stroke-linejoin="miter"/>
+      <text x="1876" y="231" class="rel">||</text>
+      <text x="1962" y="231" class="rel">&lt;</text>
+<polyline points="1680.0,372.0 1680.0,414.0 1695.0,414.0 1695.0,480.0" fill="none" stroke="#111111" stroke-width="2" stroke-linejoin="miter"/>
+      <text x="1696" y="393" class="rel">||</text>
+      <text x="1677" y="467" class="rel">&lt;</text>
+<polyline points="820.0,270.0 1160.0,270.0 1160.0,665.0 1500.0,665.0" fill="none" stroke="#111111" stroke-width="2" stroke-linejoin="miter"/>
+      <text x="836" y="291" class="rel">||</text>
+      <text x="1482" y="652" class="rel">&lt;</text>
+<polyline points="1890.0,665.0 1972.0,665.0 1972.0,633.0 2030.0,633.0" fill="none" stroke="#111111" stroke-width="2" stroke-linejoin="miter"/>
+      <text x="1906" y="654" class="rel">||</text>
+      <text x="2012" y="656" class="rel">&lt;</text>
+<polyline points="1390.0,986.0 1734.0,986.0 1734.0,633.0 2030.0,633.0" fill="none" stroke="#111111" stroke-width="2" stroke-linejoin="miter"/>
+      <text x="1406" y="975" class="rel">||</text>
+      <text x="2012" y="656" class="rel">&lt;</text>
+<polyline points="1890.0,665.0 2166.0,665.0 2166.0,633.0 2490.0,633.0" fill="none" stroke="#111111" stroke-width="2" stroke-linejoin="miter"/>
+      <text x="1906" y="654" class="rel">||</text>
+      <text x="2472" y="656" class="rel">&lt;</text>
+<polyline points="1695.0,850.0 1695.0,863.0 1695.0,863.0 1695.0,900.0" fill="none" stroke="#111111" stroke-width="2" stroke-linejoin="miter"/>
+      <text x="1695" y="871" class="rel">||</text>
+      <text x="1695" y="887" class="rel">&lt;</text>
+<polyline points="820.0,270.0 1160.0,270.0 1160.0,1007.0 1500.0,1007.0" fill="none" stroke="#111111" stroke-width="2" stroke-linejoin="miter"/>
+      <text x="836" y="291" class="rel">||</text>
+      <text x="1482" y="994" class="rel">&lt;</text>
+<polyline points="1890.0,665.0 1972.0,665.0 1972.0,1006.0 2030.0,1006.0" fill="none" stroke="#111111" stroke-width="2" stroke-linejoin="miter"/>
+      <text x="1906" y="686" class="rel">||</text>
+      <text x="2012" y="993" class="rel">&lt;</text>
+<polyline points="1680.0,372.0 1680.0,640.0 2225.0,640.0 2225.0,860.0" fill="none" stroke="#111111" stroke-width="2" stroke-linejoin="miter"/>
+      <text x="1696" y="393" class="rel">||</text>
+      <text x="2207" y="847" class="rel">&lt;</text>
+<polyline points="820.0,270.0 1401.0,270.0 1401.0,1006.0 2030.0,1006.0" fill="none" stroke="#111111" stroke-width="2" stroke-linejoin="miter"/>
+      <text x="836" y="291" class="rel">||</text>
+      <text x="2012" y="993" class="rel">&lt;</text>
+<polyline points="1695.0,1320.0 1695.0,1073.0 1695.0,1073.0 1695.0,850.0" fill="none" stroke="#111111" stroke-width="2" stroke-linejoin="miter"/>
+      <text x="1695" y="1309" class="rel">||</text>
+      <text x="1695" y="873" class="rel">&lt;</text>
+<polyline points="1890.0,1466.0 1960.0,1466.0 1960.0,1414.0 2030.0,1414.0" fill="none" stroke="#111111" stroke-width="2" stroke-linejoin="miter"/>
+      <text x="1906" y="1455" class="rel">||</text>
+      <text x="2012" y="1437" class="rel">&lt;</text>
+<polyline points="1680.0,372.0 1680.0,858.0 1695.0,858.0 1695.0,1320.0" fill="none" stroke="#111111" stroke-width="2" stroke-linejoin="miter"/>
+      <text x="1696" y="393" class="rel">||</text>
+      <text x="1677" y="1307" class="rel">&lt;</text>
+<polyline points="1680.0,372.0 1680.0,870.0 2225.0,870.0 2225.0,1320.0" fill="none" stroke="#111111" stroke-width="2" stroke-linejoin="miter"/>
+      <text x="1696" y="393" class="rel">||</text>
+      <text x="2207" y="1307" class="rel">&lt;</text>
+<polyline points="880.0,985.0 1661.0,985.0 1661.0,1266.0 2490.0,1266.0" fill="none" stroke="#111111" stroke-width="2" stroke-linejoin="miter"/>
+      <text x="896" y="1006" class="rel">||</text>
+      <text x="2472" y="1253" class="rel">&lt;</text>
+<polyline points="820.0,270.0 1643.0,270.0 1643.0,1266.0 2490.0,1266.0" fill="none" stroke="#111111" stroke-width="2" stroke-linejoin="miter"/>
+      <text x="836" y="291" class="rel">||</text>
+      <text x="2472" y="1253" class="rel">&lt;</text>
+<polyline points="1680.0,372.0 1680.0,1016.0 1695.0,1016.0 1695.0,1660.0" fill="none" stroke="#111111" stroke-width="2" stroke-linejoin="miter"/>
+      <text x="1696" y="393" class="rel">||</text>
+      <text x="1677" y="1647" class="rel">&lt;</text>
+<polyline points="650.0,390.0 650.0,1037.0 1695.0,1037.0 1695.0,1660.0" fill="none" stroke="#111111" stroke-width="2" stroke-linejoin="miter"/>
+      <text x="666" y="411" class="rel">||</text>
+      <text x="1677" y="1647" class="rel">&lt;</text>
+<polyline points="1890.0,1754.0 1984.0,1754.0 1984.0,1780.0 2030.0,1780.0" fill="none" stroke="#111111" stroke-width="2" stroke-linejoin="miter"/>
+      <text x="1906" y="1775" class="rel">||</text>
+      <text x="2012" y="1767" class="rel">&lt;</text>
+<polyline points="1680.0,372.0 1680.0,992.0 2225.0,992.0 2225.0,1660.0" fill="none" stroke="#111111" stroke-width="2" stroke-linejoin="miter"/>
+      <text x="1696" y="393" class="rel">||</text>
+      <text x="2207" y="1647" class="rel">&lt;</text>
+<polyline points="820.0,270.0 1413.0,270.0 1413.0,1780.0 2030.0,1780.0" fill="none" stroke="#111111" stroke-width="2" stroke-linejoin="miter"/>
+      <text x="836" y="291" class="rel">||</text>
+      <text x="2012" y="1767" class="rel">&lt;</text>
+<polyline points="820.0,270.0 1655.0,270.0 1655.0,1663.0 2490.0,1663.0" fill="none" stroke="#111111" stroke-width="2" stroke-linejoin="miter"/>
+      <text x="836" y="291" class="rel">||</text>
+      <text x="2472" y="1650" class="rel">&lt;</text>
+<polyline points="2670.0,1796.0 2670.0,1825.0 2670.0,1825.0 2670.0,1830.0" fill="none" stroke="#111111" stroke-width="2" stroke-linejoin="miter"/>
+      <text x="2670" y="1817" class="rel">||</text>
+      <text x="2670" y="1817" class="rel">&lt;</text>
+<polyline points="1680.0,372.0 1680.0,1125.0 2670.0,1125.0 2670.0,1830.0" fill="none" stroke="#111111" stroke-width="2" stroke-linejoin="miter"/>
+      <text x="1696" y="393" class="rel">||</text>
+      <text x="2652" y="1817" class="rel">&lt;</text></g>
+  <g><g>
+      <rect x="80" y="80" width="300" height="136" fill="#ffffff" stroke="#111111" stroke-width="2.4"/>
+      <rect x="80" y="80" width="300" height="34" fill="#f8f8f8" stroke="#111111" stroke-width="2.4"/>
+      <rect x="88" y="88" width="13" height="13" fill="#ffffff" stroke="#111111" stroke-width="1.4"/>
+      <line x1="90" y1="91" x2="99" y2="91" stroke="#111111" stroke-width="1"/>
+      <line x1="90" y1="95" x2="97" y2="95" stroke="#111111" stroke-width="1"/>
+      <text x="230" y="104" text-anchor="middle" class="table-title">VaiTro</text>
+      <text x="104" y="142" class="col pk">Id_VaiTro Int(11)</text>
+<text x="104" y="168" class="col ">TenVaiTro Varchar(100)</text>
+<text x="104" y="194" class="col ">MoTa Text</text>
+    </g>
+<g>
+      <rect x="80" y="300" width="300" height="110" fill="#ffffff" stroke="#111111" stroke-width="2.4"/>
+      <rect x="80" y="300" width="300" height="34" fill="#f8f8f8" stroke="#111111" stroke-width="2.4"/>
+      <rect x="88" y="308" width="13" height="13" fill="#ffffff" stroke="#111111" stroke-width="1.4"/>
+      <line x1="90" y1="311" x2="99" y2="311" stroke="#111111" stroke-width="1"/>
+      <line x1="90" y1="315" x2="97" y2="315" stroke="#111111" stroke-width="1"/>
+      <text x="230" y="324" text-anchor="middle" class="table-title">BangCap</text>
+      <text x="104" y="362" class="col pk">Id_BangCap Int(11)</text>
+<text x="104" y="388" class="col ">TenBangCap Varchar(100)</text>
+    </g>
+<g>
+      <rect x="480" y="150" width="340" height="240" fill="#ffffff" stroke="#111111" stroke-width="2.4"/>
+      <rect x="480" y="150" width="340" height="34" fill="#f8f8f8" stroke="#111111" stroke-width="2.4"/>
+      <rect x="488" y="158" width="13" height="13" fill="#ffffff" stroke="#111111" stroke-width="1.4"/>
+      <line x1="490" y1="161" x2="499" y2="161" stroke="#111111" stroke-width="1"/>
+      <line x1="490" y1="165" x2="497" y2="165" stroke="#111111" stroke-width="1"/>
+      <text x="650" y="174" text-anchor="middle" class="table-title">NhanVien</text>
+      <text x="504" y="212" class="col pk">Id_NhanVien Int(11)</text>
+<text x="504" y="238" class="col ">TenDangNhap Varchar(50)</text>
+<text x="504" y="264" class="col ">MatKhau Varchar(255)</text>
+<text x="504" y="290" class="col ">HoTen Varchar(100)</text>
+<text x="504" y="316" class="col ">Id_VaiTro Int(11)</text>
+<text x="504" y="342" class="col ">Id_BangCap Int(11)</text>
+<text x="504" y="368" class="col ">TrangThai Varchar(30)</text>
+    </g>
+<g>
+      <rect x="930" y="70" width="360" height="266" fill="#ffffff" stroke="#111111" stroke-width="2.4"/>
+      <rect x="930" y="70" width="360" height="34" fill="#f8f8f8" stroke="#111111" stroke-width="2.4"/>
+      <rect x="938" y="78" width="13" height="13" fill="#ffffff" stroke="#111111" stroke-width="1.4"/>
+      <line x1="940" y1="81" x2="949" y2="81" stroke="#111111" stroke-width="1"/>
+      <line x1="940" y1="85" x2="947" y2="85" stroke="#111111" stroke-width="1"/>
+      <text x="1110" y="94" text-anchor="middle" class="table-title">ThongTinNhanVien</text>
+      <text x="954" y="132" class="col pk">Id_NhanVien Int(11)</text>
+<text x="954" y="158" class="col ">SoDienThoai Varchar(20)</text>
+<text x="954" y="184" class="col ">Email Varchar(100)</text>
+<text x="954" y="210" class="col ">DiaChi Varchar(255)</text>
+<text x="954" y="236" class="col ">NgaySinh Date</text>
+<text x="954" y="262" class="col ">NgayVaoLam Date</text>
+<text x="954" y="288" class="col ">Avatar Varchar(255)</text>
+<text x="954" y="314" class="col ">GioiTinh Varchar(20)</text>
+    </g>
+<g>
+      <rect x="930" y="370" width="360" height="266" fill="#ffffff" stroke="#111111" stroke-width="2.4"/>
+      <rect x="930" y="370" width="360" height="34" fill="#f8f8f8" stroke="#111111" stroke-width="2.4"/>
+      <rect x="938" y="378" width="13" height="13" fill="#ffffff" stroke="#111111" stroke-width="1.4"/>
+      <line x1="940" y1="381" x2="949" y2="381" stroke="#111111" stroke-width="1"/>
+      <line x1="940" y1="385" x2="947" y2="385" stroke="#111111" stroke-width="1"/>
+      <text x="1110" y="394" text-anchor="middle" class="table-title">NhanVienDangNhapLog</text>
+      <text x="954" y="432" class="col pk">Id Int(11)</text>
+<text x="954" y="458" class="col ">Id_NhanVien Int(11)</text>
+<text x="954" y="484" class="col ">KenhDangNhap Varchar(30)</text>
+<text x="954" y="510" class="col ">ThoiGianDangNhap DateTime</text>
+<text x="954" y="536" class="col ">ThoiGianDangXuat DateTime</text>
+<text x="954" y="562" class="col ">HetHanLuc DateTime</text>
+<text x="954" y="588" class="col ">ThoiLuongGiay Int(11)</text>
+<text x="954" y="614" class="col ">DangHoatDong Int(1)</text>
+    </g>
+<g>
+      <rect x="80" y="740" width="300" height="136" fill="#ffffff" stroke="#111111" stroke-width="2.4"/>
+      <rect x="80" y="740" width="300" height="34" fill="#f8f8f8" stroke="#111111" stroke-width="2.4"/>
+      <rect x="88" y="748" width="13" height="13" fill="#ffffff" stroke="#111111" stroke-width="1.4"/>
+      <line x1="90" y1="751" x2="99" y2="751" stroke="#111111" stroke-width="1"/>
+      <line x1="90" y1="755" x2="97" y2="755" stroke="#111111" stroke-width="1"/>
+      <text x="230" y="764" text-anchor="middle" class="table-title">LoaiThuoc</text>
+      <text x="104" y="802" class="col pk">Id_LoaiThuoc Int(11)</text>
+<text x="104" y="828" class="col ">TenLoai Varchar(100)</text>
+<text x="104" y="854" class="col ">MoTa Text</text>
+    </g>
+<g>
+      <rect x="80" y="1000" width="320" height="214" fill="#ffffff" stroke="#111111" stroke-width="2.4"/>
+      <rect x="80" y="1000" width="320" height="34" fill="#f8f8f8" stroke="#111111" stroke-width="2.4"/>
+      <rect x="88" y="1008" width="13" height="13" fill="#ffffff" stroke="#111111" stroke-width="1.4"/>
+      <line x1="90" y1="1011" x2="99" y2="1011" stroke="#111111" stroke-width="1"/>
+      <line x1="90" y1="1015" x2="97" y2="1015" stroke="#111111" stroke-width="1"/>
+      <text x="240" y="1024" text-anchor="middle" class="table-title">NhaSanXuat</text>
+      <text x="104" y="1062" class="col pk">Id_NhaSanXuat Int(11)</text>
+<text x="104" y="1088" class="col ">TenNhaSanXuat Varchar(150)</text>
+<text x="104" y="1114" class="col ">QuocGia Varchar(100)</text>
+<text x="104" y="1140" class="col ">NuocSanXuat Varchar(100)</text>
+<text x="104" y="1166" class="col ">DiaChi Varchar(255)</text>
+<text x="104" y="1192" class="col ">SoDienThoai Varchar(20)</text>
+    </g>
+<g>
+      <rect x="500" y="800" width="380" height="370" fill="#ffffff" stroke="#111111" stroke-width="2.4"/>
+      <rect x="500" y="800" width="380" height="34" fill="#f8f8f8" stroke="#111111" stroke-width="2.4"/>
+      <rect x="508" y="808" width="13" height="13" fill="#ffffff" stroke="#111111" stroke-width="1.4"/>
+      <line x1="510" y1="811" x2="519" y2="811" stroke="#111111" stroke-width="1"/>
+      <line x1="510" y1="815" x2="517" y2="815" stroke="#111111" stroke-width="1"/>
+      <text x="690" y="824" text-anchor="middle" class="table-title">Thuoc</text>
+      <text x="524" y="862" class="col pk">MaThuoc Varchar(10)</text>
+<text x="524" y="888" class="col ">TenThuoc Varchar(255)</text>
+<text x="524" y="914" class="col ">Id_LoaiThuoc Int(11)</text>
+<text x="524" y="940" class="col ">Id_NhaSanXuat Int(11)</text>
+<text x="524" y="966" class="col ">Nhan Varchar(255)</text>
+<text x="524" y="992" class="col ">HamLuong Varchar(100)</text>
+<text x="524" y="1018" class="col ">DonViTinh Varchar(50)</text>
+<text x="524" y="1044" class="col ">DonViCoSo Varchar(50)</text>
+<text x="524" y="1070" class="col ">HeSoQuyDoi Int(11)</text>
+<text x="524" y="1096" class="col ">GiaBan Int(11)</text>
+<text x="524" y="1122" class="col ">HinhAnh Varchar(255)</text>
+<text x="524" y="1148" class="col ">TrangThai Varchar(30)</text>
+    </g>
+<g>
+      <rect x="1030" y="840" width="360" height="292" fill="#ffffff" stroke="#111111" stroke-width="2.4"/>
+      <rect x="1030" y="840" width="360" height="34" fill="#f8f8f8" stroke="#111111" stroke-width="2.4"/>
+      <rect x="1038" y="848" width="13" height="13" fill="#ffffff" stroke="#111111" stroke-width="1.4"/>
+      <line x1="1040" y1="851" x2="1049" y2="851" stroke="#111111" stroke-width="1"/>
+      <line x1="1040" y1="855" x2="1047" y2="855" stroke="#111111" stroke-width="1"/>
+      <text x="1210" y="864" text-anchor="middle" class="table-title">LoThuoc</text>
+      <text x="1054" y="902" class="col pk">Id_Lo Int(11)</text>
+<text x="1054" y="928" class="col ">Id_Thuoc Varchar(10)</text>
+<text x="1054" y="954" class="col ">SoLo Varchar(100)</text>
+<text x="1054" y="980" class="col ">NgaySanXuat Date</text>
+<text x="1054" y="1006" class="col ">HanSuDung Date</text>
+<text x="1054" y="1032" class="col ">SoLuongNhap Int(11)</text>
+<text x="1054" y="1058" class="col ">SoLuongCon Int(11)</text>
+<text x="1054" y="1084" class="col ">GiaNhap Decimal(14,2)</text>
+<text x="1054" y="1110" class="col ">DonViNhap Varchar(50)</text>
+    </g>
+<g>
+      <rect x="500" y="1250" width="380" height="266" fill="#ffffff" stroke="#111111" stroke-width="2.4"/>
+      <rect x="500" y="1250" width="380" height="34" fill="#f8f8f8" stroke="#111111" stroke-width="2.4"/>
+      <rect x="508" y="1258" width="13" height="13" fill="#ffffff" stroke="#111111" stroke-width="1.4"/>
+      <line x1="510" y1="1261" x2="519" y2="1261" stroke="#111111" stroke-width="1"/>
+      <line x1="510" y1="1265" x2="517" y2="1265" stroke="#111111" stroke-width="1"/>
+      <text x="690" y="1274" text-anchor="middle" class="table-title">PhieuNhap</text>
+      <text x="524" y="1312" class="col pk">Id_PhieuNhap Int(11)</text>
+<text x="524" y="1338" class="col ">Id_NhaSanXuat Int(11)</text>
+<text x="524" y="1364" class="col ">Id_NhanVien Int(11)</text>
+<text x="524" y="1390" class="col ">SoHoaDonGiay Varchar(100)</text>
+<text x="524" y="1416" class="col ">NgayNhap Date</text>
+<text x="524" y="1442" class="col ">NgayHoaDon Date</text>
+<text x="524" y="1468" class="col ">TongTien Decimal(14,2)</text>
+<text x="524" y="1494" class="col ">ChungTuUrl Varchar(255)</text>
+    </g>
+<g>
+      <rect x="1030" y="1290" width="380" height="240" fill="#ffffff" stroke="#111111" stroke-width="2.4"/>
+      <rect x="1030" y="1290" width="380" height="34" fill="#f8f8f8" stroke="#111111" stroke-width="2.4"/>
+      <rect x="1038" y="1298" width="13" height="13" fill="#ffffff" stroke="#111111" stroke-width="1.4"/>
+      <line x1="1040" y1="1301" x2="1049" y2="1301" stroke="#111111" stroke-width="1"/>
+      <line x1="1040" y1="1305" x2="1047" y2="1305" stroke="#111111" stroke-width="1"/>
+      <text x="1220" y="1314" text-anchor="middle" class="table-title">ChiTietPhieuNhap</text>
+      <text x="1054" y="1352" class="col pk">Id Int(11)</text>
+<text x="1054" y="1378" class="col ">Id_PhieuNhap Int(11)</text>
+<text x="1054" y="1404" class="col ">Id_Lo Int(11)</text>
+<text x="1054" y="1430" class="col ">DonViNhap Varchar(50)</text>
+<text x="1054" y="1456" class="col ">SoLuong Int(11)</text>
+<text x="1054" y="1482" class="col ">GiaNhap Decimal(14,2)</text>
+<text x="1054" y="1508" class="col ">ThanhTien Decimal(14,2)</text>
+    </g>
+<g>
+      <rect x="1500" y="80" width="360" height="292" fill="#ffffff" stroke="#111111" stroke-width="2.4"/>
+      <rect x="1500" y="80" width="360" height="34" fill="#f8f8f8" stroke="#111111" stroke-width="2.4"/>
+      <rect x="1508" y="88" width="13" height="13" fill="#ffffff" stroke="#111111" stroke-width="1.4"/>
+      <line x1="1510" y1="91" x2="1519" y2="91" stroke="#111111" stroke-width="1"/>
+      <line x1="1510" y1="95" x2="1517" y2="95" stroke="#111111" stroke-width="1"/>
+      <text x="1680" y="104" text-anchor="middle" class="table-title">KhachHang</text>
+      <text x="1524" y="142" class="col pk">Id_KhachHang Int(11)</text>
+<text x="1524" y="168" class="col ">TenKhachHang Varchar(100)</text>
+<text x="1524" y="194" class="col ">SoDienThoai Varchar(20)</text>
+<text x="1524" y="220" class="col ">Email Varchar(100)</text>
+<text x="1524" y="246" class="col ">MatKhau Varchar(255)</text>
+<text x="1524" y="272" class="col ">DiemTichLuy Int(11)</text>
+<text x="1524" y="298" class="col ">DiaChi Varchar(255)</text>
+<text x="1524" y="324" class="col ">Avatar Varchar(255)</text>
+<text x="1524" y="350" class="col ">EmailVerified Int(1)</text>
+    </g>
+<g>
+      <rect x="1980" y="80" width="360" height="292" fill="#ffffff" stroke="#111111" stroke-width="2.4"/>
+      <rect x="1980" y="80" width="360" height="34" fill="#f8f8f8" stroke="#111111" stroke-width="2.4"/>
+      <rect x="1988" y="88" width="13" height="13" fill="#ffffff" stroke="#111111" stroke-width="1.4"/>
+      <line x1="1990" y1="91" x2="1999" y2="91" stroke="#111111" stroke-width="1"/>
+      <line x1="1990" y1="95" x2="1997" y2="95" stroke="#111111" stroke-width="1"/>
+      <text x="2160" y="104" text-anchor="middle" class="table-title">DiaChiKhachHang</text>
+      <text x="2004" y="142" class="col pk">Id_DiaChi Int(11)</text>
+<text x="2004" y="168" class="col ">Id_KhachHang Int(11)</text>
+<text x="2004" y="194" class="col ">HoTen Varchar(100)</text>
+<text x="2004" y="220" class="col ">SoDienThoai Varchar(20)</text>
+<text x="2004" y="246" class="col ">TinhThanh Varchar(100)</text>
+<text x="2004" y="272" class="col ">QuanHuyen Varchar(100)</text>
+<text x="2004" y="298" class="col ">PhuongXa Varchar(100)</text>
+<text x="2004" y="324" class="col ">SoNha Varchar(255)</text>
+<text x="2004" y="350" class="col ">MacDinh Int(1)</text>
+    </g>
+<g>
+      <rect x="1500" y="480" width="390" height="370" fill="#ffffff" stroke="#111111" stroke-width="2.4"/>
+      <rect x="1500" y="480" width="390" height="34" fill="#f8f8f8" stroke="#111111" stroke-width="2.4"/>
+      <rect x="1508" y="488" width="13" height="13" fill="#ffffff" stroke="#111111" stroke-width="1.4"/>
+      <line x1="1510" y1="491" x2="1519" y2="491" stroke="#111111" stroke-width="1"/>
+      <line x1="1510" y1="495" x2="1517" y2="495" stroke="#111111" stroke-width="1"/>
+      <text x="1695" y="504" text-anchor="middle" class="table-title">HoaDon</text>
+      <text x="1524" y="542" class="col pk">Id_HoaDon Int(11)</text>
+<text x="1524" y="568" class="col ">MaHoaDon Varchar(30)</text>
+<text x="1524" y="594" class="col ">Id_KhachHang Int(11)</text>
+<text x="1524" y="620" class="col ">Id_NhanVien Int(11)</text>
+<text x="1524" y="646" class="col ">MaGiamGiaId Int(11)</text>
+<text x="1524" y="672" class="col ">KenhBan Varchar(30)</text>
+<text x="1524" y="698" class="col ">TrangThaiXuLy Varchar(30)</text>
+<text x="1524" y="724" class="col ">TongTien Decimal(12,2)</text>
+<text x="1524" y="750" class="col ">GiamGia Decimal(12,2)</text>
+<text x="1524" y="776" class="col ">ThueVat Decimal(12,2)</text>
+<text x="1524" y="802" class="col ">TienThanhToan Decimal(12,2)</text>
+<text x="1524" y="828" class="col ">NgayBan DateTime</text>
+    </g>
+<g>
+      <rect x="2030" y="500" width="370" height="266" fill="#ffffff" stroke="#111111" stroke-width="2.4"/>
+      <rect x="2030" y="500" width="370" height="34" fill="#f8f8f8" stroke="#111111" stroke-width="2.4"/>
+      <rect x="2038" y="508" width="13" height="13" fill="#ffffff" stroke="#111111" stroke-width="1.4"/>
+      <line x1="2040" y1="511" x2="2049" y2="511" stroke="#111111" stroke-width="1"/>
+      <line x1="2040" y1="515" x2="2047" y2="515" stroke="#111111" stroke-width="1"/>
+      <text x="2215" y="524" text-anchor="middle" class="table-title">ChiTietHoaDon</text>
+      <text x="2054" y="562" class="col pk">Id Int(11)</text>
+<text x="2054" y="588" class="col ">Id_HoaDon Int(11)</text>
+<text x="2054" y="614" class="col ">Id_Lo Int(11)</text>
+<text x="2054" y="640" class="col ">DonViBan Varchar(50)</text>
+<text x="2054" y="666" class="col ">HeSoQuyDoiBan Int(11)</text>
+<text x="2054" y="692" class="col ">SoLuong Int(11)</text>
+<text x="2054" y="718" class="col ">GiaBan Decimal(14,2)</text>
+<text x="2054" y="744" class="col ">ThanhTien Decimal(14,2)</text>
+    </g>
+<g>
+      <rect x="2490" y="500" width="360" height="266" fill="#ffffff" stroke="#111111" stroke-width="2.4"/>
+      <rect x="2490" y="500" width="360" height="34" fill="#f8f8f8" stroke="#111111" stroke-width="2.4"/>
+      <rect x="2498" y="508" width="13" height="13" fill="#ffffff" stroke="#111111" stroke-width="1.4"/>
+      <line x1="2500" y1="511" x2="2509" y2="511" stroke="#111111" stroke-width="1"/>
+      <line x1="2500" y1="515" x2="2507" y2="515" stroke="#111111" stroke-width="1"/>
+      <text x="2670" y="524" text-anchor="middle" class="table-title">ThanhToan</text>
+      <text x="2514" y="562" class="col pk">Id_HoaDon Int(11)</text>
+<text x="2514" y="588" class="col ">PhuongThuc Varchar(30)</text>
+<text x="2514" y="614" class="col ">SoTien Decimal(14,2)</text>
+<text x="2514" y="640" class="col ">TrangThai Varchar(30)</text>
+<text x="2514" y="666" class="col ">MaGiaoDich Varchar(100)</text>
+<text x="2514" y="692" class="col ">PayosOrderCode BigInt</text>
+<text x="2514" y="718" class="col ">PayosCheckoutUrl Text</text>
+<text x="2514" y="744" class="col ">PayosPaidAt DateTime</text>
+    </g>
+<g>
+      <rect x="1500" y="900" width="390" height="214" fill="#ffffff" stroke="#111111" stroke-width="2.4"/>
+      <rect x="1500" y="900" width="390" height="34" fill="#f8f8f8" stroke="#111111" stroke-width="2.4"/>
+      <rect x="1508" y="908" width="13" height="13" fill="#ffffff" stroke="#111111" stroke-width="1.4"/>
+      <line x1="1510" y1="911" x2="1519" y2="911" stroke="#111111" stroke-width="1"/>
+      <line x1="1510" y1="915" x2="1517" y2="915" stroke="#111111" stroke-width="1"/>
+      <text x="1695" y="924" text-anchor="middle" class="table-title">LichSuDonHang</text>
+      <text x="1524" y="962" class="col pk">Id_LichSu Int(11)</text>
+<text x="1524" y="988" class="col ">Id_HoaDon Int(11)</text>
+<text x="1524" y="1014" class="col ">Id_NhanVien Int(11)</text>
+<text x="1524" y="1040" class="col ">TrangThai Varchar(50)</text>
+<text x="1524" y="1066" class="col ">GhiChu Text</text>
+<text x="1524" y="1092" class="col ">ThoiGian DateTime</text>
+    </g>
+<g>
+      <rect x="2030" y="860" width="390" height="292" fill="#ffffff" stroke="#111111" stroke-width="2.4"/>
+      <rect x="2030" y="860" width="390" height="34" fill="#f8f8f8" stroke="#111111" stroke-width="2.4"/>
+      <rect x="2038" y="868" width="13" height="13" fill="#ffffff" stroke="#111111" stroke-width="1.4"/>
+      <line x1="2040" y1="871" x2="2049" y2="871" stroke="#111111" stroke-width="1"/>
+      <line x1="2040" y1="875" x2="2047" y2="875" stroke="#111111" stroke-width="1"/>
+      <text x="2225" y="884" text-anchor="middle" class="table-title">CounterSalePayosSession</text>
+      <text x="2054" y="922" class="col pk">Id Int(11)</text>
+<text x="2054" y="948" class="col ">SessionKey Varchar(36)</text>
+<text x="2054" y="974" class="col ">Id_NhanVien Int(11)</text>
+<text x="2054" y="1000" class="col ">Id_KhachHang Int(11)</text>
+<text x="2054" y="1026" class="col ">Id_HoaDon Int(11)</text>
+<text x="2054" y="1052" class="col ">Status Varchar(30)</text>
+<text x="2054" y="1078" class="col ">ItemsPayload Json</text>
+<text x="2054" y="1104" class="col ">TienThanhToan Decimal(14,2)</text>
+<text x="2054" y="1130" class="col ">PayosCheckoutUrl Text</text>
+    </g>
+<g>
+      <rect x="1500" y="1320" width="390" height="292" fill="#ffffff" stroke="#111111" stroke-width="2.4"/>
+      <rect x="1500" y="1320" width="390" height="34" fill="#f8f8f8" stroke="#111111" stroke-width="2.4"/>
+      <rect x="1508" y="1328" width="13" height="13" fill="#ffffff" stroke="#111111" stroke-width="1.4"/>
+      <line x1="1510" y1="1331" x2="1519" y2="1331" stroke="#111111" stroke-width="1"/>
+      <line x1="1510" y1="1335" x2="1517" y2="1335" stroke="#111111" stroke-width="1"/>
+      <text x="1695" y="1344" text-anchor="middle" class="table-title">MaGiamGia</text>
+      <text x="1524" y="1382" class="col pk">Id Int(11)</text>
+<text x="1524" y="1408" class="col ">MaGiamGia Varchar(50)</text>
+<text x="1524" y="1434" class="col ">Id_NhanVien Int(11)</text>
+<text x="1524" y="1460" class="col ">Id_KhachHang Int(11)</text>
+<text x="1524" y="1486" class="col ">LoaiMa Varchar(30)</text>
+<text x="1524" y="1512" class="col ">LoaiApDung Varchar(30)</text>
+<text x="1524" y="1538" class="col ">GiaTri Decimal(12,2)</text>
+<text x="1524" y="1564" class="col ">TuDongApDung Int(1)</text>
+<text x="1524" y="1590" class="col ">TrangThai Varchar(30)</text>
+    </g>
+<g>
+      <rect x="2030" y="1320" width="390" height="188" fill="#ffffff" stroke="#111111" stroke-width="2.4"/>
+      <rect x="2030" y="1320" width="390" height="34" fill="#f8f8f8" stroke="#111111" stroke-width="2.4"/>
+      <rect x="2038" y="1328" width="13" height="13" fill="#ffffff" stroke="#111111" stroke-width="1.4"/>
+      <line x1="2040" y1="1331" x2="2049" y2="1331" stroke="#111111" stroke-width="1"/>
+      <line x1="2040" y1="1335" x2="2047" y2="1335" stroke="#111111" stroke-width="1"/>
+      <text x="2225" y="1344" text-anchor="middle" class="table-title">MaGiamGiaLuotDung</text>
+      <text x="2054" y="1382" class="col pk">Id Int(11)</text>
+<text x="2054" y="1408" class="col ">MaGiamGiaId Int(11)</text>
+<text x="2054" y="1434" class="col ">Id_KhachHang Int(11)</text>
+<text x="2054" y="1460" class="col ">SoLanSuDung Int(11)</text>
+<text x="2054" y="1486" class="col ">LanSuDungCuoi DateTime</text>
+    </g>
+<g>
+      <rect x="2490" y="1120" width="360" height="292" fill="#ffffff" stroke="#111111" stroke-width="2.4"/>
+      <rect x="2490" y="1120" width="360" height="34" fill="#f8f8f8" stroke="#111111" stroke-width="2.4"/>
+      <rect x="2498" y="1128" width="13" height="13" fill="#ffffff" stroke="#111111" stroke-width="1.4"/>
+      <line x1="2500" y1="1131" x2="2509" y2="1131" stroke="#111111" stroke-width="1"/>
+      <line x1="2500" y1="1135" x2="2507" y2="1135" stroke="#111111" stroke-width="1"/>
+      <text x="2670" y="1144" text-anchor="middle" class="table-title">KhuyenMai</text>
+      <text x="2514" y="1182" class="col pk">Id Int(11)</text>
+<text x="2514" y="1208" class="col ">MaThuoc Varchar(10)</text>
+<text x="2514" y="1234" class="col ">Id_NhanVien Int(11)</text>
+<text x="2514" y="1260" class="col ">TenKhuyenMai Varchar(255)</text>
+<text x="2514" y="1286" class="col ">LoaiApDung Varchar(30)</text>
+<text x="2514" y="1312" class="col ">GiaTri Decimal(12,2)</text>
+<text x="2514" y="1338" class="col ">NgayBatDau DateTime</text>
+<text x="2514" y="1364" class="col ">NgayKetThuc DateTime</text>
+<text x="2514" y="1390" class="col ">TrangThai Varchar(30)</text>
+    </g>
+<g>
+      <rect x="1500" y="1660" width="390" height="188" fill="#ffffff" stroke="#111111" stroke-width="2.4"/>
+      <rect x="1500" y="1660" width="390" height="34" fill="#f8f8f8" stroke="#111111" stroke-width="2.4"/>
+      <rect x="1508" y="1668" width="13" height="13" fill="#ffffff" stroke="#111111" stroke-width="1.4"/>
+      <line x1="1510" y1="1671" x2="1519" y2="1671" stroke="#111111" stroke-width="1"/>
+      <line x1="1510" y1="1675" x2="1517" y2="1675" stroke="#111111" stroke-width="1"/>
+      <text x="1695" y="1684" text-anchor="middle" class="table-title">HoTroHoiThoai</text>
+      <text x="1524" y="1722" class="col pk">Id_HoiThoai Int(11)</text>
+<text x="1524" y="1748" class="col ">Id_KhachHang Int(11)</text>
+<text x="1524" y="1774" class="col ">Id_NhanVienPhuTrach Int(11)</text>
+<text x="1524" y="1800" class="col ">TrangThai Varchar(30)</text>
+<text x="1524" y="1826" class="col ">ThoiGianTinNhanCuoi DateTime</text>
+    </g>
+<g>
+      <rect x="2030" y="1660" width="390" height="240" fill="#ffffff" stroke="#111111" stroke-width="2.4"/>
+      <rect x="2030" y="1660" width="390" height="34" fill="#f8f8f8" stroke="#111111" stroke-width="2.4"/>
+      <rect x="2038" y="1668" width="13" height="13" fill="#ffffff" stroke="#111111" stroke-width="1.4"/>
+      <line x1="2040" y1="1671" x2="2049" y2="1671" stroke="#111111" stroke-width="1"/>
+      <line x1="2040" y1="1675" x2="2047" y2="1675" stroke="#111111" stroke-width="1"/>
+      <text x="2225" y="1684" text-anchor="middle" class="table-title">HoTroTinNhan</text>
+      <text x="2054" y="1722" class="col pk">Id_TinNhan Int(11)</text>
+<text x="2054" y="1748" class="col ">Id_HoiThoai Int(11)</text>
+<text x="2054" y="1774" class="col ">Id_KhachHang Int(11)</text>
+<text x="2054" y="1800" class="col ">Id_NhanVien Int(11)</text>
+<text x="2054" y="1826" class="col ">NguoiGuiLoai Varchar(30)</text>
+<text x="2054" y="1852" class="col ">NoiDung Text</text>
+<text x="2054" y="1878" class="col ">DaDoc Int(1)</text>
+    </g>
+<g>
+      <rect x="2490" y="1530" width="360" height="266" fill="#ffffff" stroke="#111111" stroke-width="2.4"/>
+      <rect x="2490" y="1530" width="360" height="34" fill="#f8f8f8" stroke="#111111" stroke-width="2.4"/>
+      <rect x="2498" y="1538" width="13" height="13" fill="#ffffff" stroke="#111111" stroke-width="1.4"/>
+      <line x1="2500" y1="1541" x2="2509" y2="1541" stroke="#111111" stroke-width="1"/>
+      <line x1="2500" y1="1545" x2="2507" y2="1545" stroke="#111111" stroke-width="1"/>
+      <text x="2670" y="1554" text-anchor="middle" class="table-title">ThongBaoKhachHang</text>
+      <text x="2514" y="1592" class="col pk">Id_ThongBao Int(11)</text>
+<text x="2514" y="1618" class="col ">Id_NhanVienTao Int(11)</text>
+<text x="2514" y="1644" class="col ">TieuDe Varchar(255)</text>
+<text x="2514" y="1670" class="col ">NoiDung Text</text>
+<text x="2514" y="1696" class="col ">LoaiThongBao Varchar(30)</text>
+<text x="2514" y="1722" class="col ">NgayBatDau DateTime</text>
+<text x="2514" y="1748" class="col ">NgayKetThuc DateTime</text>
+<text x="2514" y="1774" class="col ">TrangThai Varchar(30)</text>
+    </g>
+<g>
+      <rect x="2490" y="1830" width="360" height="162" fill="#ffffff" stroke="#111111" stroke-width="2.4"/>
+      <rect x="2490" y="1830" width="360" height="34" fill="#f8f8f8" stroke="#111111" stroke-width="2.4"/>
+      <rect x="2498" y="1838" width="13" height="13" fill="#ffffff" stroke="#111111" stroke-width="1.4"/>
+      <line x1="2500" y1="1841" x2="2509" y2="1841" stroke="#111111" stroke-width="1"/>
+      <line x1="2500" y1="1845" x2="2507" y2="1845" stroke="#111111" stroke-width="1"/>
+      <text x="2670" y="1854" text-anchor="middle" class="table-title">ThongBaoKhachHangDaDoc</text>
+      <text x="2514" y="1892" class="col pk">Id Int(11)</text>
+<text x="2514" y="1918" class="col ">Id_ThongBao Int(11)</text>
+<text x="2514" y="1944" class="col ">Id_KhachHang Int(11)</text>
+<text x="2514" y="1970" class="col ">DaDocLuc DateTime</text>
+    </g></g>
+</svg>
