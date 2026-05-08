@@ -1218,6 +1218,11 @@ export default {
     background: rgba(245, 158, 11, 0.14);
   }
 
+  .soft-badge--red {
+    color: #dc2626;
+    background: rgba(239, 68, 68, 0.12);
+  }
+
   .master-empty {
     padding: 28px;
     border-radius: var(--pc-radius-lg);

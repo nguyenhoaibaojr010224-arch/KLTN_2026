@@ -956,8 +956,12 @@ export default {
         return "Số điện thoại đăng nhập phải có đúng 10 chữ số.";
       }
 
+      if (lower.includes("regex") && (field.includes("password") || field.includes("mat_khau"))) {
+        return "Mật khẩu phải có ít nhất 1 chữ in hoa và 1 ký tự đặc biệt.";
+      }
+
       if (lower.includes("min") && (field.includes("password") || field.includes("mat_khau"))) {
-        return "Mật khẩu phải có ít nhất 6 ký tự.";
+        return "Mật khẩu phải có ít nhất 8 ký tự.";
       }
 
       if (lower.includes("min") && field === "ho_ten") {
@@ -1063,11 +1067,7 @@ export default {
       }
 
       if (!this.isEditing) {
-        if (!this.form.mat_khau) {
-          errors.mat_khau = "Vui lòng nhập mật khẩu.";
-        } else if (this.form.mat_khau.length < 6) {
-          errors.mat_khau = "Mật khẩu phải có ít nhất 6 ký tự.";
-        }
+        errors.mat_khau = validateStrongPassword(this.form.mat_khau, "Mật khẩu");
 
         if (!this.form.mat_khau_confirmation) {
           errors.mat_khau_confirmation = "Vui lòng nhập xác nhận mật khẩu.";

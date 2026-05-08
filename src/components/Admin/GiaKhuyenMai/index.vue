@@ -508,7 +508,14 @@
                   <td class="text-end">
                     <div class="d-flex justify-content-end flex-wrap gap-2">
                       <button class="btn btn-sm btn-outline-primary" @click="editCode(item)">Sửa</button>
-                      <button class="btn btn-sm btn-outline-danger" @click="removeCode(item)">Xóa</button>
+                      <button
+                        class="btn btn-sm btn-outline-danger"
+                        @click="openCodeDeleteModal(item)"
+                        :disabled="loading.deleteCodeId === item.id"
+                      >
+                        <span v-if="loading.deleteCodeId === item.id" class="spinner-border spinner-border-sm me-2"></span>
+                        Xóa
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -519,6 +526,47 @@
             <p class="mb-2 fw-semibold">Chưa có mã giảm giá.</p>
             <p class="mb-0 text-secondary">Tạo mã mới để khách áp dụng khi thanh toán.</p>
           </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div ref="codeDeleteModalEl" class="modal fade" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 shadow-lg">
+        <div class="modal-header">
+          <div>
+            <h5 class="modal-title fw-bold mb-1">Xóa mã giảm giá</h5>
+            <p class="mb-0 text-secondary small">Mã đã xóa sẽ không thể áp dụng khi khách thanh toán.</p>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+        </div>
+
+        <div class="modal-body">
+          <p class="mb-2">
+            Bạn có chắc muốn xóa mã giảm giá
+            <strong>{{ codeDeleteTarget?.ma_giam_gia || "đã chọn" }}</strong>
+            không?
+          </p>
+          <p v-if="codeDeleteTarget?.ten_ma" class="mb-1 text-secondary small">
+            Chương trình: {{ codeDeleteTarget.ten_ma }}
+          </p>
+          <p v-if="codeDeleteTarget" class="mb-0 text-secondary small">
+            Giá trị: {{ promotionValueLabel(codeDeleteTarget) }}
+          </p>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
+          <button
+            type="button"
+            class="btn btn-danger"
+            @click="confirmDeleteCode"
+            :disabled="loading.deleteCodeId !== null || !codeDeleteTarget"
+          >
+            <span v-if="loading.deleteCodeId !== null" class="spinner-border spinner-border-sm me-2"></span>
+            Xóa mã giảm giá
+          </button>
         </div>
       </div>
     </div>
@@ -573,14 +621,18 @@ export default {
         savePromotion: false,
         saveCode: false,
         deletePromotionId: null,
+        deleteCodeId: null,
       },
       priceModal: null,
       promotionModal: null,
       promotionListModal: null,
       promotionDeleteModal: null,
       promotionDeleteTarget: null,
+      promotionExpiryTimer: null,
       codeModal: null,
       codeListModal: null,
+      codeDeleteModal: null,
+      codeDeleteTarget: null,
       priceForm: {
         ma_thuoc: "",
         ten_thuoc: "",
@@ -615,8 +667,9 @@ export default {
     },
     filteredKhuyenMais() {
       const keyword = this.keyword.toLowerCase();
-      if (!keyword) return this.khuyenMais;
-      return this.khuyenMais.filter((item) =>
+      const promotions = this.khuyenMais.filter((item) => !this.isPromotionExpired(item));
+      if (!keyword) return promotions;
+      return promotions.filter((item) =>
         [item.ten_khuyen_mai, item.ma_khuyen_mai, item.ten_thuoc, item.ma_thuoc, item.nhan_hien_thi]
           .filter(Boolean)
           .join(" ")
@@ -626,15 +679,16 @@ export default {
     },
     filteredOrderCodes() {
       const keyword = this.keyword.toLowerCase();
-      if (!keyword) return this.orderCodes;
-      return this.orderCodes.filter((item) =>
+      const validCodes = this.orderCodes.filter((item) => !this.isOrderCodeExpired(item));
+      if (!keyword) return validCodes;
+      return validCodes.filter((item) =>
         [item.ma_giam_gia, item.ten_ma, item.mo_ta].filter(Boolean).join(" ").toLowerCase().includes(keyword),
       );
     },
     metrics() {
-      const khuyenMaiDangApDung = this.khuyenMais.filter((item) => item.trang_thai === "active").length;
-      const maDangApDung = this.orderCodes.filter((item) => item.trang_thai === "active").length;
-      const maCoDieuKien = this.orderCodes.filter((item) => Number(item.gia_tri_don_toi_thieu || 0) > 0).length;
+      const khuyenMaiDangApDung = this.khuyenMais.filter((item) => this.isPromotionActive(item)).length;
+      const maDangApDung = this.orderCodes.filter((item) => this.isOrderCodeActive(item)).length;
+      const maCoDieuKien = this.orderCodes.filter((item) => !this.isOrderCodeExpired(item) && Number(item.gia_tri_don_toi_thieu || 0) > 0).length;
       return [
         { label: "Thuốc có thể cập nhật giá", value: this.thuocs.length, note: "Nguồn dữ liệu từ danh mục thuốc", deltaClass: "is-positive", icon: "bi bi-capsule-pill", iconClass: "metric-card__icon--blue" },
         { label: "Khuyến mãi thuốc đang áp dụng", value: khuyenMaiDangApDung, note: "Giảm trực tiếp trên từng thuốc", deltaClass: "is-positive", icon: "bi bi-bag-check", iconClass: "metric-card__icon--teal" },
@@ -657,7 +711,14 @@ export default {
     this.promotionDeleteModal = new Modal(this.$refs.promotionDeleteModalEl);
     this.codeModal = new Modal(this.$refs.codeModalEl);
     this.codeListModal = new Modal(this.$refs.codeListModalEl);
+    this.codeDeleteModal = new Modal(this.$refs.codeDeleteModalEl);
     this.loadData();
+    this.promotionExpiryTimer = window.setInterval(this.removeExpiredPromotionState, 60_000);
+  },
+  beforeUnmount() {
+    if (this.promotionExpiryTimer) {
+      window.clearInterval(this.promotionExpiryTimer);
+    }
   },
   methods: {
     formatPriceInput(value) {
@@ -728,8 +789,10 @@ export default {
       try {
         const [thuocs, khuyenMaisResponse, orderCodesResponse] = await Promise.all([getThuocList(), getKhuyenMais(), getOrderDiscountCodes()]);
         this.thuocs = Array.isArray(thuocs) ? thuocs : [];
-        this.khuyenMais = Array.isArray(khuyenMaisResponse?.data) ? khuyenMaisResponse.data : [];
-        this.orderCodes = Array.isArray(orderCodesResponse?.data) ? orderCodesResponse.data : [];
+        const khuyenMais = Array.isArray(khuyenMaisResponse?.data) ? khuyenMaisResponse.data : [];
+        this.khuyenMais = khuyenMais.filter((item) => !this.isPromotionExpired(item));
+        const orderCodes = Array.isArray(orderCodesResponse?.data) ? orderCodesResponse.data : [];
+        this.orderCodes = orderCodes.filter((item) => !this.isOrderCodeExpired(item));
         this.resetThuocPagination();
       } catch (error) {
         this.error = this.normalizeError(error, "Không thể tải dữ liệu giá và khuyến mãi.");
@@ -738,10 +801,51 @@ export default {
       }
     },
     promotionsForThuoc(maThuoc) {
-      return this.khuyenMais.filter((item) => item.ma_thuoc === maThuoc);
+      return this.khuyenMais.filter((item) => item.ma_thuoc === maThuoc && this.isPromotionActive(item));
     },
     promotionCountForThuoc(maThuoc) {
       return this.promotionsForThuoc(maThuoc).length;
+    },
+    isPromotionExpired(item) {
+      if (!item?.ngay_ket_thuc) return false;
+      const endDate = new Date(item.ngay_ket_thuc);
+      return !Number.isNaN(endDate.getTime()) && endDate.getTime() < Date.now();
+    },
+    isPromotionStarted(item) {
+      if (!item?.ngay_bat_dau) return true;
+      const startDate = new Date(item.ngay_bat_dau);
+      return Number.isNaN(startDate.getTime()) || startDate.getTime() <= Date.now();
+    },
+    isPromotionActive(item) {
+      return item?.trang_thai === "active" && this.isPromotionStarted(item) && !this.isPromotionExpired(item);
+    },
+    isOrderCodeExpired(item) {
+      if (item?.da_het_han === true) return true;
+      if (!item?.ngay_ket_thuc) return false;
+      const endDate = new Date(item.ngay_ket_thuc);
+      return !Number.isNaN(endDate.getTime()) && endDate.getTime() < Date.now();
+    },
+    isOrderCodeStarted(item) {
+      if (item?.da_bat_dau === true) return true;
+      if (!item?.ngay_bat_dau) return true;
+      const startDate = new Date(item.ngay_bat_dau);
+      return Number.isNaN(startDate.getTime()) || startDate.getTime() <= Date.now();
+    },
+    isOrderCodeActive(item) {
+      if (this.isOrderCodeExpired(item)) return false;
+      if (item?.dang_hoat_dong === true) return true;
+      return item?.trang_thai === "active" && this.isOrderCodeStarted(item);
+    },
+    removeExpiredPromotionState() {
+      const validPromotions = this.khuyenMais.filter((item) => !this.isPromotionExpired(item));
+      if (validPromotions.length !== this.khuyenMais.length) {
+        this.khuyenMais = validPromotions;
+      }
+
+      const validOrderCodes = this.orderCodes.filter((item) => !this.isOrderCodeExpired(item));
+      if (validOrderCodes.length !== this.orderCodes.length) {
+        this.orderCodes = validOrderCodes;
+      }
     },
     formatCurrency(value) {
       return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(Number(value || 0));
@@ -760,13 +864,32 @@ export default {
       if (item.loai_ap_dung === "gia_co_dinh") return `Giá còn ${this.formatCurrency(item.gia_tri)}`;
       return `Giảm ${this.formatCurrency(item.gia_tri)}`;
     },
+    validatePercentDiscountValue(type, value) {
+      if (type === "phan_tram" && Number(value || 0) > 100) {
+        showToast("Giá trị giảm theo phần trăm không được vượt quá 100%.", "error");
+        return false;
+      }
+
+      return true;
+    },
+    validatePromotionFixedDiscountValue(type, value, thuoc) {
+      const giaBan = Number(thuoc?.gia_ban || 0);
+
+      if (type === "so_tien" && giaBan > 0 && Number(value || 0) > giaBan) {
+        showToast(`Số tiền giảm không được vượt quá giá bán của thuốc (${this.formatCurrency(giaBan)}).`, "error");
+        return false;
+      }
+
+      return true;
+    },
     statusLabel(status) {
-      const map = { draft: "Nháp", active: "Đang áp dụng", inactive: "Tạm dừng" };
+      const map = { draft: "Nháp", active: "Đang áp dụng", inactive: "Tạm dừng", expired: "Hết hạn" };
       return map[status] || status || "Không xác định";
     },
     statusBadgeClass(status) {
       if (status === "active") return "soft-badge--teal";
       if (status === "inactive") return "soft-badge--orange";
+      if (status === "expired") return "soft-badge--red";
       return "soft-badge--blue";
     },
     normalizeError(error, fallback) {
@@ -828,6 +951,12 @@ export default {
 
       if (!this.promotionForm.ma_thuoc || !this.promotionForm.ten_khuyen_mai || Number(this.promotionForm.gia_tri) <= 0) {
         showToast("Cần chọn thuốc, nhập tên và giá trị khuyến mãi hợp lệ.", "error");
+        return;
+      }
+      if (!this.validatePercentDiscountValue(this.promotionForm.loai_ap_dung, this.promotionForm.gia_tri)) {
+        return;
+      }
+      if (!this.validatePromotionFixedDiscountValue(this.promotionForm.loai_ap_dung, this.promotionForm.gia_tri, matchedThuoc)) {
         return;
       }
       const startDate = this.parseDateTimePayload(this.promotionForm.ngay_bat_dau, "Ngày bắt đầu");
@@ -897,6 +1026,9 @@ export default {
         showToast("Cần nhập mã, tên và giá trị giảm hợp lệ.", "error");
         return;
       }
+      if (!this.validatePercentDiscountValue(this.codeForm.loai_ap_dung, this.codeForm.gia_tri)) {
+        return;
+      }
       const startDate = this.parseDateTimePayload(this.codeForm.ngay_bat_dau, "Ngày bắt đầu");
       const endDate = this.parseDateTimePayload(this.codeForm.ngay_ket_thuc, "Ngày kết thúc");
       if (!startDate.valid || !endDate.valid) {
@@ -926,14 +1058,25 @@ export default {
         this.loading.saveCode = false;
       }
     },
-    async removeCode(item) {
-      if (!window.confirm(`Xóa mã giảm giá "${item.ma_giam_gia}"?`)) return;
+    openCodeDeleteModal(item) {
+      this.codeDeleteTarget = item;
+      this.codeDeleteModal.show();
+    },
+    async confirmDeleteCode() {
+      const item = this.codeDeleteTarget;
+      if (!item) return;
+
+      this.loading.deleteCodeId = item.id;
       try {
         await deleteOrderDiscountCode(item.id);
         showToast("Xóa mã giảm giá thành công.");
         await this.loadData();
+        this.codeDeleteTarget = null;
+        this.codeDeleteModal.hide();
       } catch (error) {
         showToast(this.normalizeError(error, "Không thể xóa mã giảm giá."), "error");
+      } finally {
+        this.loading.deleteCodeId = null;
       }
     },
     openCodeListModal() {

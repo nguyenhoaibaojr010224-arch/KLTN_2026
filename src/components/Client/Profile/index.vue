@@ -194,9 +194,9 @@
 
             <div class="pc-address-list">
               <article v-for="address in state.addresses" :key="address.id" class="pc-address-card">
-                <div>
-                  <h3>{{ address.hoTen }} | {{ address.soDienThoai }}</h3>
-                  <p>{{ formatFullAddress(address) }}</p>
+                <div class="pc-address-card__content">
+                  <h3 :title="`${address.hoTen} | ${address.soDienThoai}`">{{ address.hoTen }} | {{ address.soDienThoai }}</h3>
+                  <p :title="formatFullAddress(address)">{{ formatFullAddress(address) }}</p>
                 </div>
                 <div class="pc-address-card__actions">
                   <span v-if="address.macDinh" class="pc-address-card__tag pc-address-card__tag--default">Mặc định</span>
@@ -251,13 +251,6 @@
                       @click.stop="toggleOrderDetails(order.id)"
                     >
                       {{ expandedOrderId === order.id ? "Thu gọn" : "Xem sản phẩm đã mua" }}
-                    </button>
-                    <button
-                      type="button"
-                      class="pc-history-card__delete"
-                      @click.stop="removeOrderItem(order.id)"
-                    >
-                      Xóa
                     </button>
                   </div>
                 </div>
@@ -504,7 +497,15 @@
         <div class="pc-address-form">
           <div class="pc-form-field">
             <label>Họ và tên</label>
-            <input v-model="addressDraft.hoTen" type="text" placeholder="Nhập họ và tên" />
+            <input
+              v-model="addressDraft.hoTen"
+              type="text"
+              maxlength="30"
+              placeholder="Nhập họ và tên"
+              :class="{ 'is-invalid': addressErrors.hoTen }"
+              @input="handleAddressNameInput"
+            />
+            <div v-if="addressErrors.hoTen" class="pc-field-error">{{ addressErrors.hoTen }}</div>
           </div>
 
           <div class="pc-form-field">
@@ -597,10 +598,18 @@ function normalizePhoneDigits(value) {
   return String(value || "").replace(/\D/g, "").slice(0, 10);
 }
 
+function normalizeAddressName(value) {
+  return String(value || "").replace(/\s+/g, " ").trim().slice(0, 30);
+}
+
+function limitAddressNameInput(value) {
+  return String(value || "").replace(/\s+/g, " ").slice(0, 30);
+}
+
 function createEmptyAddressDraft(profile) {
   return {
     id: null,
-    hoTen: profile.hoTen || "",
+    hoTen: normalizeAddressName(profile.hoTen),
     soDienThoai: normalizePhoneDigits(String(profile.soDienThoai || "").replaceAll("*", "0")),
     tinhThanh: "",
     quanHuyen: "",
@@ -632,6 +641,7 @@ const LOCATION_OPTIONS = {
 function normalizeAddressDraft(address) {
   const draft = {
     ...address,
+    hoTen: normalizeAddressName(address?.hoTen),
     soDienThoai: normalizePhoneDigits(address?.soDienThoai),
     tinhThanh: address?.tinhThanh || "",
     quanHuyen: address?.quanHuyen || "",
@@ -703,6 +713,7 @@ export default {
         confirmPassword: "",
       },
       addressErrors: {
+        hoTen: "",
         soDienThoai: "",
       },
       addressDraft: createEmptyAddressDraft(state.profile),
@@ -901,10 +912,6 @@ export default {
         return false;
       }
 
-      if (order?.payosPaidAt || order?.payos?.paid_at || order?.payos?.paidAt || order?.thoiGianThanhToan) {
-        return false;
-      }
-
       const orderStatus = this.normalizePaymentStatus(order?.trangThaiXuLy || order?.trangThai || "");
       const completedOrderStatuses = new Set([
         "da_xac_nhan",
@@ -920,6 +927,39 @@ export default {
       }
 
       const status = this.normalizePaymentStatus(order?.trangThaiThanhToan || order?.payosStatus || order?.payos?.status || "");
+      const completedPaymentStatuses = new Set([
+        "paid",
+        "success",
+        "completed",
+        "complete",
+        "succeeded",
+        "da_thanh_toan",
+        "thanh_toan_thanh_cong",
+      ]);
+      const stoppedPaymentStatuses = new Set([
+        "failed",
+        "fail",
+        "that_bai",
+        "cancelled",
+        "canceled",
+        "da_huy",
+        "expired",
+        "het_han",
+      ]);
+
+      if (
+        completedPaymentStatuses.has(status) ||
+        order?.payosPaidAt ||
+        order?.payos?.paid_at ||
+        order?.payos?.paidAt
+      ) {
+        return false;
+      }
+
+      if (stoppedPaymentStatuses.has(status)) {
+        return false;
+      }
+
       const pendingStatuses = new Set([
         "pending",
         "unpaid",
@@ -928,10 +968,42 @@ export default {
         "waiting",
       ]);
 
-      return pendingStatuses.has(status);
+      return pendingStatuses.has(status) || !status;
     },
-    continuePayosPayment(order) {
-      const checkoutUrl = this.getPayosCheckoutUrl(order);
+    async continuePayosPayment(order) {
+      let currentOrder = order;
+
+      try {
+        await this.customerStore.syncOrdersFromApi({ silent: false });
+        const orderId = String(order?.id || "");
+        const invoiceId = String(order?.idHoaDon || order?.id_hoa_don || "");
+
+        currentOrder = this.state.orders.find((item) =>
+          (orderId && String(item.id || "") === orderId) ||
+          (invoiceId && String(item.idHoaDon || item.id_hoa_don || "") === invoiceId)
+        ) || order;
+      } catch {
+        currentOrder = order;
+      }
+
+      if (!this.canContinuePayosPayment(currentOrder)) {
+        const status = this.normalizePaymentStatus(
+          currentOrder?.trangThaiThanhToan ||
+            currentOrder?.payosStatus ||
+            currentOrder?.payos?.status ||
+            ""
+        );
+
+        if (["paid", "success", "completed", "complete", "succeeded", "da_thanh_toan", "thanh_toan_thanh_cong"].includes(status)) {
+          showToast("Đơn hàng đã thanh toán thành công, đang chờ nhân viên xác nhận.");
+          return;
+        }
+
+        showToast("Đơn hàng này không còn ở trạng thái chờ thanh toán.", "error");
+        return;
+      }
+
+      const checkoutUrl = this.getPayosCheckoutUrl(currentOrder);
 
       if (!checkoutUrl) {
         showToast("Không tìm thấy link PayOS cho đơn hàng này.", "error");
@@ -1206,8 +1278,14 @@ export default {
     },
     resetAddressErrors() {
       this.addressErrors = {
+        hoTen: "",
         soDienThoai: "",
       };
+    },
+    handleAddressNameInput() {
+      const rawName = String(this.addressDraft.hoTen || "");
+      this.addressDraft.hoTen = limitAddressNameInput(rawName);
+      this.addressErrors.hoTen = rawName.length > 30 ? "Họ tên người nhận không được vượt quá 30 ký tự." : "";
     },
     handleAddressPhoneInput() {
       this.addressDraft.soDienThoai = normalizePhoneDigits(this.addressDraft.soDienThoai);
@@ -1215,14 +1293,6 @@ export default {
     },
     toggleOrderDetails(orderId) {
       this.expandedOrderId = this.expandedOrderId === orderId ? null : orderId;
-    },
-    removeOrderItem(orderId) {
-      if (this.expandedOrderId === orderId) {
-        this.expandedOrderId = null;
-      }
-
-      this.customerStore.removeOrder(orderId);
-      showToast("Đã xóa đơn hàng khỏi lịch sử.");
     },
     async reorderOrder(order) {
       try {
@@ -1276,6 +1346,18 @@ export default {
       const normalizedDraft = normalizeAddressDraft({ ...this.addressDraft });
       this.resetAddressErrors();
 
+      if (!normalizedDraft.hoTen) {
+        this.addressErrors.hoTen = "Vui lòng nhập họ tên người nhận.";
+        showToast("Vui lòng kiểm tra lại họ tên người nhận.", "error");
+        return;
+      }
+
+      if (normalizedDraft.hoTen.length > 30) {
+        this.addressErrors.hoTen = "Họ tên người nhận không được vượt quá 30 ký tự.";
+        showToast("Vui lòng kiểm tra lại họ tên người nhận.", "error");
+        return;
+      }
+
       if (!/^\d{10}$/.test(normalizedDraft.soDienThoai)) {
         this.addressErrors.soDienThoai = "Số điện thoại người nhận phải gồm đúng 10 chữ số.";
         showToast("Vui lòng kiểm tra lại số điện thoại người nhận.", "error");
@@ -1295,8 +1377,14 @@ export default {
         showToast("Đã lưu địa chỉ nhận hàng.");
       } catch (error) {
         const fieldErrors = error?.payload?.errors || error?.response?.data?.errors;
+        const nameError = fieldErrors?.ho_ten;
         const phoneError = fieldErrors?.so_dien_thoai;
+        const nameMessage = Array.isArray(nameError) ? nameError[0] : nameError;
         const phoneMessage = Array.isArray(phoneError) ? phoneError[0] : phoneError;
+
+        if (nameMessage) {
+          this.addressErrors.hoTen = this.translateProfileValidationMessage(nameMessage, "ho_ten");
+        }
 
         if (phoneMessage) {
           this.addressErrors.soDienThoai = this.translateProfileValidationMessage(phoneMessage, "so_dien_thoai");
@@ -1472,6 +1560,38 @@ export default {
   align-items: center;
   flex-wrap: wrap;
   gap: 12px;
+  flex-shrink: 0;
+}
+
+.pc-account-panel .pc-address-list {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.pc-account-panel .pc-address-card {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  overflow: hidden;
+}
+
+.pc-address-card__content {
+  flex: 1;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.pc-address-card__content h3,
+.pc-address-card__content p {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .pc-address-card__tag {
@@ -1751,22 +1871,6 @@ export default {
 .pc-history-card__toggle:hover {
   color: #0f45ac;
   text-decoration: underline;
-}
-
-.pc-history-card__delete {
-  min-height: 34px;
-  padding: 0 14px;
-  border: 1px solid rgba(220, 53, 69, 0.18);
-  border-radius: 999px;
-  background: #fff5f6;
-  color: #dc3545;
-  font-size: 0.86rem;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.pc-history-card__delete:hover {
-  background: #ffe9ec;
 }
 
 .pc-history-card__details {
