@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\KhuyenMai;
 use App\Models\Thuoc;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Http;
@@ -155,9 +156,11 @@ class SupportAiService
             return collect();
         }
 
+        KhuyenMai::deleteExpired();
+
         return Thuoc::query()
             ->with('nhaSanXuat')
-            ->with(['khuyenMais' => fn ($query) => $query->latest()])
+            ->with(['khuyenMais' => fn ($query) => $query->dangHoatDong()->latest()])
             ->withSum('loThuocs as so_luong_ton_co_so', 'so_luong_con')
             ->orderBy('ten_thuoc')
             ->get()
@@ -179,9 +182,11 @@ class SupportAiService
 
     private function findPromotionProducts(): Collection
     {
+        KhuyenMai::deleteExpired();
+
         return Thuoc::query()
             ->with('nhaSanXuat')
-            ->with(['khuyenMais' => fn ($query) => $query->latest()])
+            ->with(['khuyenMais' => fn ($query) => $query->dangHoatDong()->latest()])
             ->withSum('loThuocs as so_luong_ton_co_so', 'so_luong_con')
             ->orderBy('ten_thuoc')
             ->get()
@@ -655,9 +660,7 @@ class SupportAiService
     private function resolveActivePromotion(Thuoc $thuoc): mixed
     {
         return $thuoc->khuyenMais
-            ?->first(fn ($item) => $item->trang_thai === 'active'
-                && $item->ngay_bat_dau?->lte(now())
-                && ($item->ngay_ket_thuc === null || $item->ngay_ket_thuc->gte(now())));
+            ?->first(fn ($item) => $item->isDangHoatDong());
     }
 
     private function normalizeText(string $value): string

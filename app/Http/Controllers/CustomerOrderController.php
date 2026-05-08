@@ -127,11 +127,13 @@ class CustomerOrderController extends Controller
             $loadedThuocs = [];
             $lockedLotsByThuoc = [];
 
+            KhuyenMai::deleteExpired();
+
             foreach ($requestedItems->pluck('ma_thuoc')->unique() as $maThuoc) {
                 $thuoc = Thuoc::query()
                     ->with([
                         'nhaSanXuat',
-                        'khuyenMais' => fn ($query) => $query->latest(),
+                        'khuyenMais' => fn ($query) => $query->dangHoatDong()->latest(),
                     ])
                     ->find($maThuoc);
 
@@ -510,9 +512,7 @@ class CustomerOrderController extends Controller
     private function resolveActivePromotion(Thuoc $thuoc): ?KhuyenMai
     {
         return $thuoc->khuyenMais
-            ->first(fn (KhuyenMai $item) => $item->trang_thai === 'active'
-                && $item->ngay_bat_dau?->lte(now())
-                && ($item->ngay_ket_thuc === null || $item->ngay_ket_thuc->gte(now())));
+            ->first(fn (KhuyenMai $item) => $item->isDangHoatDong());
     }
 
     private function resolveSelectedUnit(Thuoc $thuoc, mixed $requestedUnit): string
@@ -561,6 +561,8 @@ class CustomerOrderController extends Controller
         if (! filled($code) || $tongTien <= 0) {
             return [null, 0, null];
         }
+
+        MaGiamGia::deactivateExpired();
 
         $normalizedCode = Str::upper(trim($code));
 

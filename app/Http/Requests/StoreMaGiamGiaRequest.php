@@ -2,8 +2,10 @@
 
 namespace App\Http\Requests;
 
+use App\Models\MaGiamGia;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class StoreMaGiamGiaRequest extends FormRequest
 {
@@ -25,6 +27,35 @@ class StoreMaGiamGiaRequest extends FormRequest
             'ngay_bat_dau' => ['required', 'date'],
             'ngay_ket_thuc' => ['nullable', 'date', 'after_or_equal:ngay_bat_dau'],
             'trang_thai' => ['required', Rule::in(['draft', 'active', 'inactive'])],
+        ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            [$type, $value] = $this->resolveEffectiveDiscountData();
+
+            if ($type === 'phan_tram' && $value !== null && $value > 100) {
+                $validator->errors()->add(
+                    'gia_tri',
+                    'Giá trị giảm theo phần trăm không được vượt quá 100%.'
+                );
+            }
+        });
+    }
+
+    private function resolveEffectiveDiscountData(): array
+    {
+        $current = null;
+        $id = $this->route('id');
+
+        if ($id) {
+            $current = MaGiamGia::query()->find($id);
+        }
+
+        return [
+            $this->input('loai_ap_dung', $current?->loai_ap_dung),
+            $this->filled('gia_tri') ? (float) $this->input('gia_tri') : ($current?->gia_tri !== null ? (float) $current->gia_tri : null),
         ];
     }
 }

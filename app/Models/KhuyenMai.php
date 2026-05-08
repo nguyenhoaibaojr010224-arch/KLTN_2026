@@ -54,7 +54,58 @@ class KhuyenMai extends Model
                 $innerQuery
                     ->whereNull('ngay_ket_thuc')
                     ->orWhere('ngay_ket_thuc', '>=', $now);
+            })
+            ->where(function ($innerQuery): void {
+                $innerQuery
+                    ->where('loai_ap_dung', '!=', 'so_tien')
+                    ->orWhereHas('thuoc', function ($thuocQuery): void {
+                        $thuocQuery->whereColumn('khuyen_mais.gia_tri', '<=', 'thuocs.gia_ban');
+                    });
             });
+    }
+
+    public static function deleteExpired(): int
+    {
+        return static::query()
+            ->whereNotNull('ngay_ket_thuc')
+            ->where('ngay_ket_thuc', '<', Carbon::now())
+            ->delete();
+    }
+
+    public static function deactivateInvalidFixedAmount(): int
+    {
+        return static::query()
+            ->where('trang_thai', 'active')
+            ->where('loai_ap_dung', 'so_tien')
+            ->whereHas('thuoc', function ($thuocQuery): void {
+                $thuocQuery->whereColumn('khuyen_mais.gia_tri', '>', 'thuocs.gia_ban');
+            })
+            ->update([
+                'trang_thai' => 'inactive',
+                'updated_at' => Carbon::now(),
+            ]);
+    }
+
+    public function isDangHoatDong(?Carbon $now = null): bool
+    {
+        $now ??= Carbon::now();
+
+        return $this->trang_thai === 'active'
+            && $this->ngay_bat_dau?->lte($now)
+            && ($this->ngay_ket_thuc === null || $this->ngay_ket_thuc->gte($now))
+            && $this->isFixedDiscountAmountValid();
+    }
+
+    public function isFixedDiscountAmountValid(): bool
+    {
+        if ($this->loai_ap_dung !== 'so_tien') {
+            return true;
+        }
+
+        $giaBan = $this->thuoc?->gia_ban
+            ?? Thuoc::query()->whereKey($this->ma_thuoc)->value('gia_ban');
+
+        return $giaBan === null || (float) $this->gia_tri <= (float) $giaBan;
     }
 
     public function tinhGiaSauGiam(int $giaNiemYet): int

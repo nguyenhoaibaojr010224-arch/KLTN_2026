@@ -67,6 +67,43 @@ class MaGiamGia extends Model
             });
     }
 
+    public static function deactivateExpired(): int
+    {
+        return static::query()
+            ->where('trang_thai', 'active')
+            ->whereNotNull('ngay_ket_thuc')
+            ->where('ngay_ket_thuc', '<', Carbon::now())
+            ->update([
+                'trang_thai' => 'inactive',
+                'updated_at' => Carbon::now(),
+            ]);
+    }
+
+    public function isExpired(?Carbon $now = null): bool
+    {
+        $now ??= Carbon::now();
+
+        return $this->ngay_ket_thuc !== null
+            && $this->ngay_ket_thuc->lt($now);
+    }
+
+    public function isStarted(?Carbon $now = null): bool
+    {
+        $now ??= Carbon::now();
+
+        return $this->ngay_bat_dau === null
+            || $this->ngay_bat_dau->lte($now);
+    }
+
+    public function isDangHoatDong(?Carbon $now = null): bool
+    {
+        $now ??= Carbon::now();
+
+        return $this->trang_thai === 'active'
+            && $this->isStarted($now)
+            && ! $this->isExpired($now);
+    }
+
     public function tinhGiaSauGiam(int $tongDon): int
     {
         return match ($this->loai_ap_dung) {

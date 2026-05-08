@@ -2,8 +2,11 @@
 
 namespace App\Http\Requests;
 
+use App\Models\KhuyenMai;
+use App\Models\Thuoc;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class StoreKhuyenMaiRequest extends FormRequest
 {
@@ -33,6 +36,47 @@ class StoreKhuyenMaiRequest extends FormRequest
         return [
             'ma_khuyen_mai.unique' => 'Ma khuyen mai da ton tai.',
             'ma_khuyen_mai.regex' => 'Ma khuyen mai chi duoc chua chu in hoa, so va dau gach ngang.',
+        ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            [$type, $value, $maThuoc] = $this->resolveEffectiveDiscountData();
+
+            if ($type === 'phan_tram' && $value !== null && $value > 100) {
+                $validator->errors()->add(
+                    'gia_tri',
+                    'Giá trị giảm theo phần trăm không được vượt quá 100%.'
+                );
+            }
+
+            if ($type === 'so_tien' && $value !== null && $maThuoc !== null) {
+                $giaBan = Thuoc::query()->whereKey($maThuoc)->value('gia_ban');
+
+                if ($giaBan !== null && $value > (float) $giaBan) {
+                    $validator->errors()->add(
+                        'gia_tri',
+                        'Số tiền giảm không được vượt quá giá bán của thuốc.'
+                    );
+                }
+            }
+        });
+    }
+
+    private function resolveEffectiveDiscountData(): array
+    {
+        $current = null;
+        $id = $this->route('id');
+
+        if ($id) {
+            $current = KhuyenMai::query()->find($id);
+        }
+
+        return [
+            $this->input('loai_ap_dung', $current?->loai_ap_dung),
+            $this->filled('gia_tri') ? (float) $this->input('gia_tri') : ($current?->gia_tri !== null ? (float) $current->gia_tri : null),
+            $this->input('ma_thuoc', $current?->ma_thuoc),
         ];
     }
 }

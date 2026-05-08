@@ -15,6 +15,9 @@ class KhuyenMaiController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        KhuyenMai::deleteExpired();
+        KhuyenMai::deactivateInvalidFixedAmount();
+
         $keyword = trim((string) $request->string('q'));
 
         $khuyenMais = KhuyenMai::query()
@@ -40,6 +43,9 @@ class KhuyenMaiController extends Controller
 
     public function store(StoreKhuyenMaiRequest $request): JsonResponse
     {
+        KhuyenMai::deleteExpired();
+        KhuyenMai::deactivateInvalidFixedAmount();
+
         $payload = $this->normalizeDatePayload($request->validated());
 
         $khuyenMai = KhuyenMai::create([
@@ -48,6 +54,8 @@ class KhuyenMaiController extends Controller
             'id_nhan_vien' => $request->user()?->id_nhan_vien,
         ]);
 
+        KhuyenMai::deactivateInvalidFixedAmount();
+        $khuyenMai->refresh();
         $khuyenMai->load(['thuoc', 'nhanVien']);
 
         return response()->json([
@@ -58,6 +66,9 @@ class KhuyenMaiController extends Controller
 
     public function show(int $id): JsonResponse
     {
+        KhuyenMai::deleteExpired();
+        KhuyenMai::deactivateInvalidFixedAmount();
+
         $khuyenMai = KhuyenMai::with(['thuoc', 'nhanVien'])->find($id);
 
         if (! $khuyenMai) {
@@ -72,6 +83,9 @@ class KhuyenMaiController extends Controller
 
     public function update(UpdateKhuyenMaiRequest $request, int $id): JsonResponse
     {
+        KhuyenMai::deleteExpired();
+        KhuyenMai::deactivateInvalidFixedAmount();
+
         $khuyenMai = KhuyenMai::find($id);
 
         if (! $khuyenMai) {
@@ -87,6 +101,8 @@ class KhuyenMaiController extends Controller
         $payload['id_nhan_vien'] = $request->user()?->id_nhan_vien;
 
         $khuyenMai->update($payload);
+        KhuyenMai::deactivateInvalidFixedAmount();
+        $khuyenMai->refresh();
         $khuyenMai->load(['thuoc', 'nhanVien']);
 
         return response()->json([
@@ -97,6 +113,9 @@ class KhuyenMaiController extends Controller
 
     public function destroy(int $id): JsonResponse
     {
+        KhuyenMai::deleteExpired();
+        KhuyenMai::deactivateInvalidFixedAmount();
+
         $khuyenMai = KhuyenMai::find($id);
 
         if (! $khuyenMai) {

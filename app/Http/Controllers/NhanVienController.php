@@ -141,7 +141,7 @@ class NhanVienController extends Controller
                 Rule::unique('nhan_viens', 'ten_dang_nhap'),
                 Rule::unique('khach_hangs', 'so_dien_thoai'),
             ],
-            'mat_khau' => 'required|string|min:6|confirmed',
+            'mat_khau' => $this->employeePasswordRules(),
             'ho_ten' => 'required|string|min:5|max:100',
             'id_vai_tro' => 'required|exists:vai_tros,id_vai_tro',
             'id_bang_cap' => 'required|exists:bang_caps,id_bang_cap',
@@ -261,13 +261,7 @@ class NhanVienController extends Controller
         }
 
         $request->validate([
-            'new_password' => [
-                'required',
-                'string',
-                'min:8',
-                'regex:/^(?=.*[A-Z])(?=.*[!@#$%^&*(),.?":{}|<>\[\]\/\\\\_\-+=~`;\']).+$/',
-                'confirmed',
-            ],
+            'new_password' => $this->employeePasswordRules(),
         ], $this->employeeValidationMessages(), $this->employeeValidationAttributes());
 
         $nhanVien->update([
@@ -312,7 +306,8 @@ class NhanVienController extends Controller
             'so_dien_thoai.regex' => 'Số điện thoại đăng nhập phải có đúng 10 chữ số.',
             'so_dien_thoai.unique' => 'Số điện thoại này đã được sử dụng.',
             'mat_khau.required' => 'Vui lòng nhập mật khẩu.',
-            'mat_khau.min' => 'Mật khẩu phải có ít nhất 6 ký tự.',
+            'mat_khau.min' => 'Mật khẩu phải có ít nhất 8 ký tự.',
+            'mat_khau.regex' => 'Mật khẩu phải có ít nhất 1 chữ in hoa và 1 ký tự đặc biệt.',
             'mat_khau.confirmed' => 'Xác nhận mật khẩu không khớp.',
             'ho_ten.required' => 'Vui lòng nhập họ tên.',
             'ho_ten.min' => 'Họ tên phải có ít nhất 5 ký tự.',
@@ -341,6 +336,17 @@ class NhanVienController extends Controller
             'trang_thai' => 'trạng thái',
             'new_password' => 'mật khẩu mới',
             'new_password_confirmation' => 'xác nhận mật khẩu mới',
+        ];
+    }
+
+    private function employeePasswordRules(): array
+    {
+        return [
+            'required',
+            'string',
+            'min:8',
+            'regex:/^(?=.*[A-Z])(?=.*[!@#$%^&*(),.?":{}|<>\[\]\/\\\\_\-+=~`;\']).+$/',
+            'confirmed',
         ];
     }
 

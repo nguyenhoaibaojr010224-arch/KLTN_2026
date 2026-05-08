@@ -124,7 +124,7 @@ class CustomerAddressController extends Controller
     private function validatePayload(Request $request, KhachHang $khachHang, ?int $addressId = null): array
     {
         return $request->validate([
-            'ho_ten' => ['required', 'string', 'min:2', 'max:100'],
+            'ho_ten' => ['required', 'string', 'min:2', 'max:30'],
             'so_dien_thoai' => ['required', 'string', 'regex:/^\d{10}$/'],
             'tinh_thanh' => ['nullable', 'string', 'max:100'],
             'quan_huyen' => ['nullable', 'string', 'max:100'],

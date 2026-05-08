@@ -19,6 +19,8 @@ class MaGiamGiaController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        MaGiamGia::deactivateExpired();
+
         $keyword = trim((string) $request->string('q'));
 
         $items = MaGiamGia::query()
@@ -42,6 +44,8 @@ class MaGiamGiaController extends Controller
 
     public function store(StoreMaGiamGiaRequest $request): JsonResponse
     {
+        MaGiamGia::deactivateExpired();
+
         $payload = $this->normalizeDatePayload($request->validated());
 
         $item = MaGiamGia::create([
@@ -51,6 +55,8 @@ class MaGiamGiaController extends Controller
             'id_nhan_vien' => $request->user()?->id_nhan_vien,
         ]);
 
+        MaGiamGia::deactivateExpired();
+        $item->refresh();
         $item->load('nhanVien');
 
         return response()->json([
@@ -61,6 +67,8 @@ class MaGiamGiaController extends Controller
 
     public function show(int $id): JsonResponse
     {
+        MaGiamGia::deactivateExpired();
+
         $item = MaGiamGia::with('nhanVien')->find($id);
 
         if (! $item) {
@@ -75,6 +83,8 @@ class MaGiamGiaController extends Controller
 
     public function update(UpdateMaGiamGiaRequest $request, int $id): JsonResponse
     {
+        MaGiamGia::deactivateExpired();
+
         $item = MaGiamGia::find($id);
 
         if (! $item) {
@@ -91,6 +101,8 @@ class MaGiamGiaController extends Controller
         $payload['id_nhan_vien'] = $request->user()?->id_nhan_vien;
 
         $item->update($payload);
+        MaGiamGia::deactivateExpired();
+        $item->refresh();
         $item->load('nhanVien');
 
         return response()->json([
@@ -119,6 +131,8 @@ class MaGiamGiaController extends Controller
 
     public function customerList(Request $request): JsonResponse
     {
+        MaGiamGia::deactivateExpired();
+
         $keyword = trim((string) $request->string('q'));
         $khachHang = $request->user();
 
@@ -163,6 +177,8 @@ class MaGiamGiaController extends Controller
 
     public function customerAvailable(Request $request): JsonResponse
     {
+        MaGiamGia::deactivateExpired();
+
         $validated = $request->validate([
             'tong_tam_tinh' => ['nullable', 'numeric', 'min:0'],
             'q' => ['nullable', 'string', 'max:100'],
@@ -224,6 +240,8 @@ class MaGiamGiaController extends Controller
 
     public function available(Request $request): JsonResponse
     {
+        MaGiamGia::deactivateExpired();
+
         $validated = $request->validate([
             'tong_tam_tinh' => ['required', 'numeric', 'min:1'],
             'q' => ['nullable', 'string', 'max:100'],
@@ -293,6 +311,8 @@ class MaGiamGiaController extends Controller
 
     public function validateCode(Request $request): JsonResponse
     {
+        MaGiamGia::deactivateExpired();
+
         $validated = $request->validate([
             'ma_giam_gia' => ['required', 'string', 'min:4', 'max:30'],
             'tong_tam_tinh' => ['required', 'numeric', 'min:1'],
@@ -380,6 +400,8 @@ class MaGiamGiaController extends Controller
 
     public function redeemCode(Request $request): JsonResponse
     {
+        MaGiamGia::deactivateExpired();
+
         $khachHang = $request->user();
         if (! $khachHang instanceof KhachHang) {
             return response()->json([
@@ -393,7 +415,10 @@ class MaGiamGiaController extends Controller
         }
 
         $code = $this->normalizeCode((string) $request->input('ma_giam_gia'));
-        $item = MaGiamGia::whereRaw('UPPER(ma_giam_gia) = ?', [$code])->firstOrFail();
+        $item = MaGiamGia::query()
+            ->dangHoatDong()
+            ->whereRaw('UPPER(ma_giam_gia) = ?', [$code])
+            ->firstOrFail();
 
         $usage = MaGiamGiaLuotDung::firstOrCreate(
             [
@@ -433,6 +458,9 @@ class MaGiamGiaController extends Controller
             'trang_thai' => $item->trang_thai,
             'ngay_bat_dau' => optional($item->ngay_bat_dau)->toDateTimeString(),
             'ngay_ket_thuc' => optional($item->ngay_ket_thuc)->toDateTimeString(),
+            'da_bat_dau' => $item->isStarted(),
+            'da_het_han' => $item->isExpired(),
+            'dang_hoat_dong' => $item->isDangHoatDong(),
             'nhan_vien_cap_nhat' => $item->nhanVien?->ho_ten,
             'id_khach_hang' => $item->id_khach_hang !== null ? (int) $item->id_khach_hang : null,
             'loai_ma' => $item->loai_ma ?: 'general',

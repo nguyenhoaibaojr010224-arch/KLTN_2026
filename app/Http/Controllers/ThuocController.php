@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\UpdateThuocPriceRequest;
+use App\Models\KhuyenMai;
 use App\Models\Thuoc;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
@@ -345,10 +346,12 @@ class ThuocController extends Controller
 
     private function baseQuery()
     {
+        KhuyenMai::deleteExpired();
+
         return Thuoc::query()
             ->with([
                 'nhaSanXuat',
-                'khuyenMais' => fn ($query) => $query->latest(),
+                'khuyenMais' => fn ($query) => $query->dangHoatDong()->latest(),
             ])
             ->orderBy('ten_thuoc');
     }

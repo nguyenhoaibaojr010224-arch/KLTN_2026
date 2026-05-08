@@ -13,13 +13,15 @@ class CatalogThuocController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        KhuyenMai::deleteExpired();
+
         $keyword = trim((string) $request->string('q'));
         $matchedHashtags = collect();
 
         $thuocs = Thuoc::query()
             ->with([
                 'nhaSanXuat',
-                'khuyenMais' => fn ($query) => $query->latest(),
+                'khuyenMais' => fn ($query) => $query->dangHoatDong()->latest(),
             ])
             ->withSum('loThuocs as so_luong_ton_co_so', 'so_luong_con')
             ->orderBy('ten_thuoc')
@@ -41,10 +43,12 @@ class CatalogThuocController extends Controller
 
     public function show(string $maThuoc): JsonResponse
     {
+        KhuyenMai::deleteExpired();
+
         $thuoc = Thuoc::query()
             ->with([
                 'nhaSanXuat',
-                'khuyenMais' => fn ($query) => $query->latest(),
+                'khuyenMais' => fn ($query) => $query->dangHoatDong()->latest(),
             ])
             ->withSum('loThuocs as so_luong_ton_co_so', 'so_luong_con')
             ->find($maThuoc);
@@ -68,9 +72,7 @@ class CatalogThuocController extends Controller
         $nhomThuoc = $nhanText !== '' ? $nhanText : 'thuoc thong dung';
         $giaNiemYet = (int) $thuoc->gia_ban;
         $khuyenMai = $thuoc->khuyenMais
-            ->first(fn (KhuyenMai $item): bool => $item->trang_thai === 'active'
-                && $item->ngay_bat_dau?->lte(now())
-                && ($item->ngay_ket_thuc === null || $item->ngay_ket_thuc->gte(now())));
+            ->first(fn (KhuyenMai $item): bool => $item->isDangHoatDong());
         $giaSauGiam = $khuyenMai ? $khuyenMai->tinhGiaSauGiam($giaNiemYet) : $giaNiemYet;
         $coKhuyenMai = $khuyenMai && $giaSauGiam < $giaNiemYet;
         $baseDescription = "{$thuoc->ten_thuoc} la san pham thuoc thuoc nhom {$nhomThuoc}, phu hop cho cac nhu cau cham soc suc khoe thong thuong va nen duoc su dung theo huong dan cua duoc si.";
