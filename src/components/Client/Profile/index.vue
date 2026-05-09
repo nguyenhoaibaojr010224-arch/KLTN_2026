@@ -692,7 +692,6 @@ export default {
         { section: "lich-su-don-hang", label: "Lịch sử đơn hàng", icon: "bi bi-receipt", to: "/tai-khoan/lich-su-don-hang" },
         { section: "ma-giam-gia", label: "Mã giảm giá", icon: "bi bi-ticket-perforated", to: "/tai-khoan/ma-giam-gia" },
         { section: "thong-bao", label: "Thông báo của tôi", icon: "bi bi-bell", to: "/tai-khoan/thong-bao" },
-        { section: "thanh-toan", label: "Quản lý thanh toán", icon: "bi bi-credit-card", to: "/tai-khoan/thanh-toan" },
       ],
       profileDraft: {
         hoTen: state.profile.hoTen,
