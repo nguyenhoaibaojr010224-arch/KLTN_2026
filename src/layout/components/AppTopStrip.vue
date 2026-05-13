@@ -39,7 +39,7 @@
 
             <div v-if="notificationMenuOpen" class="master-topstrip__notification-menu shadow-lg">
               <div class="master-topstrip__notification-head">
-                <strong>Thông báo khách hàng</strong>
+                <strong>Thông báo hệ thống</strong>
                 <button type="button" class="btn btn-link btn-sm p-0" @click="openPriorityNotifications">
                   Xem tất cả
                 </button>
@@ -86,7 +86,7 @@
                   >
                     <div class="master-topstrip__notification-title">{{ item.ma_hoa_don }}</div>
                     <div class="master-topstrip__notification-copy">
-                      {{ item.khach_hang?.ten_khach_hang || "Khách hàng" }} đang chờ xác nhận đơn hàng
+                      {{ item.khach_hang?.ten_khach_hang || "Khách hàng" }} - {{ item.noi_dung_thong_bao || "Đơn hàng hệ thống mới" }}
                     </div>
                     <div class="master-topstrip__notification-meta">
                       <span>{{ formatCurrency(item.tong_tien) }}</span>

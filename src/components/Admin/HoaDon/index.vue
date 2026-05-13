@@ -135,6 +135,13 @@
               <div class="small text-secondary">
                 VAT {{ formatCurrency(hoaDon.thue_vat) }}
               </div>
+              <div class="small text-secondary">
+                {{ paymentMethodLabel(hoaDon) }} - {{ paymentStatusLabel(hoaDon) }}
+              </div>
+              <div v-if="hasRewardUsage(hoaDon)" class="invoice-reward-note">
+                <span>Điểm dùng: {{ formatNumber(usedRewardPoints(hoaDon)) }} điểm</span>
+                <span>Giảm điểm: -{{ formatCurrency(rewardPointDiscount(hoaDon)) }}</span>
+              </div>
             </td>
             <td>{{ formatDate(hoaDon.ngay_ban) }}</td>
             <td class="text-end">
@@ -155,6 +162,17 @@
                   @click.stop="openRejectModal(hoaDon)"
                 >
                   Từ chối
+                </button>
+              </div>
+              <div v-else-if="isAwaitingCashPayment(hoaDon)" class="d-flex justify-content-end">
+                <button
+                  class="btn btn-sm btn-primary"
+                  type="button"
+                  :disabled="processingId === hoaDon.id_hoa_don"
+                  @click.stop="markOrderPaid(hoaDon)"
+                >
+                  <span v-if="processingId === hoaDon.id_hoa_don" class="spinner-border spinner-border-sm me-1"></span>
+                  Đã thu tiền
                 </button>
               </div>
               <span v-else class="small text-secondary">{{ actionLabel(hoaDon) }}</span>
@@ -204,6 +222,32 @@
         <div>
           <span>Thanh toán</span>
           <strong>{{ formatCurrency(detailModal.order?.tien_thanh_toan) }}</strong>
+        </div>
+      </div>
+
+      <div class="invoice-reward-panel">
+        <div class="invoice-reward-panel__header">
+          <div>
+            <span>Điểm thưởng</span>
+            <strong>{{ hasRewardUsage(detailModal.order) ? "Khách có sử dụng điểm" : "Không sử dụng điểm" }}</strong>
+          </div>
+          <span class="soft-badge" :class="hasRewardUsage(detailModal.order) ? 'soft-badge--teal' : 'soft-badge--blue'">
+            {{ formatNumber(earnedRewardPoints(detailModal.order)) }} điểm được cộng
+          </span>
+        </div>
+        <div class="invoice-reward-panel__grid">
+          <div>
+            <span>Điểm đã sử dụng</span>
+            <strong>{{ formatNumber(usedRewardPoints(detailModal.order)) }} điểm</strong>
+          </div>
+          <div>
+            <span>Số tiền giảm bằng điểm</span>
+            <strong class="text-success">-{{ formatCurrency(rewardPointDiscount(detailModal.order)) }}</strong>
+          </div>
+          <div>
+            <span>Điểm được cộng sau đơn</span>
+            <strong class="text-primary">+{{ formatNumber(earnedRewardPoints(detailModal.order)) }} điểm</strong>
+          </div>
         </div>
       </div>
 
@@ -298,6 +342,7 @@ import {
   getHoaDonChiTiets,
   getHoaDons,
   getHoaDonStatistics,
+  markHoaDonPaid,
   rejectHoaDon,
   searchHoaDons,
 } from "../../../api/hoaDonApi";
@@ -415,6 +460,23 @@ export default {
         maximumFractionDigits: 0,
       }).format(Number(value || 0));
     },
+    formatNumber(value) {
+      return new Intl.NumberFormat("vi-VN", {
+        maximumFractionDigits: 0,
+      }).format(Number(value || 0));
+    },
+    usedRewardPoints(hoaDon) {
+      return Number(hoaDon?.diem_da_su_dung || 0);
+    },
+    rewardPointDiscount(hoaDon) {
+      return Number(hoaDon?.giam_gia_diem || 0);
+    },
+    earnedRewardPoints(hoaDon) {
+      return Number(hoaDon?.diem_da_cong || 0);
+    },
+    hasRewardUsage(hoaDon) {
+      return this.usedRewardPoints(hoaDon) > 0 || this.rewardPointDiscount(hoaDon) > 0;
+    },
     formatDate(value) {
       if (!value) {
         return "-";
@@ -434,10 +496,34 @@ export default {
     channelLabel(channel) {
       return channel === "tai_quay" ? "Tại quầy" : "Hệ thống";
     },
+    paymentInfo(hoaDon) {
+      return hoaDon?.thanh_toan || hoaDon?.thanhToan || {};
+    },
+    paymentMethodLabel(hoaDon) {
+      return this.paymentInfo(hoaDon)?.phuong_thuc === "payos" ? "PayOS" : "Tiền mặt";
+    },
+    paymentStatusLabel(hoaDon) {
+      const payment = this.paymentInfo(hoaDon);
+      const status = payment?.trang_thai || "";
+
+      if (status === "paid") {
+        return "Đã thanh toán";
+      }
+
+      if (["canceled", "cancelled", "expired", "failed"].includes(status)) {
+        return "Thanh toán không thành công";
+      }
+
+      return payment?.phuong_thuc === "payos" ? "Chờ thanh toán" : "Chờ thu tiền";
+    },
     statusLabel(hoaDon) {
       const status = hoaDon?.trang_thai_xu_ly;
 
-      if (status === "cho_xac_nhan") {
+      if (status === "cho_thanh_toan") {
+        return "Chờ thanh toán";
+      }
+
+      if (["cho_xac_nhan", "cho_thanh_toan"].includes(status)) {
         return "Chờ xác nhận";
       }
 
@@ -452,7 +538,7 @@ export default {
       return "Đã xác nhận";
     },
     statusBadgeClass(status) {
-      if (status === "cho_xac_nhan") {
+      if (["cho_xac_nhan", "cho_thanh_toan"].includes(status)) {
         return "soft-badge--orange";
       }
 
@@ -469,7 +555,18 @@ export default {
     isPending(hoaDon) {
       return hoaDon?.trang_thai_xu_ly === "cho_xac_nhan";
     },
+    isAwaitingCashPayment(hoaDon) {
+      const payment = this.paymentInfo(hoaDon);
+
+      return hoaDon?.trang_thai_xu_ly === "da_xac_nhan"
+        && payment?.phuong_thuc !== "payos"
+        && payment?.trang_thai !== "paid";
+    },
     actionLabel(hoaDon) {
+      if (hoaDon?.trang_thai_xu_ly === "cho_thanh_toan") {
+        return "Chờ khách thanh toán";
+      }
+
       if (hoaDon?.trang_thai_xu_ly === "tu_choi") {
         return "Đã gửi lý do";
       }
@@ -638,6 +735,19 @@ export default {
         this.processingId = null;
       }
     },
+    async markOrderPaid(hoaDon) {
+      this.processingId = hoaDon.id_hoa_don;
+
+      try {
+        await markHoaDonPaid(hoaDon.id_hoa_don);
+        showToast("Đã xác nhận thu tiền.");
+        await this.refreshCurrentView();
+      } catch (error) {
+        showToast(this.normalizeError(error), "error");
+      } finally {
+        this.processingId = null;
+      }
+    },
     openRejectModal(hoaDon) {
       this.rejectModal.open = true;
       this.rejectModal.order = hoaDon;
@@ -704,6 +814,15 @@ export default {
 
 .invoice-row:hover > td {
   background: #f8fbff;
+}
+
+.invoice-reward-note {
+  display: grid;
+  gap: 2px;
+  margin-top: 4px;
+  color: #0f766e;
+  font-size: 0.78rem;
+  font-weight: 700;
 }
 
 .order-modal {
@@ -802,6 +921,49 @@ export default {
   color: #0f172a;
 }
 
+.invoice-reward-panel {
+  margin-bottom: 18px;
+  padding: 16px;
+  border: 1px solid rgba(20, 184, 166, 0.2);
+  border-radius: 18px;
+  background: #f0fdfa;
+}
+
+.invoice-reward-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.invoice-reward-panel__header span,
+.invoice-reward-panel__grid span {
+  display: block;
+  color: #64748b;
+  font-size: 0.84rem;
+}
+
+.invoice-reward-panel__header strong,
+.invoice-reward-panel__grid strong {
+  display: block;
+  margin-top: 4px;
+  color: #0f172a;
+}
+
+.invoice-reward-panel__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.invoice-reward-panel__grid > div {
+  padding: 12px;
+  border: 1px solid rgba(20, 184, 166, 0.16);
+  border-radius: 14px;
+  background: #fff;
+}
+
 .invoice-detail-table {
   border: 1px solid rgba(22, 82, 197, 0.1);
   border-radius: 16px;
@@ -819,6 +981,15 @@ export default {
   }
 
   .invoice-detail-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .invoice-reward-panel__header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .invoice-reward-panel__grid {
     grid-template-columns: 1fr;
   }
 }

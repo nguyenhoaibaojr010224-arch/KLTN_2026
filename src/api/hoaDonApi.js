@@ -29,6 +29,12 @@ export function confirmHoaDon(id, payload = {}) {
   });
 }
 
+export function markHoaDonPaid(id) {
+  return apiClient(`/hoa-dons/${id}/mark-paid`, {
+    method: "POST",
+  });
+}
+
 export function rejectHoaDon(id, payload = {}) {
   return apiClient(`/hoa-dons/${id}/reject`, {
     method: "POST",

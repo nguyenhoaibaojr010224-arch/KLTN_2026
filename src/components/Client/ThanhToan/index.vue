@@ -134,6 +134,11 @@
                 {{ promotionError }}
               </div>
 
+              <div v-if="orderError" class="pc-order-alert">
+                <strong>Chưa thể đặt hàng</strong>
+                <span>{{ orderError }}</span>
+              </div>
+
               <div v-if="state.appliedPromotion" class="pc-applied-promo">
                 <div>
                   <strong>{{ state.appliedPromotion.maGiamGia }}</strong>
@@ -150,7 +155,7 @@
                 <label v-if="canUseRewardPoints" class="pc-reward-box__toggle">
                   <input v-model="state.useRewardPoints" type="checkbox" />
                   <span>
-                    Dùng {{ formatNumber(rewardPointsPreviewToUse) }} điểm để giảm
+                    Tích chọn sử dụng {{ formatNumber(rewardPointsPreviewToUse) }} điểm để giảm
                     {{ formatCurrency(rewardPointDiscountPreview) }}
                   </span>
                 </label>
@@ -196,8 +201,14 @@
                 </span>
               </label>
 
-              <button class="btn btn-primary btn-lg w-100 rounded-4" type="button" :disabled="!acceptedTerms" @click="submitOrder">
-                Đặt hàng
+              <button
+                class="btn btn-primary btn-lg w-100 rounded-4"
+                type="button"
+                :disabled="!acceptedTerms || submittingOrder"
+                @click="submitOrder"
+              >
+                <span v-if="submittingOrder" class="spinner-border spinner-border-sm me-2"></span>
+                {{ submittingOrder ? "Đang đặt hàng..." : "Đặt hàng" }}
               </button>
             </div>
           </aside>
@@ -383,9 +394,11 @@ export default {
       promotionLoading: false,
       promotionMessage: "",
       promotionError: "",
+      orderError: "",
       promotionPickerModal: null,
       productInfoModal: null,
       selectedProductInfo: null,
+      submittingOrder: false,
       availableCodesLoading: false,
       availablePromotionCodes: [],
       paymentMethods: [
@@ -563,6 +576,7 @@ export default {
     },
     async selectAddress(address) {
       try {
+        this.orderError = "";
         await this.customerStore.saveAddress({
           ...address,
           macDinh: true,
@@ -675,15 +689,26 @@ export default {
       showToast("Đã bỏ mã giảm giá.", "success");
     },
     async submitOrder() {
+      if (this.submittingOrder) {
+        return;
+      }
+
       if (!this.selectedItems.length) {
-        showToast("Vui lòng chọn ít nhất một sản phẩm để đặt hàng.", "error");
+        this.orderError = "Vui lòng chọn ít nhất một sản phẩm để đặt hàng.";
+        showToast(this.orderError, "error");
         return;
       }
 
       if (!this.defaultAddress) {
-        showToast("Vui lòng chọn địa chỉ giao hàng.", "error");
+        this.orderError = "Vui lòng chọn địa chỉ giao hàng.";
+        showToast(this.orderError, "error");
         return;
       }
+
+      this.submittingOrder = true;
+      this.orderError = "";
+      this.promotionError = "";
+      this.promotionMessage = "";
 
       try {
         const diaChiGiaoHang = [
@@ -723,9 +748,14 @@ export default {
         showToast(`Đặt hàng thành công. Mã đơn: ${orderId}`, "success");
         this.$router.push("/tai-khoan/lich-su-don-hang");
       } catch (error) {
-        const message = this.extractErrorMessage(error, "Không thể tạo đơn hàng. Vui lòng thử lại.");
-        this.promotionError = message;
+        const message =
+          error?.status === 503
+            ? "Hiện tại nhà thuốc chưa có nhân viên trực hệ thống. Vui lòng thử lại sau hoặc liên hệ hỗ trợ."
+            : this.extractErrorMessage(error, "Không thể tạo đơn hàng. Vui lòng thử lại.");
+        this.orderError = message;
         showToast(message, "error");
+      } finally {
+        this.submittingOrder = false;
       }
     },
   },
@@ -824,6 +854,27 @@ export default {
 .pc-promo-message--info {
   background: rgba(32, 111, 241, 0.08);
   color: #1c56c4;
+}
+
+.pc-order-alert {
+  display: grid;
+  gap: 4px;
+  margin: 14px 0;
+  padding: 12px 14px;
+  border: 1px solid rgba(220, 53, 69, 0.22);
+  border-radius: 14px;
+  background: rgba(220, 53, 69, 0.1);
+  color: #b42318;
+}
+
+.pc-order-alert strong {
+  font-size: 0.96rem;
+  color: #991b1b;
+}
+
+.pc-order-alert span {
+  font-size: 0.92rem;
+  line-height: 1.45;
 }
 
 .pc-applied-promo {

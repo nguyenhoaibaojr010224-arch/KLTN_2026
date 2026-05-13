@@ -1174,6 +1174,37 @@ export default {
         this.passwordErrors[field] = "";
       }
     },
+    applyPasswordServerErrors(error) {
+      const fieldErrors = error?.payload?.errors || error?.response?.data?.errors;
+
+      if (!fieldErrors || typeof fieldErrors !== "object") {
+        return false;
+      }
+
+      const fieldMap = {
+        current_password: "currentPassword",
+        new_password: "newPassword",
+        new_password_confirmation: "confirmPassword",
+      };
+      let hasFieldError = false;
+      const nextErrors = { ...this.passwordErrors };
+
+      Object.entries(fieldMap).forEach(([serverField, localField]) => {
+        const rawMessage = fieldErrors[serverField];
+        const message = Array.isArray(rawMessage) ? rawMessage[0] : rawMessage;
+
+        if (message) {
+          nextErrors[localField] = this.translateProfileValidationMessage(message, serverField);
+          hasFieldError = true;
+        }
+      });
+
+      if (hasFieldError) {
+        this.passwordErrors = nextErrors;
+      }
+
+      return hasFieldError;
+    },
     validatePasswordDraft() {
       const errors = {
         currentPassword: "",
@@ -1186,6 +1217,14 @@ export default {
       }
 
       errors.newPassword = validateStrongPassword(this.passwordDraft.newPassword, "Mật khẩu mới");
+
+      if (
+        !errors.newPassword &&
+        this.passwordDraft.currentPassword &&
+        this.passwordDraft.newPassword === this.passwordDraft.currentPassword
+      ) {
+        errors.newPassword = "Mật khẩu mới không được trùng với mật khẩu hiện tại.";
+      }
 
       if (!this.passwordDraft.confirmPassword) {
         errors.confirmPassword = "Vui lòng xác nhận mật khẩu mới.";
@@ -1257,6 +1296,11 @@ export default {
         this.cancelPasswordForm();
         showToast("Đổi mật khẩu thành công.");
       } catch (error) {
+        if (this.applyPasswordServerErrors(error)) {
+          showToast("Vui lòng kiểm tra lại các trường thông tin bên trên.", "error");
+          return;
+        }
+
         showToast(this.extractErrorMessage(error, "Không thể đổi mật khẩu."), "error");
       }
     },
