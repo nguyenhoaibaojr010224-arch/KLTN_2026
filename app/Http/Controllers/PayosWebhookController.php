@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\CounterSalePayosSession;
+use App\Models\HoaDon;
 use App\Models\LichSuDonHang;
 use App\Models\ThanhToan;
 use App\Services\PayosService;
+use App\Services\OrderMailService;
 use App\Services\RewardPointService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,7 +16,7 @@ use Illuminate\Support\Facades\DB;
 
 class PayosWebhookController extends Controller
 {
-    public function __invoke(Request $request, PayosService $payos, RewardPointService $rewardPoints): JsonResponse
+    public function __invoke(Request $request, PayosService $payos, RewardPointService $rewardPoints, OrderMailService $orderMailService): JsonResponse
     {
         $payload = $request->all();
 
@@ -38,7 +40,9 @@ class PayosWebhookController extends Controller
             ], 422);
         }
 
-        DB::transaction(function () use ($data, $orderCode, $paymentLinkId, $success, $code, $payload, $rewardPoints): void {
+        $confirmedHoaDon = null;
+
+        DB::transaction(function () use ($data, $orderCode, $paymentLinkId, $success, $code, $payload, $rewardPoints, &$confirmedHoaDon): void {
             $thanhToan = ThanhToan::query()
                 ->where(function ($query) use ($orderCode, $paymentLinkId): void {
                     if ($orderCode > 0) {
@@ -114,8 +118,32 @@ class PayosWebhookController extends Controller
             ])->save();
 
             if ($isPaid && ! $wasPaid) {
-                if ($thanhToan->hoaDon) {
-                    $rewardPoints->settle($thanhToan->hoaDon);
+                $hoaDon = $thanhToan->hoaDon
+                    ? HoaDon::query()
+                        ->whereKey($thanhToan->hoaDon->id_hoa_don)
+                        ->lockForUpdate()
+                        ->first()
+                    : null;
+
+                if ($hoaDon && in_array($hoaDon->trang_thai_xu_ly, ['cho_thanh_toan', 'cho_xac_nhan'], true)) {
+                    $hoaDon->forceFill([
+                        'trang_thai_xu_ly' => 'da_xac_nhan',
+                        'ly_do_tu_choi' => null,
+                    ])->save();
+
+                    LichSuDonHang::create([
+                        'id_hoa_don' => $hoaDon->id_hoa_don,
+                        'trang_thai' => 'Đã xác nhận',
+                        'ghi_chu' => 'PayOS đã thanh toán thành công, hệ thống tự xác nhận đơn hàng.',
+                        'thoi_gian' => $paidAt ?: now(),
+                        'id_nhan_vien' => $hoaDon->id_nhan_vien,
+                    ]);
+
+                    $confirmedHoaDon = $hoaDon;
+                }
+
+                if ($hoaDon) {
+                    $rewardPoints->settle($hoaDon);
                 }
 
                 LichSuDonHang::create([
@@ -123,10 +151,14 @@ class PayosWebhookController extends Controller
                     'trang_thai' => 'Đã thanh toán',
                     'ghi_chu' => 'PayOS đã xác nhận thanh toán.',
                     'thoi_gian' => $paidAt ?: now(),
-                    'id_nhan_vien' => $thanhToan->hoaDon?->id_nhan_vien,
+                    'id_nhan_vien' => $hoaDon?->id_nhan_vien,
                 ]);
             }
         });
+
+        if ($confirmedHoaDon) {
+            $orderMailService->sendConfirmed($confirmedHoaDon);
+        }
 
         return response()->json([
             'success' => true,

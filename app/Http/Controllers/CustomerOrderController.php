@@ -18,6 +18,7 @@ use App\Models\ThanhToan;
 use App\Models\Thuoc;
 use App\Services\PayosPaymentSyncService;
 use App\Services\PayosService;
+use App\Services\OrderMailService;
 use App\Services\RewardPointService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -53,12 +54,27 @@ class CustomerOrderController extends Controller
             ->orderByDesc('id_hoa_don')
             ->get();
 
+        $syncedPayos = false;
+
         $hoaDons
             ->filter(fn (HoaDon $hoaDon): bool => $hoaDon->thanhToan?->phuong_thuc === 'payos'
                 && $hoaDon->thanhToan?->trang_thai !== 'paid')
-            ->each(fn (HoaDon $hoaDon) => $payosSync->syncHoaDon($hoaDon));
+            ->each(function (HoaDon $hoaDon) use ($payosSync, &$syncedPayos): void {
+                $payosSync->syncHoaDon($hoaDon);
+                $syncedPayos = true;
+            });
 
-        $hoaDons->load($this->customerOrderRelations());
+        if ($syncedPayos) {
+            $hoaDons = HoaDon::query()
+                ->where('id_khach_hang', $khachHang->id_khach_hang)
+                ->whereHas('chiTiets')
+                ->with($this->customerOrderRelations())
+                ->orderByDesc('ngay_ban')
+                ->orderByDesc('id_hoa_don')
+                ->get();
+        } else {
+            $hoaDons->load($this->customerOrderRelations());
+        }
 
         return response()->json([
             'message' => 'Lay lich su don hang thanh cong.',
@@ -66,7 +82,7 @@ class CustomerOrderController extends Controller
         ]);
     }
 
-    public function store(StoreCustomerCheckoutRequest $request, PayosService $payos): JsonResponse
+    public function store(StoreCustomerCheckoutRequest $request, PayosService $payos, OrderMailService $orderMailService): JsonResponse
     {
         $khachHang = $request->user();
 
@@ -87,8 +103,8 @@ class CustomerOrderController extends Controller
 
         if (! $nhanVienXuLy) {
             return response()->json([
-                'message' => 'He thong chua co nhan vien xu ly don hang.',
-            ], 422);
+                'message' => 'Hiện tại nhà thuốc chưa có nhân viên trực hệ thống. Vui lòng thử lại sau hoặc liên hệ hỗ trợ.',
+            ], 503);
         }
 
         $checkoutResult = DB::transaction(function () use ($validated, $khachHang, $nhanVienXuLy, $payos) {
@@ -279,6 +295,8 @@ class CustomerOrderController extends Controller
             $thueVat = $this->calculateVatAmount($tienSauGiam);
             $tienThanhToan = $tienSauGiam + $thueVat;
             $diemDaCong = $this->calculateRewardPointsEarned($tongTien);
+            $paymentMethod = (string) $validated['phuong_thuc_thanh_toan'];
+            $isPayosPayment = $paymentMethod === 'payos';
 
             $hoaDon = HoaDon::create([
                 'ma_hoa_don' => $this->generateInvoiceCode(),
@@ -286,7 +304,7 @@ class CustomerOrderController extends Controller
                 'id_nhan_vien' => $nhanVienXuLy->id_nhan_vien,
                 'ma_giam_gia_id' => $maGiamGia?->id,
                 'kenh_ban' => 'he_thong',
-                'trang_thai_xu_ly' => 'cho_xac_nhan',
+                'trang_thai_xu_ly' => $isPayosPayment ? 'cho_thanh_toan' : 'da_xac_nhan',
                 'tong_tien' => $tongTien,
                 'giam_gia' => $tongGiamGia,
                 'giam_gia_ma' => $giamGiaMa,
@@ -311,7 +329,6 @@ class CustomerOrderController extends Controller
                 ]);
             }
 
-            $paymentMethod = (string) $validated['phuong_thuc_thanh_toan'];
             $thanhToan = ThanhToan::create([
                 'id_hoa_don' => $hoaDon->id_hoa_don,
                 'phuong_thuc' => $this->mapPaymentMethod($paymentMethod),
@@ -320,16 +337,26 @@ class CustomerOrderController extends Controller
                 'ma_giao_dich' => $this->requiresTransactionCode($paymentMethod)
                     ? $this->generateTransactionCode()
                     : null,
-                'trang_thai' => $paymentMethod === 'payos' ? 'pending' : 'paid',
+                'trang_thai' => 'pending',
             ]);
 
             if ($paymentMethod === 'payos') {
+                $payosOrderCode = $this->generateCustomerPayosOrderCode();
+                $thanhToan->forceFill([
+                    'payos_order_code' => $payosOrderCode,
+                ])->save();
+
                 try {
-                    $payosLink = $payos->createPaymentLink($hoaDon, array_map(fn (array $item): array => [
-                        'name' => $item['ten'] ?? 'San pham',
-                        'quantity' => (int) ($item['soLuong'] ?? 1),
-                        'price' => (int) ($item['gia'] ?? 0),
-                    ], $summaryItems));
+                    $payosLink = $payos->createPaymentLinkFromData(
+                        $payosOrderCode,
+                        (int) round((float) $hoaDon->tien_thanh_toan),
+                        'PHARMAGO ' . $hoaDon->ma_hoa_don,
+                        array_map(fn (array $item): array => [
+                            'name' => $item['ten'] ?? 'San pham',
+                            'quantity' => (int) ($item['soLuong'] ?? 1),
+                            'price' => (int) ($item['gia'] ?? 0),
+                        ], $summaryItems)
+                    );
                 } catch (\RuntimeException $exception) {
                     throw ValidationException::withMessages([
                         'payos' => [$exception->getMessage()],
@@ -337,7 +364,6 @@ class CustomerOrderController extends Controller
                 }
 
                 $thanhToan->forceFill([
-                    'payos_order_code' => $payosLink['order_code'],
                     'payos_payment_link_id' => $payosLink['payment_link_id'],
                     'payos_checkout_url' => $payosLink['checkout_url'],
                     'payos_qr_code' => $payosLink['qr_code'],
@@ -352,7 +378,7 @@ class CustomerOrderController extends Controller
 
             LichSuDonHang::create([
                 'id_hoa_don' => $hoaDon->id_hoa_don,
-                'trang_thai' => 'Chờ xác nhận',
+                'trang_thai' => $isPayosPayment ? 'Chờ thanh toán' : 'Đã xác nhận',
                 'ghi_chu' => $orderNote,
                 'thoi_gian' => now(),
                 'id_nhan_vien' => $nhanVienXuLy->id_nhan_vien,
@@ -383,8 +409,14 @@ class CustomerOrderController extends Controller
 
         $invoice->load($this->customerOrderRelations());
 
+        if ($invoice->trang_thai_xu_ly === 'da_xac_nhan') {
+            $orderMailService->sendConfirmed($invoice);
+        }
+
         return response()->json([
-            'message' => 'Đặt hàng thành công. Đơn hàng đang chờ nhân viên xác nhận.',
+            'message' => $invoice->trang_thai_xu_ly === 'cho_thanh_toan'
+                ? 'Đặt hàng thành công. Đơn hàng đang chờ thanh toán PayOS.'
+                : 'Đặt hàng thành công. Hệ thống đã tự xác nhận đơn hàng.',
             'data' => $this->transformCustomerOrder($invoice),
         ], 201);
     }
@@ -492,21 +524,7 @@ class CustomerOrderController extends Controller
             ->first()
             ?->nhanVien;
 
-        if ($latestLoggedInEmployee instanceof NhanVien) {
-            return $latestLoggedInEmployee;
-        }
-
-        return NhanVien::query()
-            ->where('trang_thai', 'active')
-            ->orderByRaw("
-                CASE
-                    WHEN ten_dang_nhap = 'admin' THEN 0
-                    WHEN ten_dang_nhap = 'staff' THEN 1
-                    ELSE 2
-                END
-            ")
-            ->orderBy('id_nhan_vien')
-            ->first();
+        return $latestLoggedInEmployee instanceof NhanVien ? $latestLoggedInEmployee : null;
     }
 
     private function resolveActivePromotion(Thuoc $thuoc): ?KhuyenMai
@@ -753,6 +771,18 @@ class CustomerOrderController extends Controller
         do {
             $code = 'PAY' . Carbon::now()->format('YmdHis') . random_int(100, 999);
         } while (ThanhToan::query()->where('ma_giao_dich', $code)->exists());
+
+        return $code;
+    }
+
+    private function generateCustomerPayosOrderCode(): int
+    {
+        do {
+            $code = (int) (Carbon::now()->format('ymdHis') . random_int(100, 999));
+        } while (
+            ThanhToan::query()->where('payos_order_code', $code)->exists()
+            || \App\Models\CounterSalePayosSession::query()->where('payos_order_code', $code)->exists()
+        );
 
         return $code;
     }

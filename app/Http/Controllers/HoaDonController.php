@@ -22,6 +22,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class HoaDonController extends Controller
@@ -108,14 +109,33 @@ class HoaDonController extends Controller
     {
         $recentQuery = $this->baseQuery()
             ->where('kenh_ban', 'he_thong')
-            ->where('trang_thai_xu_ly', 'cho_xac_nhan')
-            ->where('ngay_ban', '>=', now()->subDays(2));
+            ->where('ngay_ban', '>=', now()->subDays(2))
+            ->where(function (Builder $query): void {
+                $query->whereIn('trang_thai_xu_ly', ['cho_xac_nhan', 'cho_thanh_toan'])
+                    ->orWhere(function (Builder $confirmedQuery): void {
+                        $confirmedQuery->where('trang_thai_xu_ly', 'da_xac_nhan')
+                            ->whereHas('thanhToan', function (Builder $paymentQuery): void {
+                                $paymentQuery->whereIn('phuong_thuc', ['payos', 'tien_mat'])
+                                    ->whereIn('trang_thai', ['pending', 'paid']);
+                            });
+                    });
+            });
 
         $tongThongBao = (clone $recentQuery)->count();
         $hoaDons = (clone $recentQuery)
             ->limit(8)
             ->get()
             ->map(function (HoaDon $hoaDon): array {
+                $paymentMethod = (string) ($hoaDon->thanhToan?->phuong_thuc ?? '');
+                $paymentStatus = (string) ($hoaDon->thanhToan?->trang_thai ?? '');
+                $notificationCopy = match (true) {
+                    $paymentMethod === 'payos' && $paymentStatus === 'pending' => 'Đơn PayOS đang chờ khách thanh toán',
+                    $paymentMethod === 'payos' && $paymentStatus === 'paid' => 'Đơn PayOS đã thanh toán',
+                    $paymentMethod === 'tien_mat' && $paymentStatus === 'pending' => 'Đơn tiền mặt đang chờ thu tiền',
+                    $paymentMethod === 'tien_mat' && $paymentStatus === 'paid' => 'Đơn tiền mặt đã thanh toán',
+                    default => 'Đơn hàng hệ thống mới',
+                };
+
                 return [
                     'id_hoa_don' => $hoaDon->id_hoa_don,
                     'ma_hoa_don' => $hoaDon->ma_hoa_don,
@@ -128,6 +148,11 @@ class HoaDonController extends Controller
                     'trang_thai' => $hoaDon->latestLichSuDonHang?->trang_thai ?: 'Chờ xác nhận',
                     'trang_thai_xu_ly' => $hoaDon->trang_thai_xu_ly,
                     'kenh_ban' => $hoaDon->kenh_ban,
+                    'noi_dung_thong_bao' => $notificationCopy,
+                    'thanh_toan' => [
+                        'phuong_thuc' => $paymentMethod,
+                        'trang_thai' => $paymentStatus,
+                    ],
                     'ghi_chu' => $hoaDon->latestLichSuDonHang?->ghi_chu,
                     'thoi_gian_cap_nhat' => optional($hoaDon->latestLichSuDonHang?->thoi_gian)?->toIso8601String(),
                 ];
@@ -279,6 +304,74 @@ class HoaDonController extends Controller
         ]);
     }
 
+    public function markPaid(Request $request, int $id, RewardPointService $rewardPoints): JsonResponse
+    {
+        if (! $this->canProcessSystemOrder($request)) {
+            return response()->json([
+                'message' => 'Tài khoản này chưa đăng nhập kênh hệ thống nên không thể xác nhận thu tiền.',
+            ], 403);
+        }
+
+        $hoaDon = DB::transaction(function () use ($request, $id, $rewardPoints): HoaDon {
+            $hoaDon = HoaDon::query()
+                ->with($this->orderActionRelations())
+                ->whereKey($id)
+                ->lockForUpdate()
+                ->first();
+
+            if (! $hoaDon) {
+                throw ValidationException::withMessages([
+                    'id_hoa_don' => ['Không tìm thấy hóa đơn.'],
+                ]);
+            }
+
+            if (! $hoaDon->thanhToan) {
+                throw ValidationException::withMessages([
+                    'thanh_toan' => ['Hóa đơn chưa có thông tin thanh toán.'],
+                ]);
+            }
+
+            if ($hoaDon->thanhToan->phuong_thuc === 'payos') {
+                throw ValidationException::withMessages([
+                    'thanh_toan' => ['Đơn PayOS chỉ được xác nhận thanh toán qua PayOS.'],
+                ]);
+            }
+
+            if (! in_array($hoaDon->trang_thai_xu_ly, ['da_xac_nhan', 'hoan_thanh'], true)) {
+                throw ValidationException::withMessages([
+                    'trang_thai' => ['Chỉ hóa đơn đã xác nhận mới được ghi nhận đã thu tiền.'],
+                ]);
+            }
+
+            if ($hoaDon->thanhToan->trang_thai === 'paid') {
+                return $this->freshOrderForResponse($hoaDon->id_hoa_don);
+            }
+
+            $hoaDon->thanhToan->forceFill([
+                'trang_thai' => 'paid',
+                'thoi_gian' => now(),
+                'ma_giao_dich' => $hoaDon->thanhToan->ma_giao_dich ?: 'TM-' . $hoaDon->ma_hoa_don,
+            ])->save();
+
+            LichSuDonHang::create([
+                'id_hoa_don' => $hoaDon->id_hoa_don,
+                'trang_thai' => 'Đã thanh toán',
+                'ghi_chu' => 'Nhân viên đã xác nhận đã thu tiền mặt.',
+                'thoi_gian' => now(),
+                'id_nhan_vien' => $request->user()->id_nhan_vien,
+            ]);
+
+            $rewardPoints->settle($hoaDon);
+
+            return $this->freshOrderForResponse($hoaDon->id_hoa_don);
+        });
+
+        return response()->json([
+            'message' => 'Đã xác nhận thu tiền và xử lý điểm thưởng.',
+            'data' => $hoaDon,
+        ]);
+    }
+
     public function reject(Request $request, int $id, RewardPointService $rewardPoints): JsonResponse
     {
         if (! $this->canProcessSystemOrder($request)) {
@@ -351,6 +444,7 @@ class HoaDonController extends Controller
                 'khachHang:id_khach_hang,ten_khach_hang,so_dien_thoai,email',
                 'nhanVien:id_nhan_vien,ten_dang_nhap,ho_ten,id_vai_tro',
                 'nhanVien.vaiTro:id_vai_tro,ten_vai_tro',
+                'thanhToan:id_hoa_don,phuong_thuc,so_tien,thoi_gian,ma_giao_dich,trang_thai,payos_order_code,payos_checkout_url,payos_paid_at',
                 'latestLichSuDonHang',
             ])
             ->orderByDesc('ngay_ban')
@@ -361,6 +455,7 @@ class HoaDonController extends Controller
     {
         return HoaDon::query()
             ->whereHas('chiTiets')
+            ->whereHas('thanhToan', fn (Builder $query) => $query->where('trang_thai', 'paid'))
             ->whereIn('trang_thai_xu_ly', ['da_xac_nhan', 'hoan_thanh']);
     }
 
@@ -468,10 +563,31 @@ class HoaDonController extends Controller
                     'soLuong' => (float) $detail->so_luong / $heSo,
                     'gia' => (float) $detail->gia_ban,
                     'thanhTien' => (float) $detail->thanh_tien,
+                    'hinhAnh' => $thuoc?->hinh_anh_url,
                 ];
             })
             ->values()
             ->all();
+    }
+
+    private function resolveShippingAddress(HoaDon $hoaDon): ?string
+    {
+        $note = $hoaDon->lichSuDonHangs
+            ->sortBy('thoi_gian')
+            ->first(fn (LichSuDonHang $history) => filled($history->ghi_chu) && Str::contains($history->ghi_chu, 'Dia chi giao hang:'))
+            ?->ghi_chu;
+
+        if (filled($note)) {
+            foreach (preg_split('/\R/u', (string) $note) ?: [] as $line) {
+                $line = trim((string) $line);
+
+                if (Str::startsWith($line, 'Dia chi giao hang:')) {
+                    return trim(Str::after($line, 'Dia chi giao hang:')) ?: null;
+                }
+            }
+        }
+
+        return $hoaDon->khachHang?->dia_chi;
     }
 
     private function sendConfirmedMail(HoaDon $hoaDon): void
@@ -487,7 +603,7 @@ class HoaDonController extends Controller
                 $this->buildMailItems($hoaDon),
                 [
                     'payment_method_label' => $this->paymentLabel($hoaDon->thanhToan?->phuong_thuc),
-                    'shipping_address' => $hoaDon->khachHang?->dia_chi,
+                    'shipping_address' => $this->resolveShippingAddress($hoaDon),
                 ]
             ));
         } catch (\Throwable $exception) {
@@ -509,7 +625,11 @@ class HoaDonController extends Controller
                 $hoaDon->khachHang,
                 $hoaDon,
                 (string) $hoaDon->ly_do_tu_choi,
-                $this->buildMailItems($hoaDon)
+                $this->buildMailItems($hoaDon),
+                [
+                    'payment_method_label' => $this->paymentLabel($hoaDon->thanhToan?->phuong_thuc),
+                    'shipping_address' => $this->resolveShippingAddress($hoaDon),
+                ]
             ));
         } catch (\Throwable $exception) {
             Log::warning('Khong the gui mail tu choi don hang.', [

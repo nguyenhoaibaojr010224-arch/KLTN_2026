@@ -181,6 +181,7 @@ Route::prefix('hoa-dons')
         Route::post('/', [HoaDonController::class, 'store']);
         Route::get('/{id}', [HoaDonController::class, 'show']);
         Route::post('/{id}/confirm', [HoaDonController::class, 'confirm']);
+        Route::post('/{id}/mark-paid', [HoaDonController::class, 'markPaid']);
         Route::post('/{id}/reject', [HoaDonController::class, 'reject']);
 
         // Nhan vien/Admin - Chi tiet hoa don

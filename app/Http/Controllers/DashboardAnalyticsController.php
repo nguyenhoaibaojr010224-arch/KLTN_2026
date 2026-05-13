@@ -81,6 +81,7 @@ class DashboardAnalyticsController extends Controller
     {
         return HoaDon::query()
             ->whereHas('chiTiets')
+            ->whereHas('thanhToan', fn ($query) => $query->where('trang_thai', 'paid'))
             ->whereIn('trang_thai_xu_ly', ['da_xac_nhan', 'hoan_thanh'])
             ->whereBetween('ngay_ban', [$from, $to])
             ->when(
@@ -101,6 +102,7 @@ class DashboardAnalyticsController extends Controller
 
         $rows = HoaDon::query()
             ->whereHas('chiTiets')
+            ->whereHas('thanhToan', fn ($query) => $query->where('trang_thai', 'paid'))
             ->whereIn('trang_thai_xu_ly', ['da_xac_nhan', 'hoan_thanh'])
             ->whereBetween('ngay_ban', [$weekStart, $weekEnd])
             ->whereIn('id_nhan_vien', $loggedInEmployeeIds)

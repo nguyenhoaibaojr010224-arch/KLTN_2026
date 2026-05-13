@@ -19,7 +19,8 @@ class OrderRejectedMail extends Mailable
         public KhachHang $khachHang,
         public HoaDon $hoaDon,
         public string $reason,
-        public array $items = []
+        public array $items = [],
+        public array $meta = []
     ) {
     }
 
@@ -39,6 +40,7 @@ class OrderRejectedMail extends Mailable
                 'hoaDon' => $this->hoaDon,
                 'reason' => $this->reason,
                 'items' => $this->items,
+                'meta' => $this->meta,
             ],
         );
     }

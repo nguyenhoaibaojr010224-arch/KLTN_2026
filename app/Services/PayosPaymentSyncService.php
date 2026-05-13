@@ -14,6 +14,7 @@ class PayosPaymentSyncService
     public function __construct(
         private readonly PayosService $payos,
         private readonly RewardPointService $rewardPoints,
+        private readonly OrderMailService $orderMailService,
     ) {
     }
 
@@ -63,7 +64,9 @@ class PayosPaymentSyncService
             return $thanhToan;
         }
 
-        return DB::transaction(function () use ($thanhToan, $data, $payosInfo, $internalStatus, $settleRewards): ThanhToan {
+        $confirmedHoaDon = null;
+
+        $payment = DB::transaction(function () use ($thanhToan, $data, $payosInfo, $internalStatus, $settleRewards, &$confirmedHoaDon): ThanhToan {
             $lockedPayment = ThanhToan::query()
                 ->with('hoaDon')
                 ->whereKey($thanhToan->id_hoa_don)
@@ -90,8 +93,32 @@ class PayosPaymentSyncService
             ])->save();
 
             if ($isPaid) {
-                if ($settleRewards && $lockedPayment->hoaDon) {
-                    $this->rewardPoints->settle($lockedPayment->hoaDon);
+                $hoaDon = $lockedPayment->hoaDon
+                    ? HoaDon::query()
+                        ->whereKey($lockedPayment->hoaDon->id_hoa_don)
+                        ->lockForUpdate()
+                        ->first()
+                    : null;
+
+                if ($hoaDon && in_array($hoaDon->trang_thai_xu_ly, ['cho_thanh_toan', 'cho_xac_nhan'], true)) {
+                    $hoaDon->forceFill([
+                        'trang_thai_xu_ly' => 'da_xac_nhan',
+                        'ly_do_tu_choi' => null,
+                    ])->save();
+
+                    LichSuDonHang::create([
+                        'id_hoa_don' => $hoaDon->id_hoa_don,
+                        'trang_thai' => 'Đã xác nhận',
+                        'ghi_chu' => 'PayOS đã thanh toán thành công, hệ thống tự xác nhận đơn hàng.',
+                        'thoi_gian' => $paidAt ?: now(),
+                        'id_nhan_vien' => $hoaDon->id_nhan_vien,
+                    ]);
+
+                    $confirmedHoaDon = $hoaDon;
+                }
+
+                if ($settleRewards && $hoaDon) {
+                    $this->rewardPoints->settle($hoaDon);
                 }
 
                 LichSuDonHang::create([
@@ -99,12 +126,18 @@ class PayosPaymentSyncService
                     'trang_thai' => 'Đã thanh toán',
                     'ghi_chu' => 'PayOS đã xác nhận thanh toán.',
                     'thoi_gian' => $paidAt ?: now(),
-                    'id_nhan_vien' => $lockedPayment->hoaDon?->id_nhan_vien,
+                    'id_nhan_vien' => $hoaDon?->id_nhan_vien,
                 ]);
             }
 
             return $lockedPayment->refresh();
         });
+
+        if ($confirmedHoaDon) {
+            $this->orderMailService->sendConfirmed($confirmedHoaDon);
+        }
+
+        return $payment;
     }
 
     private function resolveInternalStatus(array $data, ThanhToan $thanhToan): ?string

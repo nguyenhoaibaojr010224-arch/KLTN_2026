@@ -103,6 +103,7 @@ class NhanVienController extends Controller
             ->where('id_nhan_vien', $nhanVien->id_nhan_vien)
             ->whereDate('ngay_ban', $selectedDate->toDateString())
             ->whereIn('trang_thai_xu_ly', ['da_xac_nhan', 'hoan_thanh'])
+            ->whereHas('thanhToan', fn ($query) => $query->where('trang_thai', 'paid'))
             ->whereHas('chiTiets')
             ->with([
                 'khachHang:id_khach_hang,ten_khach_hang,so_dien_thoai,email',
