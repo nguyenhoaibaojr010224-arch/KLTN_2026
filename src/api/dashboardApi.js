@@ -15,3 +15,7 @@ export function getStaffPerformanceChart(params = {}) {
 
   return apiClient(`/dashboard/staff-performance${suffix}`);
 }
+
+export function getRevenueOverview(months = 3) {
+  return apiClient(`/dashboard/revenue-overview?months=${months}`);
+}

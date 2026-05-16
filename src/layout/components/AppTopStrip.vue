@@ -469,11 +469,12 @@ function openPriorityNotifications() {
 }
 
 function formatCurrency(value) {
-  return new Intl.NumberFormat("vi-VN", {
-    style: "currency",
-    currency: "VND",
-    maximumFractionDigits: 0,
-  }).format(Number(value || 0));
+      const n = Number(value || 0);
+      if (Math.abs(n) >= 1e9) {
+        const ty = n / 1e9;
+        return (Math.abs(ty) >= 10 ? Math.round(ty) : ty.toFixed(2).replace('.', ',')) + ' tỷ đ';
+      }
+      return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(n);
 }
 
 function formatAlertQuantity(value, unit = "") {

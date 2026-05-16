@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <component :is="layout">
     <router-view :key="$route.fullPath"></router-view>
   </component>
@@ -656,17 +656,26 @@ export default {
   }
 
   .metric-card {
-    padding: 20px;
+    padding: 14px 16px;
+    overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+
+  .metric-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 24px rgba(15, 31, 79, 0.08);
   }
 
   .metric-card__icon {
-    width: 56px;
-    height: 56px;
+    width: 42px;
+    height: 42px;
+    min-width: 42px;
     display: grid;
     place-items: center;
-    border-radius: 18px;
+    border-radius: 14px;
     color: #fff;
-    font-size: 1.4rem;
+    font-size: 1.1rem;
+    flex-shrink: 0;
   }
 
   .metric-card__icon--blue {
@@ -685,37 +694,37 @@ export default {
     background: linear-gradient(135deg, #ef4444, #fb7185);
   }
 
+  .metric-card__icon--violet {
+    background: linear-gradient(135deg, #7c3aed, #a78bfa);
+  }
+
   .metric-card__label {
     color: var(--pc-text-muted);
-    font-size: 0.875rem;
+    font-size: 0.78rem;
     font-weight: 600;
+    margin-bottom: 2px !important;
   }
 
   .metric-card__value {
-    margin: 0;
-    font-size: clamp(1.75rem, 2.1vw, 2.25rem);
-    font-weight: 800;
+    margin: 0 0 2px;
+    font-size: 1.3rem;
+    font-weight: 900;
     color: var(--pc-text);
   }
 
   .metric-card__delta {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 12px;
-    border-radius: var(--pc-radius-pill);
-    font-size: 0.8125rem;
-    font-weight: 700;
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--pc-text-muted);
   }
 
   .metric-card__delta.is-positive {
     color: #047857;
-    background: rgba(16, 185, 129, 0.12);
   }
 
   .metric-card__delta.is-warning {
     color: #b45309;
-    background: rgba(245, 158, 11, 0.14);
   }
 
   .dashboard-nav-card,

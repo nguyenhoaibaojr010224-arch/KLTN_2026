@@ -899,11 +899,16 @@ export default {
       return minutes ? `${hours} giờ ${minutes} phút` : `${hours} giờ`;
     },
     formatCurrency(value = 0) {
+      const n = Number(value || 0);
+      if (Math.abs(n) >= 1e9) {
+        const ty = n / 1e9;
+        return (Math.abs(ty) >= 10 ? Math.round(ty) : ty.toFixed(2).replace('.', ',')) + ' tỷ đ';
+      }
       return new Intl.NumberFormat("vi-VN", {
         style: "currency",
         currency: "VND",
         maximumFractionDigits: 0,
-      }).format(Number(value || 0));
+      }).format(n);
     },
     normalizeError(err, fallback = "Đã xảy ra lỗi.") {
       if (err?.payload?.errors) {

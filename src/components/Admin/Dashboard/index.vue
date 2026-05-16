@@ -37,6 +37,8 @@
     </div>
   </section>
 
+  <RevenueCharts />
+
   <section class="row g-4">
     <div class="col-xl-8">
       <article class="content-card staff-performance-card h-100">
@@ -172,51 +174,27 @@
     </div>
   </section>
 
-  <section class="content-card weekly-revenue-chart">
-    <div class="weekly-revenue-chart__head">
+  <section class="rv-card rv-card--weekly">
+    <div class="rv-card__head">
       <div>
-        <span class="weekly-revenue-chart__eyebrow">Biểu đồ doanh thu</span>
-        <h3>Doanh thu theo tuần</h3>
-        <p>{{ formatShortDate(weeklySummary.tu_ngay) }} – {{ formatShortDate(weeklySummary.den_ngay) }}</p>
+        <em>Biểu đồ doanh thu</em>
+        <h4>Doanh thu theo tuần</h4>
+        <p class="rv-card__sub">{{ formatShortDate(weeklySummary.tu_ngay) }} – {{ formatShortDate(weeklySummary.den_ngay) }}</p>
       </div>
 
-      <!-- Điều hướng tuần + chọn tháng -->
       <div class="weekly-nav">
         <div class="weekly-nav__month">
           <label class="weekly-nav__label" for="weekMonthPicker">Xem tháng</label>
-          <input
-            id="weekMonthPicker"
-            v-model="weekMonth"
-            type="month"
-            class="form-control form-control-sm"
-            aria-label="Chọn tháng xem biểu đồ tuần"
-            @change="onWeekMonthChange"
-          />
+          <input id="weekMonthPicker" v-model="weekMonth" type="month" class="form-control form-control-sm" @change="onWeekMonthChange"/>
         </div>
         <div class="weekly-nav__arrows">
-          <button
-            class="weekly-nav__btn"
-            :disabled="weekLoading"
-            title="Tuần trước"
-            @click="shiftWeek(-1)"
-          >
-            <i class="bi bi-chevron-left"></i>
-          </button>
-          <span class="weekly-nav__label">
-            {{ weekOffset === 0 ? 'Tuần này' : weekOffset < 0 ? `${Math.abs(weekOffset)} tuần trước` : `${weekOffset} tuần sau` }}
-          </span>
-          <button
-            class="weekly-nav__btn"
-            :disabled="weekLoading || weekOffset >= 0"
-            title="Tuần sau"
-            @click="shiftWeek(1)"
-          >
-            <i class="bi bi-chevron-right"></i>
-          </button>
+          <button class="weekly-nav__btn" :disabled="weekLoading" title="Tuần trước" @click="shiftWeek(-1)"><i class="bi bi-chevron-left"></i></button>
+          <span class="weekly-nav__label">{{ weekOffset === 0 ? 'Tuần này' : weekOffset < 0 ? `${Math.abs(weekOffset)} tuần trước` : `${weekOffset} tuần sau` }}</span>
+          <button class="weekly-nav__btn" :disabled="weekLoading || weekOffset >= 0" title="Tuần sau" @click="shiftWeek(1)"><i class="bi bi-chevron-right"></i></button>
         </div>
       </div>
 
-      <div class="weekly-revenue-chart__total">
+      <div class="rv-card__stat">
         <span>Tổng tuần</span>
         <strong>{{ formatCurrency(weeklySummary.tong_doanh_thu) }}</strong>
         <small>{{ weeklySummary.tong_hoa_don }} hóa đơn</small>
@@ -224,30 +202,18 @@
     </div>
 
     <div v-if="weekLoading" class="staff-performance-empty">
-      <span class="spinner-border spinner-border-sm me-2"></span>
-      Đang tải biểu đồ doanh thu tuần...
+      <span class="spinner-border spinner-border-sm me-2"></span>Đang tải...
     </div>
-    <div v-else-if="performanceError" class="staff-performance-empty text-danger">
-      {{ performanceError }}
-    </div>
-    <div v-else-if="weeklyRevenueRows.length" class="weekly-revenue-chart__canvas">
-      <div class="weekly-revenue-chart__columns">
-        <div v-for="day in weeklyRevenueRows" :key="day.ngay" class="weekly-revenue-chart__item">
-          <div class="weekly-revenue-chart__value">{{ formatCurrency(day.doanh_thu) }}</div>
-          <div class="weekly-revenue-chart__bar-area">
-            <span
-              class="weekly-revenue-chart__bar"
-              :style="{ height: `${barHeight(day.doanh_thu, weekMaxRevenue)}%` }"
-            ></span>
-          </div>
-          <strong>{{ day.thu }}</strong>
-          <small>{{ formatShortDate(day.ngay) }}</small>
-        </div>
+    <div v-else-if="performanceError" class="staff-performance-empty text-danger">{{ performanceError }}</div>
+    <div v-else-if="weeklyRevenueRows.length" class="rv-bars">
+      <div v-for="day in weeklyRevenueRows" :key="day.ngay" class="rv-bars__col">
+        <div class="rv-bars__val">{{ formatCurrency(day.doanh_thu) }}</div>
+        <div class="rv-bars__track"><span class="rv-bars__fill rv-bars__fill--gradient" :style="{ height: `${barHeight(day.doanh_thu, weekMaxRevenue)}%` }"></span></div>
+        <strong>{{ day.thu }}</strong>
+        <small>{{ formatShortDate(day.ngay) }}</small>
       </div>
     </div>
-    <div v-else class="staff-performance-empty">
-      Chưa có dữ liệu doanh thu trong tuần này.
-    </div>
+    <div v-else class="staff-performance-empty">Chưa có dữ liệu doanh thu trong tuần này.</div>
   </section>
 
 </template>
@@ -255,6 +221,7 @@
 <script>
 import { getStaffPerformanceChart } from '../../../api/dashboardApi';
 import DatePickerInput from '../../Common/DatePickerInput.vue';
+import RevenueCharts from './RevenueCharts.vue';
 import { authState } from '../../../lib/authStorage';
 import { formatDateInputValue, parseDateInputValue } from '../../../lib/dateInput';
 import { normalizeApiError } from '../../../lib/errorMessages';
@@ -284,6 +251,7 @@ export default {
   name: 'DashboardAdmin',
   components: {
     DatePickerInput,
+    RevenueCharts,
   },
 
   data() {
@@ -471,7 +439,12 @@ export default {
     },
 
     formatCurrency(value) {
-      return currencyFormatter.format(Number(value || 0));
+      const n = Number(value || 0);
+      if (Math.abs(n) >= 1e9) {
+        const ty = n / 1e9;
+        return (Math.abs(ty) >= 10 ? Math.round(ty) : ty.toFixed(2).replace('.', ',')) + ' tỷ đ';
+      }
+      return currencyFormatter.format(n);
     },
 
     formatDateTime(value) {
@@ -535,77 +508,33 @@ export default {
 </script>
 
 <style scoped>
-/* ===== Điều hướng tuần trên biểu đồ ===== */
-.weekly-revenue-chart__head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-}
+/* ===== Unified rv-card & rv-bars (matches RevenueCharts.vue) ===== */
+.rv-card{border:1px solid rgba(22,82,197,.06);border-radius:22px;padding:24px;background:#fff;box-shadow:0 2px 12px rgba(15,31,79,.04)}
+.rv-card--weekly{background:radial-gradient(circle at top right,rgba(20,184,166,.08),transparent 34%),#fff}
+.rv-card__head{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:20px}
+.rv-card__head em{display:block;font-style:normal;color:#1652c5;font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;margin-bottom:3px}
+.rv-card__head h4{margin:0;color:#0f172a;font-size:1.1rem;font-weight:800}
+.rv-card__sub{margin:4px 0 0;color:#64748b;font-size:.84rem;font-weight:700}
+.rv-card__stat span{display:block;color:#64748b;font-size:.8rem;font-weight:600;text-align:right}
+.rv-card__stat strong{display:block;color:#059669;font-size:1.1rem;font-weight:900}
+.rv-card__stat small{display:block;margin-top:2px;color:#64748b;font-size:.8rem;font-weight:700;text-align:right}
 
-.weekly-nav {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.75rem;
-  margin-left: auto;
-}
+.rv-bars{display:flex;gap:14px;align-items:flex-end;overflow-x:auto;padding:4px 0}
+.rv-bars__col{flex:1;min-width:56px;text-align:center}
+.rv-bars__val{color:#0f172a;font-size:.68rem;font-weight:800;margin-bottom:6px;line-height:1.2}
+.rv-bars__track{height:200px;display:flex;align-items:flex-end;justify-content:center}
+.rv-bars__fill{width:42px;min-height:4px;border-radius:8px 8px 3px 3px;transition:height .6s cubic-bezier(.4,0,.2,1)}
+.rv-bars__fill--gradient{background:linear-gradient(180deg,#60a5fa 0%,#1652c5 100%);box-shadow:0 6px 20px rgba(59,130,246,.3)}
+.rv-bars__col:hover .rv-bars__fill--gradient{background:linear-gradient(180deg,#93c5fd 0%,#2563eb 100%);box-shadow:0 8px 28px rgba(59,130,246,.4)}
+.rv-bars__col strong{display:block;margin-top:8px;color:#0f172a;font-size:.78rem;font-weight:800}
+.rv-bars__col small{color:#94a3b8;font-size:.7rem;font-weight:600}
 
-.weekly-nav__month {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.weekly-nav__label {
-  font-size: 0.8rem;
-  color: #6c757d;
-  white-space: nowrap;
-  font-weight: 500;
-}
-
-.weekly-nav__arrows {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  background: #f0f4ff;
-  border-radius: 8px;
-  padding: 0.25rem 0.5rem;
-}
-
-.weekly-nav__btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  border: none;
-  background: white;
-  border-radius: 6px;
-  color: #3b5bdb;
-  font-size: 0.85rem;
-  cursor: pointer;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  transition: background 0.15s, box-shadow 0.15s;
-}
-
-.weekly-nav__btn:hover:not(:disabled) {
-  background: #3b5bdb;
-  color: white;
-  box-shadow: 0 2px 6px rgba(59, 91, 219, 0.35);
-}
-
-.weekly-nav__btn:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-}
-
-.weekly-nav__label {
-  min-width: 90px;
-  text-align: center;
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: #3b5bdb;
-}
+/* ===== Week navigation ===== */
+.weekly-nav{display:flex;flex-wrap:wrap;align-items:center;gap:.75rem;margin-left:auto}
+.weekly-nav__month{display:flex;align-items:center;gap:.5rem}
+.weekly-nav__label{font-size:.78rem;font-weight:600;color:#3b5bdb;white-space:nowrap;min-width:90px;text-align:center}
+.weekly-nav__arrows{display:flex;align-items:center;gap:.35rem;background:#f0f4ff;border-radius:8px;padding:.25rem .5rem}
+.weekly-nav__btn{display:flex;align-items:center;justify-content:center;width:30px;height:30px;border:none;background:#fff;border-radius:6px;color:#3b5bdb;font-size:.85rem;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.1);transition:background .15s,box-shadow .15s}
+.weekly-nav__btn:hover:not(:disabled){background:#3b5bdb;color:#fff;box-shadow:0 2px 6px rgba(59,91,219,.35)}
+.weekly-nav__btn:disabled{opacity:.35;cursor:not-allowed}
 </style>

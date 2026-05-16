@@ -723,9 +723,12 @@ function senderLabel(message) {
 }
 
 function formatCurrency(value) {
-  const amount = Number(value || 0);
-
-  return `${amount.toLocaleString("vi-VN")}đ`;
+  const n = Number(value || 0);
+  if (Math.abs(n) >= 1e9) {
+    const ty = n / 1e9;
+    return (Math.abs(ty) >= 10 ? Math.round(ty) : ty.toFixed(2).replace('.', ',')) + ' tỷ đ';
+  }
+  return `${n.toLocaleString("vi-VN")}đ`;
 }
 
 function formatDateTime(value) {
