@@ -208,6 +208,7 @@ Route::prefix('dashboard')
     ->middleware(['auth:sanctum', 'nhan_vien.role:admin,staff'])
     ->group(function () {
         Route::get('/staff-performance', [DashboardAnalyticsController::class, 'staffPerformance']);
+        Route::get('/revenue-overview', [DashboardAnalyticsController::class, 'revenueOverview']);
     });
 
 Route::prefix('chi-tiet-hoa-dons')

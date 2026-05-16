@@ -213,4 +213,130 @@ class DashboardAnalyticsController extends Controller
             ->sortByDesc('doanh_thu')
             ->values();
     }
+
+    /* ================================================================
+     *  Tổng quan doanh thu – cung cấp dữ liệu cho nhiều biểu đồ
+     * ================================================================ */
+
+    public function revenueOverview(Request $request): JsonResponse
+    {
+        $months = min((int) ($request->query('months') ?: 3), 12);
+        $from   = now()->subMonths($months)->startOfMonth();
+        $to     = now()->endOfDay();
+
+        // 1. Doanh thu theo tháng (line/bar chart)
+        $monthlyRevenue = \DB::table('hoa_dons')
+            ->whereIn('trang_thai_xu_ly', ['da_xac_nhan', 'hoan_thanh'])
+            ->whereBetween('ngay_ban', [$from, $to])
+            ->selectRaw("strftime('%Y-%m', ngay_ban) as thang, COUNT(*) as so_don, COALESCE(SUM(tien_thanh_toan),0) as doanh_thu, COALESCE(SUM(giam_gia),0) as tong_giam_gia")
+            ->groupByRaw("strftime('%Y-%m', ngay_ban)")
+            ->orderBy('thang')
+            ->get();
+
+        // 2. Doanh thu theo ngày trong tháng hiện tại (area chart)
+        $currentMonthStart = now()->startOfMonth();
+        $dailyRevenue = \DB::table('hoa_dons')
+            ->whereIn('trang_thai_xu_ly', ['da_xac_nhan', 'hoan_thanh'])
+            ->whereBetween('ngay_ban', [$currentMonthStart, $to])
+            ->selectRaw("strftime('%Y-%m-%d', ngay_ban) as ngay, COUNT(*) as so_don, COALESCE(SUM(tien_thanh_toan),0) as doanh_thu")
+            ->groupByRaw("strftime('%Y-%m-%d', ngay_ban)")
+            ->orderBy('ngay')
+            ->get();
+
+        // 3. Phân bổ phương thức thanh toán (pie/donut chart)
+        $paymentMethods = \DB::table('thanh_toan')
+            ->join('hoa_dons', 'thanh_toan.id_hoa_don', '=', 'hoa_dons.id_hoa_don')
+            ->whereIn('hoa_dons.trang_thai_xu_ly', ['da_xac_nhan', 'hoan_thanh'])
+            ->where('thanh_toan.trang_thai', 'paid')
+            ->whereBetween('hoa_dons.ngay_ban', [$from, $to])
+            ->selectRaw("thanh_toan.phuong_thuc, COUNT(*) as so_giao_dich, COALESCE(SUM(thanh_toan.so_tien),0) as tong_tien")
+            ->groupBy('thanh_toan.phuong_thuc')
+            ->get()
+            ->map(fn ($r) => [
+                'phuong_thuc' => $r->phuong_thuc === 'tien_mat' ? 'Tiền mặt' : ($r->phuong_thuc === 'chuyen_khoan' ? 'Chuyển khoản' : $r->phuong_thuc),
+                'so_giao_dich' => (int) $r->so_giao_dich,
+                'tong_tien' => round((float) $r->tong_tien, 2),
+            ]);
+
+        // 4. Doanh thu theo kênh bán (pie chart)
+        $salesChannels = \DB::table('hoa_dons')
+            ->whereIn('trang_thai_xu_ly', ['da_xac_nhan', 'hoan_thanh'])
+            ->whereBetween('ngay_ban', [$from, $to])
+            ->selectRaw("kenh_ban, COUNT(*) as so_don, COALESCE(SUM(tien_thanh_toan),0) as doanh_thu")
+            ->groupBy('kenh_ban')
+            ->get()
+            ->map(fn ($r) => [
+                'kenh_ban' => $r->kenh_ban === 'he_thong' ? 'Hệ thống' : ($r->kenh_ban === 'tai_quay' ? 'Tại quầy' : ($r->kenh_ban === 'online' ? 'Online' : $r->kenh_ban)),
+                'so_don' => (int) $r->so_don,
+                'doanh_thu' => round((float) $r->doanh_thu, 2),
+            ]);
+
+        // 5. Top sản phẩm bán chạy (horizontal bar chart)
+        $topProducts = \DB::table('chi_tiet_hoa_don')
+            ->join('hoa_dons', 'chi_tiet_hoa_don.id_hoa_don', '=', 'hoa_dons.id_hoa_don')
+            ->join('lo_thuocs', 'chi_tiet_hoa_don.id_lo', '=', 'lo_thuocs.id_lo')
+            ->join('thuocs', 'lo_thuocs.id_thuoc', '=', 'thuocs.ma_thuoc')
+            ->whereIn('hoa_dons.trang_thai_xu_ly', ['da_xac_nhan', 'hoan_thanh'])
+            ->whereBetween('hoa_dons.ngay_ban', [$from, $to])
+            ->selectRaw("thuocs.ten_thuoc, SUM(chi_tiet_hoa_don.so_luong) as tong_so_luong, COALESCE(SUM(chi_tiet_hoa_don.thanh_tien),0) as tong_doanh_thu")
+            ->groupBy('thuocs.ten_thuoc')
+            ->orderByDesc('tong_doanh_thu')
+            ->limit(8)
+            ->get();
+
+        // 6. Tổng quan chung
+        $totalRevenue = (float) \DB::table('hoa_dons')
+            ->whereIn('trang_thai_xu_ly', ['da_xac_nhan', 'hoan_thanh'])
+            ->whereBetween('ngay_ban', [$from, $to])
+            ->sum('tien_thanh_toan');
+
+        $totalOrders = (int) \DB::table('hoa_dons')
+            ->whereIn('trang_thai_xu_ly', ['da_xac_nhan', 'hoan_thanh'])
+            ->whereBetween('ngay_ban', [$from, $to])
+            ->count();
+
+        $todayRevenue = (float) \DB::table('hoa_dons')
+            ->whereIn('trang_thai_xu_ly', ['da_xac_nhan', 'hoan_thanh'])
+            ->whereBetween('ngay_ban', [now()->startOfDay(), now()->endOfDay()])
+            ->sum('tien_thanh_toan');
+
+        $todayOrders = (int) \DB::table('hoa_dons')
+            ->whereIn('trang_thai_xu_ly', ['da_xac_nhan', 'hoan_thanh'])
+            ->whereBetween('ngay_ban', [now()->startOfDay(), now()->endOfDay()])
+            ->count();
+
+        // Tháng trước để tính tăng trưởng
+        $lastMonthRevenue = (float) \DB::table('hoa_dons')
+            ->whereIn('trang_thai_xu_ly', ['da_xac_nhan', 'hoan_thanh'])
+            ->whereBetween('ngay_ban', [now()->subMonth()->startOfMonth(), now()->subMonth()->endOfMonth()])
+            ->sum('tien_thanh_toan');
+
+        $thisMonthRevenue = (float) \DB::table('hoa_dons')
+            ->whereIn('trang_thai_xu_ly', ['da_xac_nhan', 'hoan_thanh'])
+            ->whereBetween('ngay_ban', [now()->startOfMonth(), now()->endOfDay()])
+            ->sum('tien_thanh_toan');
+
+        $growthPercent = $lastMonthRevenue > 0
+            ? round(($thisMonthRevenue - $lastMonthRevenue) / $lastMonthRevenue * 100, 1)
+            : 0;
+
+        return response()->json([
+            'message' => 'Tổng quan doanh thu thành công.',
+            'data' => [
+                'tong_quan' => [
+                    'tong_doanh_thu' => round($totalRevenue, 2),
+                    'tong_don_hang' => $totalOrders,
+                    'doanh_thu_hom_nay' => round($todayRevenue, 2),
+                    'don_hang_hom_nay' => $todayOrders,
+                    'doanh_thu_thang_nay' => round($thisMonthRevenue, 2),
+                    'tang_truong_phan_tram' => $growthPercent,
+                ],
+                'doanh_thu_theo_thang' => $monthlyRevenue,
+                'doanh_thu_theo_ngay' => $dailyRevenue,
+                'phuong_thuc_thanh_toan' => $paymentMethods,
+                'kenh_ban' => $salesChannels,
+                'san_pham_ban_chay' => $topProducts,
+            ],
+        ]);
+    }
 }
