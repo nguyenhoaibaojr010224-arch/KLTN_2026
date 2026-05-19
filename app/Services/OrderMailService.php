@@ -58,7 +58,7 @@ class OrderMailService
         }
 
         try {
-            Mail::to($hoaDon->khachHang->email)->send(new OrderRejectedMail(
+            Mail::to($hoaDon->khachHang->email)->sendNow(new OrderRejectedMail(
                 $hoaDon->khachHang,
                 $hoaDon,
                 (string) $hoaDon->ly_do_tu_choi,

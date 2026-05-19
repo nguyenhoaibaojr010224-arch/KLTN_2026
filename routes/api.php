@@ -80,6 +80,7 @@ Route::prefix('admin')
         Route::get('/lo-thuocs', [LoThuocController::class, 'index']);
         Route::post('/lo-thuocs', [LoThuocController::class, 'store']);
         Route::get('/lo-thuocs/{id}', [LoThuocController::class, 'show']);
+        Route::post('/lo-thuocs/{id}/dispose', [LoThuocController::class, 'dispose']);
         Route::put('/lo-thuocs/{id}', [LoThuocController::class, 'update']);
         Route::delete('/lo-thuocs/{id}', [LoThuocController::class, 'destroy']);
 

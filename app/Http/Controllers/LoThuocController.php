@@ -130,15 +130,61 @@ class LoThuocController extends Controller
 
     public function destroy($id): JsonResponse
     {
-        $loThuoc = LoThuoc::find($id);
+        $loThuoc = LoThuoc::with('thuoc')->find($id);
 
         if (! $loThuoc) {
             return response()->json(['message' => 'Không tìm thấy lô thuốc'], 404);
         }
 
+        $isExpired = Carbon::parse($loThuoc->han_su_dung)->lt(Carbon::now()->startOfDay());
+        $remainingStock = (int) $loThuoc->so_luong_con;
+
+        if (! $isExpired && $remainingStock > 0) {
+            return response()->json([
+                'message' => 'Chi duoc xoa lo da het han hoac lo khong con ton kho.',
+                'data' => $loThuoc,
+            ], 409);
+        }
+
+        if ($remainingStock > 0) {
+            $loThuoc->so_luong_con = 0;
+            $loThuoc->save();
+        }
+
         $loThuoc->delete();
 
-        return response()->json(['message' => 'Xoá thành công']);
+        return response()->json([
+            'message' => 'Xoa lo thuoc thanh cong.',
+            'so_luong_da_huy' => $remainingStock,
+        ]);
+
+    }
+
+    public function dispose(Request $request, $id): JsonResponse
+    {
+        $loThuoc = LoThuoc::with('thuoc')->find($id);
+
+        if (! $loThuoc) {
+            return response()->json(['message' => 'Khong tim thay lo thuoc'], 404);
+        }
+
+        if ((int) $loThuoc->so_luong_con <= 0) {
+            return response()->json([
+                'message' => 'Lo thuoc nay khong con ton de huy.',
+                'data' => $loThuoc,
+            ]);
+        }
+
+        $remainingQuantity = (int) $loThuoc->so_luong_con;
+        $loThuoc->so_luong_con = 0;
+        $loThuoc->save();
+
+        return response()->json([
+            'message' => 'Da huy ton kho cua lo thuoc.',
+            'data' => $loThuoc->fresh()->load('thuoc'),
+            'so_luong_da_huy' => $remainingQuantity,
+            'ly_do' => $request->input('ly_do', 'Huy ton lo het han'),
+        ]);
     }
 
     public function search(Request $request): JsonResponse
@@ -165,11 +211,12 @@ class LoThuocController extends Controller
     public function expiring(Request $request): JsonResponse
     {
         $days = (int) $request->get('days', 30);
-        $thresholdDate = Carbon::now()->addDays($days);
+        $today = Carbon::now()->startOfDay();
+        $thresholdDate = $today->copy()->addDays($days);
 
         $loThuocs = LoThuoc::with('thuoc')
             ->where('han_su_dung', '<=', $thresholdDate->format('Y-m-d'))
-            ->where('han_su_dung', '>=', Carbon::now()->format('Y-m-d'))
+            ->where('so_luong_con', '>', 0)
             ->get();
 
         return response()->json($loThuocs);
@@ -184,38 +231,51 @@ class LoThuocController extends Controller
 
         $expiringLots = LoThuoc::with('thuoc')
             ->where('so_luong_con', '>', 0)
-            ->whereDate('han_su_dung', '>=', $today->toDateString())
             ->whereDate('han_su_dung', '<=', $expiryLimit->toDateString())
             ->orderBy('han_su_dung')
             ->get()
             ->map(function (LoThuoc $loThuoc) use ($today): array {
                 $expiryDate = Carbon::parse($loThuoc->han_su_dung)->startOfDay();
+                $daysUntilExpiry = (int) $today->diffInDays($expiryDate, false);
+                $expired = $daysUntilExpiry < 0;
 
                 return [
-                    'id' => 'expiring-lot-' . $loThuoc->id_lo,
-                    'type' => 'expiring_lot',
+                    'id' => ($expired ? 'expired-lot-' : 'expiring-lot-') . $loThuoc->id_lo,
+                    'type' => $expired ? 'expired_lot' : 'expiring_lot',
                     'id_lo' => $loThuoc->id_lo,
                     'so_lo' => $loThuoc->so_lo,
                     'ma_thuoc' => $loThuoc->id_thuoc,
                     'ten_thuoc' => $loThuoc->thuoc?->ten_thuoc,
                     'han_su_dung' => $loThuoc->han_su_dung,
-                    'so_ngay_con_lai' => max(0, (int) $today->diffInDays($expiryDate, false)),
+                    'so_ngay_con_lai' => max(0, $daysUntilExpiry),
+                    'so_ngay_qua_han' => max(0, abs($daysUntilExpiry)),
+                    'da_het_han' => $expired,
                     'so_luong_con' => (float) $loThuoc->so_luong_con,
                     'don_vi_ton_kho' => $loThuoc->don_vi_co_so ?: $loThuoc->thuoc?->baseUnitName(),
-                    'message' => sprintf(
-                        'Lô %s của %s sắp hết hạn vào %s.',
-                        $loThuoc->so_lo,
-                        $loThuoc->thuoc?->ten_thuoc ?? $loThuoc->id_thuoc,
-                        Carbon::parse($loThuoc->han_su_dung)->format('d/m/Y')
-                    ),
+                    'message' => $expired
+                        ? sprintf(
+                            'Lo %s cua %s da het han tu %s, can ngung ban va huy ton.',
+                            $loThuoc->so_lo,
+                            $loThuoc->thuoc?->ten_thuoc ?? $loThuoc->id_thuoc,
+                            Carbon::parse($loThuoc->han_su_dung)->format('d/m/Y')
+                        )
+                        : sprintf(
+                            'Lo %s cua %s sap het han vao %s.',
+                            $loThuoc->so_lo,
+                            $loThuoc->thuoc?->ten_thuoc ?? $loThuoc->id_thuoc,
+                            Carbon::parse($loThuoc->han_su_dung)->format('d/m/Y')
+                        ),
                     'lo_thuoc' => $loThuoc,
                     'thuoc' => $loThuoc->thuoc,
                 ];
             })
             ->values();
 
-        $lowStockMedicines = Thuoc::with(['loThuocs' => function ($query): void {
-            $query->where('so_luong_con', '>', 0)->orderBy('so_luong_con');
+        $lowStockMedicines = Thuoc::with(['loThuocs' => function ($query) use ($today): void {
+            $query
+                ->where('so_luong_con', '>', 0)
+                ->whereDate('han_su_dung', '>=', $today->toDateString())
+                ->orderBy('so_luong_con');
         }])
             ->get()
             ->map(function (Thuoc $thuoc) use ($lowStockThreshold): ?array {

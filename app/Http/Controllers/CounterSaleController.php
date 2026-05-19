@@ -478,6 +478,12 @@ class CounterSaleController extends Controller
                 ]);
             }
 
+            if (Carbon::parse($loThuoc->han_su_dung)->startOfDay()->lt(Carbon::now()->startOfDay())) {
+                throw ValidationException::withMessages([
+                    'items' => ['Lo thuoc trong phien PayOS da het han, vui long tao lai hoa don.'],
+                ]);
+            }
+
             $loThuoc->so_luong_con = max((int) $loThuoc->so_luong_con - $soLuong, 0);
             $loThuoc->save();
 
@@ -569,6 +575,7 @@ class CounterSaleController extends Controller
             $lockedLotsByThuoc[$maThuoc] = LoThuoc::query()
                 ->where('id_thuoc', $maThuoc)
                 ->where('so_luong_con', '>', 0)
+                ->whereDate('han_su_dung', '>=', Carbon::now()->toDateString())
                 ->orderByRaw('CASE WHEN han_su_dung IS NULL THEN 1 ELSE 0 END')
                 ->orderBy('han_su_dung')
                 ->orderBy('id_lo')

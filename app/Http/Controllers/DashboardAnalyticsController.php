@@ -148,7 +148,15 @@ class DashboardAnalyticsController extends Controller
 
     private function loginSummaryByEmployee(Carbon $from, Carbon $to, bool $includeLoginDays = false)
     {
-        $select = 'id_nhan_vien, count(*) as so_lan_dang_nhap, max(thoi_gian_dang_nhap) as lan_dang_nhap_cuoi';
+        $select = implode(', ', [
+            'id_nhan_vien',
+            'count(*) as so_lan_dang_nhap',
+            'max(thoi_gian_dang_nhap) as lan_dang_nhap_cuoi',
+            "max(case when kenh_dang_nhap = 'he_thong' then thoi_gian_dang_nhap end) as dang_nhap_he_thong",
+            "max(case when kenh_dang_nhap = 'tai_quay' then thoi_gian_dang_nhap end) as dang_nhap_tai_quay",
+            "max(case when kenh_dang_nhap = 'he_thong' then thoi_gian_dang_xuat end) as dang_xuat_he_thong",
+            "max(case when kenh_dang_nhap = 'tai_quay' then thoi_gian_dang_xuat end) as dang_xuat_tai_quay",
+        ]);
 
         if ($includeLoginDays) {
             $select .= ', count(distinct date(thoi_gian_dang_nhap)) as so_ngay_dang_nhap';
@@ -199,6 +207,10 @@ class DashboardAnalyticsController extends Controller
                     'vai_tro' => $employee->vaiTro?->ten_vai_tro,
                     'so_lan_dang_nhap' => (int) ($login->so_lan_dang_nhap ?? 0),
                     'lan_dang_nhap_cuoi' => $login?->lan_dang_nhap_cuoi,
+                    'dang_nhap_he_thong' => $login?->dang_nhap_he_thong,
+                    'dang_nhap_tai_quay' => $login?->dang_nhap_tai_quay,
+                    'dang_xuat_he_thong' => $login?->dang_xuat_he_thong,
+                    'dang_xuat_tai_quay' => $login?->dang_xuat_tai_quay,
                     'so_hoa_don' => (int) ($sale->so_hoa_don ?? 0),
                     'doanh_thu' => round((float) ($sale->doanh_thu ?? 0), 2),
                 ];
@@ -228,8 +240,8 @@ class DashboardAnalyticsController extends Controller
         $monthlyRevenue = \DB::table('hoa_dons')
             ->whereIn('trang_thai_xu_ly', ['da_xac_nhan', 'hoan_thanh'])
             ->whereBetween('ngay_ban', [$from, $to])
-            ->selectRaw("strftime('%Y-%m', ngay_ban) as thang, COUNT(*) as so_don, COALESCE(SUM(tien_thanh_toan),0) as doanh_thu, COALESCE(SUM(giam_gia),0) as tong_giam_gia")
-            ->groupByRaw("strftime('%Y-%m', ngay_ban)")
+            ->selectRaw("DATE_FORMAT(ngay_ban, '%Y-%m') as thang, COUNT(*) as so_don, COALESCE(SUM(tien_thanh_toan),0) as doanh_thu, COALESCE(SUM(giam_gia),0) as tong_giam_gia")
+            ->groupByRaw("DATE_FORMAT(ngay_ban, '%Y-%m')")
             ->orderBy('thang')
             ->get();
 
@@ -238,8 +250,8 @@ class DashboardAnalyticsController extends Controller
         $dailyRevenue = \DB::table('hoa_dons')
             ->whereIn('trang_thai_xu_ly', ['da_xac_nhan', 'hoan_thanh'])
             ->whereBetween('ngay_ban', [$currentMonthStart, $to])
-            ->selectRaw("strftime('%Y-%m-%d', ngay_ban) as ngay, COUNT(*) as so_don, COALESCE(SUM(tien_thanh_toan),0) as doanh_thu")
-            ->groupByRaw("strftime('%Y-%m-%d', ngay_ban)")
+            ->selectRaw("DATE_FORMAT(ngay_ban, '%Y-%m-%d') as ngay, COUNT(*) as so_don, COALESCE(SUM(tien_thanh_toan),0) as doanh_thu")
+            ->groupByRaw("DATE_FORMAT(ngay_ban, '%Y-%m-%d')")
             ->orderBy('ngay')
             ->get();
 

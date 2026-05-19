@@ -77,32 +77,46 @@ class SupportChatController extends Controller
         ]);
 
         $customerMessage = trim($validated['noi_dung']);
-        $aiResult = $this->supportAiService->replyToCustomerQuestion($customerMessage);
-        $needsPharmacist = (bool) ($aiResult['needs_pharmacist'] ?? false);
-        $aiReply = trim((string) ($aiResult['reply'] ?? ''));
-        $intent = trim((string) ($aiResult['intent'] ?? 'tra_cuu_thuoc'));
-        $purchaseAction = $aiResult['purchase_action'] ?? null;
-        $suggestedProducts = $this->supportAiService->buildSuggestedProductsPayload(
-            collect($aiResult['matched_products'] ?? [])
-        );
+        $lookup = $khachHang instanceof KhachHang
+            ? ['id_khach_hang' => $khachHang->id_khach_hang]
+            : ['guest_session_id' => $guestSessionId];
+        $humanHandled = $this->conversationHasStaffReply($lookup);
+        $needsPharmacist = true;
+        $aiReply = '';
+        $intent = 'nhan_vien_dang_ho_tro';
+        $purchaseAction = null;
+        $suggestedProducts = [];
 
-        $conversation = DB::transaction(function () use ($khachHang, $guestSessionId, $customerMessage, $needsPharmacist, $aiReply, $suggestedProducts, $intent, $purchaseAction) {
-            $lookup = $khachHang instanceof KhachHang
-                ? ['id_khach_hang' => $khachHang->id_khach_hang]
-                : ['guest_session_id' => $guestSessionId];
+        if (! $humanHandled) {
+            $aiResult = $this->supportAiService->replyToCustomerQuestion($customerMessage);
+            $needsPharmacist = (bool) ($aiResult['needs_pharmacist'] ?? false);
+            $aiReply = trim((string) ($aiResult['reply'] ?? ''));
+            $intent = trim((string) ($aiResult['intent'] ?? 'tra_cuu_thuoc'));
+            $purchaseAction = $aiResult['purchase_action'] ?? null;
+            $suggestedProducts = $this->supportAiService->buildSuggestedProductsPayload(
+                collect($aiResult['matched_products'] ?? [])
+            );
+        }
 
+        $conversation = DB::transaction(function () use ($khachHang, $lookup, $customerMessage, $needsPharmacist, $aiReply, $suggestedProducts, $intent, $purchaseAction, $humanHandled) {
             $conversation = HoTroHoiThoai::query()->firstOrCreate($lookup, [
                 'guest_display_name' => $khachHang instanceof KhachHang ? null : 'Khách Vãng Lai',
                 'trang_thai' => 'moi',
                 'thoi_gian_tin_nhan_cuoi' => now(),
             ]);
 
+            $humanHandledInTransaction = $humanHandled || $conversation->tinNhans()
+                ->where('nguoi_gui_loai', 'staff')
+                ->exists();
             $customerMessageTime = now();
             $aiMessageTime = $customerMessageTime->copy()->addSecond();
-            $lastMessageTime = $aiReply !== '' ? $aiMessageTime : $customerMessageTime;
+            $shouldCreateAiReply = ! $humanHandledInTransaction && $aiReply !== '';
+            $lastMessageTime = $shouldCreateAiReply ? $aiMessageTime : $customerMessageTime;
 
             $conversation->update([
-                'trang_thai' => $needsPharmacist ? 'moi' : 'dang_trao_doi',
+                'trang_thai' => $humanHandledInTransaction
+                    ? 'dang_trao_doi'
+                    : ($needsPharmacist ? 'moi' : 'dang_trao_doi'),
                 'thoi_gian_tin_nhan_cuoi' => $lastMessageTime,
             ]);
 
@@ -115,7 +129,7 @@ class SupportChatController extends Controller
                 'thoi_gian' => $customerMessageTime,
             ]);
 
-            if ($aiReply !== '') {
+            if ($shouldCreateAiReply) {
                 HoTroTinNhan::create([
                     'id_hoi_thoai' => $conversation->id_hoi_thoai,
                     'nguoi_gui_loai' => 'ai',
@@ -349,6 +363,14 @@ class SupportChatController extends Controller
                     ->where('nguoi_gui_loai', 'customer')
                     ->where('da_doc', false),
             ]);
+    }
+
+    private function conversationHasStaffReply(array $lookup): bool
+    {
+        return HoTroHoiThoai::query()
+            ->where($lookup)
+            ->whereHas('tinNhans', fn (Builder $query) => $query->where('nguoi_gui_loai', 'staff'))
+            ->exists();
     }
 
     private function resolveSupportCustomer(Request $request): ?KhachHang

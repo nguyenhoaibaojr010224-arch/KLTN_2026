@@ -19,6 +19,7 @@ use App\Services\RewardPointService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -128,6 +129,7 @@ class HoaDonController extends Controller
             ->map(function (HoaDon $hoaDon): array {
                 $paymentMethod = (string) ($hoaDon->thanhToan?->phuong_thuc ?? '');
                 $paymentStatus = (string) ($hoaDon->thanhToan?->trang_thai ?? '');
+                $missingSystemStaff = ! $this->hasNonAdminSystemEmployeeLoggedInAt($hoaDon->ngay_ban);
                 $notificationCopy = match (true) {
                     $paymentMethod === 'payos' && $paymentStatus === 'pending' => 'Đơn PayOS đang chờ khách thanh toán',
                     $paymentMethod === 'payos' && $paymentStatus === 'paid' => 'Đơn PayOS đã thanh toán',
@@ -135,6 +137,10 @@ class HoaDonController extends Controller
                     $paymentMethod === 'tien_mat' && $paymentStatus === 'paid' => 'Đơn tiền mặt đã thanh toán',
                     default => 'Đơn hàng hệ thống mới',
                 };
+
+                if ($missingSystemStaff) {
+                    $notificationCopy = 'Chưa có nhân viên đăng nhập hệ thống khi khách đặt hàng. Admin cần kiểm tra và phân công xử lý đơn.';
+                }
 
                 return [
                     'id_hoa_don' => $hoaDon->id_hoa_don,
@@ -149,6 +155,8 @@ class HoaDonController extends Controller
                     'trang_thai_xu_ly' => $hoaDon->trang_thai_xu_ly,
                     'kenh_ban' => $hoaDon->kenh_ban,
                     'noi_dung_thong_bao' => $notificationCopy,
+                    'can_canh_bao_chua_co_nhan_vien_he_thong' => $missingSystemStaff,
+                    'loai_thong_bao' => $missingSystemStaff ? 'chua_co_nhan_vien_he_thong' : 'don_hang_moi',
                     'thanh_toan' => [
                         'phuong_thuc' => $paymentMethod,
                         'trang_thai' => $paymentStatus,
@@ -400,7 +408,7 @@ class HoaDonController extends Controller
                 ]);
             }
 
-            if ($hoaDon->trang_thai_xu_ly !== 'cho_xac_nhan') {
+            if (! $this->canRejectOrder($hoaDon)) {
                 throw ValidationException::withMessages([
                     'trang_thai' => ['Chỉ đơn hàng đang chờ xác nhận mới được từ chối.'],
                 ]);
@@ -409,6 +417,12 @@ class HoaDonController extends Controller
             $this->restoreReservedInventory($hoaDon);
             $rewardPoints->restore($hoaDon);
             $this->restoreCustomerRewardsAndCoupon($hoaDon);
+
+            if ($hoaDon->thanhToan && $hoaDon->thanhToan->phuong_thuc !== 'payos' && $hoaDon->thanhToan->trang_thai !== 'paid') {
+                $hoaDon->thanhToan->forceFill([
+                    'trang_thai' => 'canceled',
+                ])->save();
+            }
 
             $hoaDon->update([
                 'id_nhan_vien' => $request->user()->id_nhan_vien,
@@ -449,6 +463,35 @@ class HoaDonController extends Controller
             ])
             ->orderByDesc('ngay_ban')
             ->orderByDesc('id_hoa_don');
+    }
+
+    private function hasNonAdminSystemEmployeeLoggedInAt(mixed $orderTime): bool
+    {
+        if (! $orderTime) {
+            return false;
+        }
+
+        $orderedAt = $orderTime instanceof Carbon ? $orderTime->copy() : Carbon::parse($orderTime);
+
+        return NhanVienDangNhapLog::query()
+            ->where('kenh_dang_nhap', 'he_thong')
+            ->where('dang_hoat_dong', true)
+            ->where('thoi_gian_dang_nhap', '<=', $orderedAt)
+            ->where(function (Builder $query) use ($orderedAt): void {
+                $query->whereNull('thoi_gian_dang_xuat')
+                    ->orWhere('thoi_gian_dang_xuat', '>=', $orderedAt);
+            })
+            ->where(function (Builder $query) use ($orderedAt): void {
+                $query->whereNull('het_han_luc')
+                    ->orWhere('het_han_luc', '>', $orderedAt);
+            })
+            ->whereHas('nhanVien', function (Builder $query): void {
+                $query->where('trang_thai', 'active')
+                    ->whereHas('vaiTro', function (Builder $roleQuery): void {
+                        $roleQuery->whereRaw('LOWER(ten_vai_tro) <> ?', ['admin']);
+                    });
+            })
+            ->exists();
     }
 
     private function revenueQuery(): Builder
@@ -524,6 +567,18 @@ class HoaDonController extends Controller
         }
 
         return $hoaDon->thanhToan?->trang_thai === 'paid';
+    }
+
+    private function canRejectOrder(HoaDon $hoaDon): bool
+    {
+        if ($hoaDon->trang_thai_xu_ly === 'cho_xac_nhan') {
+            return true;
+        }
+
+        return $hoaDon->trang_thai_xu_ly === 'da_xac_nhan'
+            && $hoaDon->thanhToan
+            && $hoaDon->thanhToan?->phuong_thuc !== 'payos'
+            && $hoaDon->thanhToan?->trang_thai !== 'paid';
     }
 
     private function restoreCustomerRewardsAndCoupon(HoaDon $hoaDon): void
@@ -621,7 +676,7 @@ class HoaDonController extends Controller
         }
 
         try {
-            Mail::to($hoaDon->khachHang->email)->send(new OrderRejectedMail(
+            Mail::to($hoaDon->khachHang->email)->sendNow(new OrderRejectedMail(
                 $hoaDon->khachHang,
                 $hoaDon,
                 (string) $hoaDon->ly_do_tu_choi,

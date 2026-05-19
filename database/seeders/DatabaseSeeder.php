@@ -24,6 +24,7 @@ class DatabaseSeeder extends Seeder
             PhieuNhapSeeder::class,
             HoaDonSeeder::class,
             HoTroSeeder::class,
+            DoanhThuSeeder::class,
         ]);
     }
 }

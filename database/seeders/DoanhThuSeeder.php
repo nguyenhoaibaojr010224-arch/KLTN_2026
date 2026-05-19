@@ -37,36 +37,36 @@ class DoanhThuSeeder extends Seeder
     /* ── Ca làm việc ─────────────────────────────────────────── */
 
     private const SHIFTS = [
-        'sang'  => ['start' => '07:30', 'end' => '12:00'],
+        'sang' => ['start' => '07:30', 'end' => '12:00'],
         'chieu' => ['start' => '13:00', 'end' => '17:30'],
-        'toi'   => ['start' => '18:00', 'end' => '21:30'],
+        'toi' => ['start' => '18:00', 'end' => '21:30'],
     ];
 
     /** Số đơn tối thiểu / tối đa mỗi ca (sẽ nhân với hệ số tháng) */
-    private const BASE_ORDERS_PER_SHIFT = [1, 3];
+    private const BASE_ORDERS_PER_SHIFT = [1, 2];
 
     /* ── Danh sách sản phẩm phổ biến (giá bán VNĐ) ──────── */
     private const PRODUCTS = [
-        ['gia' => 2000,    'don_vi' => 'Gói',  'min_qty' => 10, 'max_qty' => 48],
-        ['gia' => 93500,   'don_vi' => 'Hộp',  'min_qty' => 2,  'max_qty' => 6],
-        ['gia' => 280000,  'don_vi' => 'chai', 'min_qty' => 2,  'max_qty' => 5],
-        ['gia' => 13440,   'don_vi' => 'Vỉ',   'min_qty' => 5,  'max_qty' => 20],
-        ['gia' => 59800,   'don_vi' => 'Hộp',  'min_qty' => 2,  'max_qty' => 6],
-        ['gia' => 136000,  'don_vi' => 'hộp',  'min_qty' => 2,  'max_qty' => 8],
-        ['gia' => 1599000, 'don_vi' => 'hộp',  'min_qty' => 1,  'max_qty' => 3],
-        ['gia' => 590000,  'don_vi' => 'hộp',  'min_qty' => 1,  'max_qty' => 4],
-        ['gia' => 210000,  'don_vi' => 'hộp',  'min_qty' => 2,  'max_qty' => 6],
-        ['gia' => 140000,  'don_vi' => 'hộp',  'min_qty' => 2,  'max_qty' => 8],
-        ['gia' => 128000,  'don_vi' => 'hộp',  'min_qty' => 2,  'max_qty' => 6],
-        ['gia' => 70000,   'don_vi' => 'Chai', 'min_qty' => 2,  'max_qty' => 6],
-        ['gia' => 45000,   'don_vi' => 'Hộp',  'min_qty' => 3,  'max_qty' => 10],
-        ['gia' => 185000,  'don_vi' => 'Hộp',  'min_qty' => 2,  'max_qty' => 5],
-        ['gia' => 320000,  'don_vi' => 'Hộp',  'min_qty' => 1,  'max_qty' => 4],
-        ['gia' => 75000,   'don_vi' => 'Tuýp', 'min_qty' => 2,  'max_qty' => 8],
-        ['gia' => 250000,  'don_vi' => 'Hộp',  'min_qty' => 2,  'max_qty' => 5],
-        ['gia' => 35000,   'don_vi' => 'Vỉ',   'min_qty' => 5,  'max_qty' => 15],
-        ['gia' => 420000,  'don_vi' => 'Hộp',  'min_qty' => 1,  'max_qty' => 4],
-        ['gia' => 155000,  'don_vi' => 'Hộp',  'min_qty' => 2,  'max_qty' => 6],
+        ['gia' => 2000, 'don_vi' => 'Gói', 'min_qty' => 10, 'max_qty' => 48],
+        ['gia' => 93500, 'don_vi' => 'Hộp', 'min_qty' => 2, 'max_qty' => 6],
+        ['gia' => 280000, 'don_vi' => 'chai', 'min_qty' => 2, 'max_qty' => 5],
+        ['gia' => 13440, 'don_vi' => 'Vỉ', 'min_qty' => 5, 'max_qty' => 20],
+        ['gia' => 59800, 'don_vi' => 'Hộp', 'min_qty' => 2, 'max_qty' => 6],
+        ['gia' => 136000, 'don_vi' => 'hộp', 'min_qty' => 2, 'max_qty' => 8],
+        ['gia' => 1599000, 'don_vi' => 'hộp', 'min_qty' => 1, 'max_qty' => 3],
+        ['gia' => 590000, 'don_vi' => 'hộp', 'min_qty' => 1, 'max_qty' => 4],
+        ['gia' => 210000, 'don_vi' => 'hộp', 'min_qty' => 2, 'max_qty' => 6],
+        ['gia' => 140000, 'don_vi' => 'hộp', 'min_qty' => 2, 'max_qty' => 8],
+        ['gia' => 128000, 'don_vi' => 'hộp', 'min_qty' => 2, 'max_qty' => 6],
+        ['gia' => 70000, 'don_vi' => 'Chai', 'min_qty' => 2, 'max_qty' => 6],
+        ['gia' => 45000, 'don_vi' => 'Hộp', 'min_qty' => 3, 'max_qty' => 10],
+        ['gia' => 185000, 'don_vi' => 'Hộp', 'min_qty' => 2, 'max_qty' => 5],
+        ['gia' => 320000, 'don_vi' => 'Hộp', 'min_qty' => 1, 'max_qty' => 4],
+        ['gia' => 75000, 'don_vi' => 'Tuýp', 'min_qty' => 2, 'max_qty' => 8],
+        ['gia' => 250000, 'don_vi' => 'Hộp', 'min_qty' => 2, 'max_qty' => 5],
+        ['gia' => 35000, 'don_vi' => 'Vỉ', 'min_qty' => 5, 'max_qty' => 15],
+        ['gia' => 420000, 'don_vi' => 'Hộp', 'min_qty' => 1, 'max_qty' => 4],
+        ['gia' => 155000, 'don_vi' => 'Hộp', 'min_qty' => 2, 'max_qty' => 6],
     ];
 
     private const ADDRESSES = [
@@ -86,18 +86,18 @@ class DoanhThuSeeder extends Seeder
 
     public function run(): void
     {
-        $this->endDate   = Carbon::today();
+        $this->endDate = Carbon::today();
         $this->startDate = Carbon::today()->subMonths(3)->startOfMonth();
 
         // Lấy ID cao nhất hiện tại để tránh trùng
-        $this->hoaDonId  = (int) DB::table('hoa_dons')->max('id_hoa_don') + 1;
+        $this->hoaDonId = (int) DB::table('hoa_dons')->max('id_hoa_don') + 1;
         $this->chiTietId = (int) DB::table('chi_tiet_hoa_don')->max('id') + 1;
-        $this->lichSuId  = (int) DB::table('lich_su_don_hangs')->max('id_lich_su') + 1;
+        $this->lichSuId = (int) DB::table('lich_su_don_hangs')->max('id_lich_su') + 1;
 
         // Lấy danh sách nhân viên active + lô thuốc có hàng
-        $staffIds    = DB::table('nhan_viens')->where('trang_thai', 'active')->pluck('id_nhan_vien')->toArray();
+        $staffIds = DB::table('nhan_viens')->where('trang_thai', 'active')->pluck('id_nhan_vien')->toArray();
         $customerIds = DB::table('khach_hangs')->pluck('id_khach_hang')->toArray();
-        $loThuocs    = DB::table('lo_thuocs')->where('so_luong_con', '>', 0)->get()->toArray();
+        $loThuocs = DB::table('lo_thuocs')->where('so_luong_con', '>', 0)->get()->toArray();
 
         if (empty($staffIds) || empty($customerIds) || empty($loThuocs)) {
             $this->command->warn('Thiếu dữ liệu nhân viên / khách hàng / lô thuốc. Bỏ qua.');
@@ -105,7 +105,7 @@ class DoanhThuSeeder extends Seeder
         }
 
         $currentDate = $this->startDate->copy();
-        $monthIndex  = 0;
+        $monthIndex = 0;
         $currentMonth = $currentDate->month;
 
         while ($currentDate->lte($this->endDate)) {
@@ -169,25 +169,25 @@ class DoanhThuSeeder extends Seeder
                 $shift = self::SHIFTS[$shiftKey];
 
                 // Tạo login log cho ca này
-                $loginTime  = Carbon::parse($date->format('Y-m-d') . ' ' . $shift['start'])
+                $loginTime = Carbon::parse($date->format('Y-m-d') . ' ' . $shift['start'])
                     ->addMinutes(mt_rand(0, 15));
                 $logoutTime = Carbon::parse($date->format('Y-m-d') . ' ' . $shift['end'])
                     ->subMinutes(mt_rand(0, 10));
 
                 $this->bufLoginLog[] = [
-                    'id_nhan_vien'       => $staffId,
-                    'token_id'           => null,
-                    'kenh_dang_nhap'     => 'pos',
+                    'id_nhan_vien' => $staffId,
+                    'token_id' => null,
+                    'kenh_dang_nhap' => 'tai_quay',
                     'thoi_gian_dang_nhap' => $loginTime->format('Y-m-d H:i:s'),
                     'thoi_gian_dang_xuat' => $logoutTime->format('Y-m-d H:i:s'),
-                    'het_han_luc'        => $logoutTime->copy()->addHours(8)->format('Y-m-d H:i:s'),
-                    'thoi_luong_giay'    => $logoutTime->diffInSeconds($loginTime),
-                    'ly_do_dang_xuat'    => 'het_ca',
-                    'dang_hoat_dong'     => null,
-                    'dia_chi_ip'         => '192.168.1.' . mt_rand(10, 254),
-                    'user_agent'         => 'PharmaGo-POS/1.0',
-                    'created_at'         => $loginTime->format('Y-m-d H:i:s'),
-                    'updated_at'         => $logoutTime->format('Y-m-d H:i:s'),
+                    'het_han_luc' => $logoutTime->copy()->addHours(8)->format('Y-m-d H:i:s'),
+                    'thoi_luong_giay' => $loginTime->diffInSeconds($logoutTime),
+                    'ly_do_dang_xuat' => 'het_ca',
+                    'dang_hoat_dong' => null,
+                    'dia_chi_ip' => '192.168.1.' . mt_rand(10, 254),
+                    'user_agent' => 'PharmaGo-POS/1.0',
+                    'created_at' => $loginTime->format('Y-m-d H:i:s'),
+                    'updated_at' => $logoutTime->format('Y-m-d H:i:s'),
                 ];
 
                 // Số đơn trong ca này
@@ -231,8 +231,8 @@ class DoanhThuSeeder extends Seeder
         // Mỗi đơn có 1-4 sản phẩm (đơn lớn hơn khi growth cao)
         $numItems = mt_rand(2, min(4, (int) ceil($growth * 2.5)));
 
-        $tongTien   = 0;
-        $chiTiets   = [];
+        $tongTien = 0;
+        $chiTiets = [];
 
         $usedProducts = [];
         for ($j = 0; $j < $numItems; $j++) {
@@ -243,24 +243,24 @@ class DoanhThuSeeder extends Seeder
             $usedProducts[] = $pIdx;
 
             $product = self::PRODUCTS[$pIdx];
-            $qty     = mt_rand($product['min_qty'], $product['max_qty']);
-            $gia     = $product['gia'];
+            $qty = mt_rand($product['min_qty'], $product['max_qty']);
+            $gia = $product['gia'];
             $thanhTien = $gia * $qty;
 
             // Lấy lô thuốc ngẫu nhiên
             $lo = $loThuocs[array_rand($loThuocs)];
 
             $chiTiets[] = [
-                'id'               => $this->chiTietId++,
-                'id_hoa_don'       => $this->hoaDonId,
-                'id_lo'            => $lo->id_lo,
-                'don_vi_ban'       => $product['don_vi'],
+                'id' => $this->chiTietId++,
+                'id_hoa_don' => $this->hoaDonId,
+                'id_lo' => $lo->id_lo,
+                'don_vi_ban' => $product['don_vi'],
                 'he_so_quy_doi_ban' => 1,
-                'so_luong'         => $qty,
-                'gia_ban'          => number_format($gia, 2, '.', ''),
-                'thanh_tien'       => number_format($thanhTien, 2, '.', ''),
-                'ngay_tao'         => $ts,
-                'ngay_cap_nhat'    => $ts,
+                'so_luong' => $qty,
+                'gia_ban' => number_format($gia, 2, '.', ''),
+                'thanh_tien' => number_format($thanhTien, 2, '.', ''),
+                'ngay_tao' => $ts,
+                'ngay_cap_nhat' => $ts,
             ];
 
             $tongTien += $thanhTien;
@@ -269,34 +269,34 @@ class DoanhThuSeeder extends Seeder
         // Giảm giá ngẫu nhiên (20% cơ hội, giảm 5-15%)
         $giamGia = 0;
         if (mt_rand(1, 100) <= 20 && $tongTien > 100000) {
-            $pct     = mt_rand(5, 15);
+            $pct = mt_rand(5, 15);
             $giamGia = round($tongTien * $pct / 100);
         }
 
-        $thueVat      = round(($tongTien - $giamGia) * 0.1);
+        $thueVat = round(($tongTien - $giamGia) * 0.1);
         $tienThanhToan = $tongTien - $giamGia + $thueVat;
 
         $this->bufHoaDon[] = [
-            'id_hoa_don'      => $this->hoaDonId,
-            'ma_hoa_don'      => $maHoaDon,
-            'ngay_tao'        => $ts,
-            'id_khach_hang'   => $customerId,
-            'id_nhan_vien'    => $staffId,
-            'ma_giam_gia_id'  => null,
-            'kenh_ban'        => 'he_thong',
+            'id_hoa_don' => $this->hoaDonId,
+            'ma_hoa_don' => $maHoaDon,
+            'ngay_tao' => $ts,
+            'id_khach_hang' => $customerId,
+            'id_nhan_vien' => $staffId,
+            'ma_giam_gia_id' => null,
+            'kenh_ban' => 'he_thong',
             'trang_thai_xu_ly' => 'da_xac_nhan',
-            'ly_do_tu_choi'   => null,
-            'tong_tien'       => number_format($tongTien, 2, '.', ''),
-            'giam_gia'        => number_format($giamGia, 2, '.', ''),
-            'giam_gia_ma'     => '0.00',
-            'giam_gia_diem'   => '0.00',
-            'thue_vat'        => number_format($thueVat, 2, '.', ''),
+            'ly_do_tu_choi' => null,
+            'tong_tien' => number_format($tongTien, 2, '.', ''),
+            'giam_gia' => number_format($giamGia, 2, '.', ''),
+            'giam_gia_ma' => '0.00',
+            'giam_gia_diem' => '0.00',
+            'thue_vat' => number_format($thueVat, 2, '.', ''),
             'tien_thanh_toan' => number_format($tienThanhToan, 2, '.', ''),
             'diem_da_su_dung' => 0,
-            'diem_da_cong'    => 0,
+            'diem_da_cong' => 0,
             'diem_thuong_da_xu_ly' => true,
-            'ngay_ban'        => $ts,
-            'ngay_cap_nhat'   => $ts,
+            'ngay_ban' => $ts,
+            'ngay_cap_nhat' => $ts,
         ];
 
         foreach ($chiTiets as $ct) {
@@ -306,28 +306,28 @@ class DoanhThuSeeder extends Seeder
         // Thanh toán
         $phuongThuc = self::PAYMENT_METHODS[array_rand(self::PAYMENT_METHODS)];
         $this->bufThanhToan[] = [
-            'id_hoa_don'  => $this->hoaDonId,
+            'id_hoa_don' => $this->hoaDonId,
             'phuong_thuc' => $phuongThuc,
-            'so_tien'     => number_format($tienThanhToan, 2, '.', ''),
-            'thoi_gian'   => $ts,
-            'trang_thai'  => 'paid',
+            'so_tien' => number_format($tienThanhToan, 2, '.', ''),
+            'thoi_gian' => $ts,
+            'trang_thai' => 'paid',
             'ma_giao_dich' => $phuongThuc === 'chuyen_khoan'
                 ? 'TXN' . $orderTime->format('YmdHis') . mt_rand(1000, 9999)
                 : null,
-            'ngay_tao'     => $ts,
+            'ngay_tao' => $ts,
             'ngay_cap_nhat' => $ts,
         ];
 
         // Lịch sử đơn hàng
         $address = self::ADDRESSES[array_rand(self::ADDRESSES)];
         $this->bufLichSu[] = [
-            'id_lich_su'  => $this->lichSuId++,
-            'id_hoa_don'  => $this->hoaDonId,
-            'trang_thai'  => 'Thanh cong',
-            'ghi_chu'     => "Dia chi giao hang: {$address}",
-            'thoi_gian'   => $ts,
+            'id_lich_su' => $this->lichSuId++,
+            'id_hoa_don' => $this->hoaDonId,
+            'trang_thai' => 'Thanh cong',
+            'ghi_chu' => "Dia chi giao hang: {$address}",
+            'thoi_gian' => $ts,
             'id_nhan_vien' => $staffId,
-            'ngay_tao'    => $ts,
+            'ngay_tao' => $ts,
             'ngay_cap_nhat' => $ts,
         ];
 
@@ -360,10 +360,10 @@ class DoanhThuSeeder extends Seeder
             DB::table('nhan_vien_dang_nhap_logs')->insert($chunk);
         }
 
-        $this->bufHoaDon    = [];
-        $this->bufChiTiet   = [];
+        $this->bufHoaDon = [];
+        $this->bufChiTiet = [];
         $this->bufThanhToan = [];
-        $this->bufLichSu    = [];
-        $this->bufLoginLog  = [];
+        $this->bufLichSu = [];
+        $this->bufLoginLog = [];
     }
 }

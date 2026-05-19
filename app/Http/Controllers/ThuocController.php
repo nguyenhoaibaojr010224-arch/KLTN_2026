@@ -242,28 +242,20 @@ class ThuocController extends Controller
     public function destroy(string $id): JsonResponse
     {
         $thuoc = Thuoc::query()
-            ->with([
-                'loThuocs' => fn ($query) => $query->withCount(['chiTietHoaDons', 'chiTietPhieuNhaps']),
-            ])
+            ->with('loThuocs')
             ->find($id);
 
         if (! $thuoc) {
             return response()->json(['message' => 'Không tìm thấy thuốc.'], 404);
         }
 
-        $soLoGanHoaDon = $thuoc->loThuocs
-            ->filter(fn ($loThuoc) => (int) $loThuoc->chi_tiet_hoa_dons_count > 0)
-            ->count();
-        $soLoGanPhieuNhap = $thuoc->loThuocs
-            ->filter(fn ($loThuoc) => (int) $loThuoc->chi_tiet_phieu_nhaps_count > 0)
-            ->count();
+        $remainingStock = (int) $thuoc->loThuocs->sum('so_luong_con');
 
-        if ($soLoGanHoaDon > 0 || $soLoGanPhieuNhap > 0) {
+        if ($remainingStock > 0) {
             return response()->json([
-                'message' => $this->buildDeleteBlockedMessage($soLoGanHoaDon, $soLoGanPhieuNhap),
+                'message' => 'Khong the xoa thuoc khi van con ton kho. Hay huy/xoa cac lo con ton truoc.',
                 'data' => [
-                    'so_lo_gan_hoa_don' => $soLoGanHoaDon,
-                    'so_lo_gan_phieu_nhap' => $soLoGanPhieuNhap,
+                    'so_luong_con' => $remainingStock,
                 ],
             ], 409);
         }
@@ -271,6 +263,7 @@ class ThuocController extends Controller
         $imagePath = $thuoc->hinh_anh;
 
         try {
+            $thuoc->loThuocs()->delete();
             $thuoc->delete();
         } catch (QueryException) {
             return response()->json([

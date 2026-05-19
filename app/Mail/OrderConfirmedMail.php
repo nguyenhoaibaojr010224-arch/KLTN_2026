@@ -8,9 +8,10 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Queue\SerializesModels;
 
-class OrderConfirmedMail extends Mailable
+class OrderConfirmedMail extends Mailable implements ShouldQueue
 {
     use Queueable;
     use SerializesModels;

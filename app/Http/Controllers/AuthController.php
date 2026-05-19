@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\LoginRequest;
 use App\Http\Requests\RegisterKhachHangRequest;
+use App\Models\HoTroHoiThoai;
 use App\Models\KhachHang;
 use App\Models\MaGiamGia;
 use App\Models\NhanVien;
@@ -167,6 +168,12 @@ class AuthController extends Controller
             if ($this->normalizeRole($user->vaiTro?->ten_vai_tro) === 'staff') {
                 $this->closeCurrentStaffSession($user, $this->tokenId($token), now(), 'manual');
             }
+        }
+
+        if ($user instanceof KhachHang) {
+            HoTroHoiThoai::query()
+                ->where('id_khach_hang', $user->id_khach_hang)
+                ->delete();
         }
 
         if ($token && method_exists($token, 'delete')) {

@@ -9,6 +9,7 @@ use App\Models\ChiTietHoaDon;
 use App\Models\HoaDon;
 use App\Models\LoThuoc;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -75,6 +76,12 @@ class ChiTietHoaDonController extends Controller
             $validated = $request->validated();
             $loThuoc = LoThuoc::with('thuoc')->lockForUpdate()->findOrFail($validated['id_lo']);
 
+            if (Carbon::parse($loThuoc->han_su_dung)->startOfDay()->lt(Carbon::now()->startOfDay())) {
+                throw ValidationException::withMessages([
+                    'id_lo' => ['Lo thuoc nay da het han, khong duoc ban.'],
+                ]);
+            }
+
             if ($loThuoc->so_luong_con < $validated['so_luong']) {
                 throw ValidationException::withMessages([
                     'so_luong' => ['So luong vuot qua ton kho cua lo thuoc.'],
@@ -133,6 +140,12 @@ class ChiTietHoaDonController extends Controller
             if ($newLoId === $oldLoId) {
                 $diff = $newSoLuong - $oldSoLuong;
 
+                if ($diff > 0 && Carbon::parse($oldLo->han_su_dung)->startOfDay()->lt(Carbon::now()->startOfDay())) {
+                    throw ValidationException::withMessages([
+                        'id_lo' => ['Lo thuoc nay da het han, khong duoc tang so luong ban.'],
+                    ]);
+                }
+
                 if ($oldLo->so_luong_con - $diff < 0) {
                     throw ValidationException::withMessages([
                         'so_luong' => ['So luong cap nhat vuot qua ton kho cua lo thuoc.'],
@@ -147,6 +160,12 @@ class ChiTietHoaDonController extends Controller
                 $oldLo->save();
 
                 $newLo = LoThuoc::with('thuoc')->lockForUpdate()->findOrFail($newLoId);
+
+                if (Carbon::parse($newLo->han_su_dung)->startOfDay()->lt(Carbon::now()->startOfDay())) {
+                    throw ValidationException::withMessages([
+                        'id_lo' => ['Lo thuoc moi da het han, khong duoc ban.'],
+                    ]);
+                }
 
                 if ($newLo->so_luong_con < $newSoLuong) {
                     throw ValidationException::withMessages([

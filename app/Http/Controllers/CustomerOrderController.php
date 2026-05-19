@@ -162,6 +162,7 @@ class CustomerOrderController extends Controller
                 $loThuocs = LoThuoc::query()
                     ->where('id_thuoc', $maThuoc)
                     ->where('so_luong_con', '>', 0)
+                    ->whereDate('han_su_dung', '>=', Carbon::now()->toDateString())
                     ->orderByRaw('CASE WHEN han_su_dung IS NULL THEN 1 ELSE 0 END')
                     ->orderBy('han_su_dung')
                     ->orderBy('id_lo')

@@ -6,6 +6,7 @@ use App\Models\KhuyenMai;
 use App\Models\Thuoc;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
@@ -19,11 +20,14 @@ class CatalogThuocController extends Controller
         $matchedHashtags = collect();
 
         $thuocs = Thuoc::query()
+            ->where('trang_thai', '!=', 'ngừng bán')
             ->with([
                 'nhaSanXuat',
                 'khuyenMais' => fn ($query) => $query->dangHoatDong()->latest(),
             ])
-            ->withSum('loThuocs as so_luong_ton_co_so', 'so_luong_con')
+            ->withSum(['loThuocs as so_luong_ton_co_so' => function ($query): void {
+                $query->whereDate('han_su_dung', '>=', Carbon::now()->toDateString());
+            }], 'so_luong_con')
             ->orderBy('ten_thuoc')
             ->get()
             ->map(fn (Thuoc $thuoc) => $this->transformThuoc($thuoc));
@@ -50,7 +54,9 @@ class CatalogThuocController extends Controller
                 'nhaSanXuat',
                 'khuyenMais' => fn ($query) => $query->dangHoatDong()->latest(),
             ])
-            ->withSum('loThuocs as so_luong_ton_co_so', 'so_luong_con')
+            ->withSum(['loThuocs as so_luong_ton_co_so' => function ($query): void {
+                $query->whereDate('han_su_dung', '>=', Carbon::now()->toDateString());
+            }], 'so_luong_con')
             ->find($maThuoc);
 
         if (! $thuoc) {
