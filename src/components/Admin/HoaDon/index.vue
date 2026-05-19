@@ -164,7 +164,15 @@
                   Từ chối
                 </button>
               </div>
-              <div v-else-if="isAwaitingCashPayment(hoaDon)" class="d-flex justify-content-end">
+              <div v-else-if="isAwaitingCashPayment(hoaDon)" class="d-flex justify-content-end gap-2">
+                <button
+                  class="btn btn-sm btn-outline-danger"
+                  type="button"
+                  :disabled="processingId === hoaDon.id_hoa_don"
+                  @click.stop="openRejectModal(hoaDon)"
+                >
+                  Từ chối
+                </button>
                 <button
                   class="btn btn-sm btn-primary"
                   type="button"

@@ -41,7 +41,7 @@
             <i class="bi bi-receipt me-2"></i>
             Xem phiếu nhập
           </button>
-          <button class="btn btn-success" @click="openReceiptForm()" :disabled="!isAdminUser">
+          <button v-if="isAdminUser" class="btn btn-success" @click="openReceiptForm()">
             <i class="bi bi-plus-circle me-2"></i>
             Tạo phiếu nhập
           </button>
@@ -91,7 +91,6 @@
             <thead>
               <tr>
                 <th>Thuốc</th>
-                <th>Loại</th>
                 <th>Giá bán</th>
                 <th>Số lượng còn</th>
                 <th class="text-end">Tác vụ</th>
@@ -104,7 +103,6 @@
                   <div class="small text-secondary">{{ thuoc.ma_thuoc }}</div>
                   <div class="small text-secondary">Đơn vị kho: {{ thuoc.don_vi_co_so || thuoc.don_vi_tinh || "-" }}</div>
                 </td>
-                <td>{{ getLoaiThuocName(thuoc) }}</td>
                 <td>{{ formatCurrency(thuoc.gia_ban) }} / {{ thuoc.don_vi_tinh || "-" }}</td>
                 <td>
                   <div class="fw-semibold">{{ formatQuantity(thuoc.so_luong_con, thuoc.don_vi_co_so || thuoc.don_vi_tinh) }}</div>
@@ -114,9 +112,9 @@
                   </div>
                 </td>
                 <td class="text-end">
-                  <div class="d-flex justify-content-end gap-2">
+                  <div class="d-flex justify-content-end flex-wrap gap-2">
                     <button class="btn btn-sm btn-outline-primary" @click="openLotModal(thuoc)">Chi tiết lô</button>
-                    <button class="btn btn-sm btn-outline-success" :disabled="!isAdminUser" @click="openReceiptForm({ id_thuoc: thuoc.ma_thuoc })">
+                    <button v-if="isAdminUser" class="btn btn-sm btn-outline-success" @click="openReceiptForm({ id_thuoc: thuoc.ma_thuoc })">
                       Nhập hàng
                     </button>
                   </div>
@@ -155,7 +153,7 @@
                       <div class="fw-bold">{{ lo.thuoc?.ten_thuoc || findThuocById(lo.id_thuoc)?.ten_thuoc || lo.id_thuoc }}</div>
                       <div class="small text-secondary">Lô {{ lo.so_lo }}</div>
                     </div>
-                    <span class="soft-badge soft-badge--orange">{{ daysUntilExpiry(lo) }} ngày</span>
+                    <span class="soft-badge" :class="isLotExpired(lo) ? 'soft-badge--red' : 'soft-badge--orange'">{{ expiryAlertBadgeLabel(lo) }}</span>
                   </div>
 
                   <div class="inventory-alert-card__body">
@@ -171,7 +169,11 @@
 
                   <div class="d-flex flex-wrap justify-content-end gap-2 mt-3">
                     <button class="btn btn-sm btn-outline-primary" @click="openRelatedLotDetail(lo.id_thuoc)">Xem lô</button>
-                    <button class="btn btn-sm btn-success" :disabled="!isAdminUser" @click="openReceiptFormFromAlert(lo.id_thuoc)">Nhập thêm</button>
+                    <button v-if="isAdminUser && canDeleteLot(lo)" class="btn btn-sm btn-outline-danger" :disabled="loading.disposeLotId === lo.id_lo" @click="deleteExpiredLot(lo)">
+                      <span v-if="loading.disposeLotId === lo.id_lo" class="spinner-border spinner-border-sm me-1"></span>
+                      Xóa lô
+                    </button>
+                    <button v-if="isAdminUser" class="btn btn-sm btn-success" @click="openReceiptFormFromAlert(lo.id_thuoc)">Nhập thêm</button>
                   </div>
                 </article>
               </div>
@@ -208,7 +210,7 @@
 
                   <div class="d-flex flex-wrap justify-content-end gap-2 mt-3">
                     <button class="btn btn-sm btn-outline-primary" @click="openRelatedLotDetail(thuoc.ma_thuoc)">Xem lô</button>
-                    <button class="btn btn-sm btn-success" :disabled="!isAdminUser" @click="openReceiptFormFromAlert(thuoc.ma_thuoc)">Nhập thêm</button>
+                    <button v-if="isAdminUser" class="btn btn-sm btn-success" @click="openReceiptFormFromAlert(thuoc.ma_thuoc)">Nhập thêm</button>
                   </div>
                 </article>
               </div>
@@ -291,6 +293,10 @@
                 </div>
 
                 <div class="d-flex justify-content-end mt-3">
+                  <button v-if="isAdminUser && canDeleteLot(lo)" class="btn btn-sm btn-outline-danger" :disabled="loading.disposeLotId === lo.id_lo" @click="deleteExpiredLot(lo)">
+                    <span v-if="loading.disposeLotId === lo.id_lo" class="spinner-border spinner-border-sm me-1"></span>
+                    Xóa lô
+                  </button>
                   <button class="btn btn-sm btn-outline-primary" @click="openLotForm(lo)">Sửa lô</button>
                 </div>
               </article>
@@ -744,6 +750,46 @@
       </div>
     </div>
   </div>
+
+  <div ref="deleteLotConfirmModalEl" class="modal fade" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 shadow-lg delete-lot-confirm">
+        <div class="modal-header border-0 pb-0">
+          <div class="d-flex align-items-center gap-3">
+            <div class="delete-lot-confirm__icon">
+              <i class="bi bi-trash3"></i>
+            </div>
+            <div>
+              <h5 class="modal-title fw-bold mb-1">Xóa lô thuốc?</h5>
+              <p class="mb-0 text-secondary small">Thao tác này sẽ xóa lô khỏi danh sách tồn kho.</p>
+            </div>
+          </div>
+          <button type="button" class="btn-close" :disabled="loading.disposeLotId" @click="closeDeleteLotConfirm"></button>
+        </div>
+
+        <div class="modal-body">
+          <p class="mb-3">
+            Bạn có chắc chắn muốn xóa hoàn toàn lô
+            <strong>{{ deleteLotTarget?.so_lo || "-" }}</strong>
+            khỏi hệ thống không?
+          </p>
+          <div class="delete-lot-confirm__notice">
+            Khi xóa lô, bạn có thể xóa được thuốc nếu đây là lô duy nhất.
+          </div>
+        </div>
+
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-outline-secondary" :disabled="loading.disposeLotId" @click="closeDeleteLotConfirm">
+            Hủy
+          </button>
+          <button type="button" class="btn btn-danger" :disabled="loading.disposeLotId" @click="confirmDeleteExpiredLot">
+            <span v-if="loading.disposeLotId" class="spinner-border spinner-border-sm me-2"></span>
+            Xóa lô
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script>
@@ -752,6 +798,7 @@ import DatePickerInput from "../../Common/DatePickerInput.vue";
 import {
   createLoThuoc,
   createPhieuNhap,
+  deleteLoThuoc,
   getLoThuocs,
   getNhaSanXuats,
   getPhieuNhaps,
@@ -863,6 +910,7 @@ export default {
       alertModal: null,
       lotModal: null,
       lotFormModal: null,
+      deleteLotConfirmModal: null,
       receiptFormModal: null,
       receiptListModal: null,
       loading: {
@@ -870,6 +918,7 @@ export default {
         search: false,
         saveLot: false,
         saveReceipt: false,
+        disposeLotId: null,
       },
       receiptForm: {
         id_nha_san_xuat: "",
@@ -894,6 +943,7 @@ export default {
         so_luong_con: null,
         gia_nhap: null,
       },
+      deleteLotTarget: null,
       lockThuocSelect: false,
     };
   },
@@ -955,7 +1005,7 @@ export default {
     },
     expiringLotAlerts() {
       return this.loThuocs
-        .filter((lo) => Number(lo.so_luong_con || 0) > 0 && this.daysUntilExpiry(lo) >= 0 && this.daysUntilExpiry(lo) <= 30)
+        .filter((lo) => Number(lo.so_luong_con || 0) > 0 && this.daysUntilExpiry(lo) <= 30)
         .sort((a, b) => new Date(a.han_su_dung) - new Date(b.han_su_dung));
     },
     lowStockAlerts() {
@@ -1073,8 +1123,8 @@ export default {
       return `${match[3]}-${match[2]}-${match[1]}`;
     },
 
-    normalizeError(err) {
-      return normalizeApiError(err, "Không thể tải dữ liệu tồn kho.", {
+    normalizeError(err, fallback = "Không thể tải dữ liệu tồn kho.") {
+      return normalizeApiError(err, fallback, {
         id_nha_san_xuat: "nhà cung cấp",
         so_hoa_don_giay: "số hóa đơn giấy",
         id_thuoc: "thuốc áp dụng",
@@ -1150,16 +1200,6 @@ export default {
 
       return hasErrors;
     },
-    getLoaiThuocName(thuoc) {
-      return (
-        thuoc?.loaiThuoc?.ten_loai ||
-        thuoc?.loaiThuoc?.ten_loai_thuoc ||
-        thuoc?.loai_thuoc?.ten_loai ||
-        thuoc?.loai_thuoc?.ten_loai_thuoc ||
-        thuoc?.loai_thuoc ||
-        "-"
-      );
-    },
     formatCurrency(value) {
       const n = Number(value || 0);
       if (Math.abs(n) >= 1e9) {
@@ -1198,6 +1238,16 @@ export default {
         .filter((lo) => lo.id_thuoc === thuoc?.ma_thuoc && Number(lo.so_luong_con || 0) > 0)
         .sort((a, b) => Number(a.so_luong_con || 0) - Number(b.so_luong_con || 0));
     },
+    isLotExpired(lo) {
+      return this.daysUntilExpiry(lo) < 0;
+    },
+    canDeleteLot(lo) {
+      return this.isAdminUser && (this.isLotExpired(lo) || Number(lo?.so_luong_con || 0) <= 0);
+    },
+    expiryAlertBadgeLabel(lo) {
+      const diffDays = this.daysUntilExpiry(lo);
+      return diffDays < 0 ? `Quá hạn ${Math.abs(diffDays)} ngày` : `${diffDays} ngày`;
+    },
     formatLotConversion(lo) {
       const donViNhap = normalizeUnitName(lo?.don_vi_nhap);
       const donViCoSo = normalizeUnitName(lo?.don_vi_co_so);
@@ -1212,6 +1262,10 @@ export default {
     lotStatus(lo) {
       const diffDays = this.daysUntilExpiry(lo);
 
+      if (diffDays < 0) {
+        return "Quá hạn";
+      }
+
       if (Number(lo.so_luong_con || 0) <= 0) {
         return "Hết tồn";
       }
@@ -1225,6 +1279,10 @@ export default {
     lotBadgeClass(lo) {
       const status = this.lotStatus(lo);
 
+      if (status === "Quá hạn") {
+        return "soft-badge--red";
+      }
+
       if (status === "Hết tồn") {
         return "soft-badge--orange";
       }
@@ -1235,6 +1293,45 @@ export default {
 
       return "soft-badge--teal";
     },
+    
+    async deleteExpiredLot(lo) {
+      if (!this.canDeleteLot(lo)) {
+        showToast("Chỉ xoá được lô quá hạn hoặc lô đã hết tồn.", "error");
+        return;
+      }
+      this.deleteLotTarget = lo;
+      this.ensureModal();
+      this.deleteLotConfirmModal?.show();
+    },
+    closeDeleteLotConfirm() {
+      if (this.loading.disposeLotId) {
+        return;
+      }
+
+      this.deleteLotConfirmModal?.hide();
+      this.deleteLotTarget = null;
+    },
+    async confirmDeleteExpiredLot() {
+      const lo = this.deleteLotTarget;
+
+      if (!lo || this.loading.disposeLotId) {
+        return;
+      }
+
+      this.loading.disposeLotId = lo.id_lo;
+      try {
+        await deleteLoThuoc(lo.id_lo);
+        showToast("Đã xóa lô thành công.", "success");
+        this.deleteLotConfirmModal?.hide();
+        this.deleteLotTarget = null;
+        await this.loadInventory();
+      } catch (err) {
+        console.error(err);
+        showToast(this.normalizeError(err, "Không thể xóa lô. Có thể lô này đã được bán hoặc có dữ liệu liên quan."), "error");
+      } finally {
+        this.loading.disposeLotId = null;
+      }
+    },
     ensureModal() {
       if (!this.alertModal && this.$refs.alertModalEl) {
         this.alertModal = new Modal(this.$refs.alertModalEl);
@@ -1244,6 +1341,11 @@ export default {
       }
       if (!this.lotFormModal && this.$refs.lotFormModalEl) {
         this.lotFormModal = new Modal(this.$refs.lotFormModalEl);
+      }
+      if (!this.deleteLotConfirmModal && this.$refs.deleteLotConfirmModalEl) {
+        this.deleteLotConfirmModal = new Modal(this.$refs.deleteLotConfirmModalEl, {
+          backdrop: "static",
+        });
       }
       if (!this.receiptFormModal && this.$refs.receiptFormModalEl) {
         this.receiptFormModal = new Modal(this.$refs.receiptFormModalEl);
@@ -1830,6 +1932,9 @@ export default {
     if (this.lotFormModal) {
       this.lotFormModal.dispose();
     }
+    if (this.deleteLotConfirmModal) {
+      this.deleteLotConfirmModal.dispose();
+    }
     if (this.receiptFormModal) {
       this.receiptFormModal.dispose();
     }
@@ -1841,6 +1946,31 @@ export default {
 </script>
 
 <style scoped>
+.delete-lot-confirm {
+  border-radius: 18px;
+}
+
+.delete-lot-confirm__icon {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: #fee2e2;
+  color: #dc2626;
+  font-size: 1.25rem;
+  flex: 0 0 auto;
+}
+
+.delete-lot-confirm__notice {
+  padding: 12px 14px;
+  border: 1px solid rgba(245, 158, 11, 0.22);
+  border-radius: 12px;
+  background: #fffbeb;
+  color: #92400e;
+  font-weight: 700;
+}
+
 .metric-card--clickable {
   cursor: pointer;
   transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;

@@ -7,7 +7,7 @@
             <i class="bi bi-tags"></i>
             Giá và khuyến mãi
           </div>
-          <h2 class="page-section-title mb-2">Quản lý giá bán, khuyến mãi thuốc và mã giảm giá</h2>
+          <h2 class="page-section-title mb-2">Quản lý khuyến mãi thuốc và mã giảm giá</h2>
           <p class="page-section-copy mb-0">
             Khuyến mãi thuốc dùng để giảm trực tiếp trên từng sản phẩm. Mã giảm giá dùng để giảm trên tổng hóa đơn
             khi khách thanh toán.
@@ -74,8 +74,8 @@
     <section class="content-card">
       <div class="d-flex justify-content-between align-items-center gap-3 mb-4">
         <div>
-          <h3 class="panel-title mb-1">Bảng giá thuốc</h3>
-          <p class="panel-subtitle mb-0">Cập nhật giá bán và theo dõi khuyến mãi đang áp dụng trên từng thuốc.</p>
+          <h3 class="panel-title mb-1">Danh sách thuốc áp dụng khuyến mãi</h3>
+          <p class="panel-subtitle mb-0">Theo dõi giá bán hiện tại và khuyến mãi đang áp dụng trên từng thuốc.</p>
         </div>
         <span class="soft-badge soft-badge--teal">{{ filteredThuocs.length }} thuốc</span>
       </div>
@@ -86,7 +86,6 @@
             <thead>
               <tr>
                 <th>Thuốc</th>
-                <th>Loại</th>
                 <th>Giá bán</th>
                 <th>Khuyến mãi thuốc</th>
                 <th class="text-end">Tác vụ</th>
@@ -98,7 +97,6 @@
                   <div class="fw-semibold">{{ thuoc.ten_thuoc }}</div>
                   <div class="small text-secondary">{{ thuoc.ma_thuoc }}</div>
                 </td>
-                <td>{{ thuoc.loaiThuoc?.ten_loai || "-" }}</td>
                 <td>{{ formatCurrency(thuoc.gia_ban) }}</td>
                 <td>
                   <div v-if="promotionCountForThuoc(thuoc.ma_thuoc)" class="vstack gap-1">
@@ -117,7 +115,6 @@
                 </td>
                 <td class="text-end">
                   <div class="d-flex justify-content-end flex-wrap gap-2">
-                    <button class="btn btn-sm btn-outline-primary" @click="openPriceModal(thuoc)">Cập nhật giá</button>
                     <button class="btn btn-sm btn-outline-success" @click="openPromotionModal(thuoc)">Tạo khuyến mãi</button>
                   </div>
                 </td>
@@ -138,37 +135,6 @@
     </section>
   </div>
 
-  <div ref="priceModalEl" class="modal fade" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content border-0 shadow-lg">
-        <div class="modal-header">
-          <div>
-            <h5 class="modal-title fw-bold mb-1">Cập nhật giá bán</h5>
-            <p class="mb-0 text-secondary small">{{ priceForm.ten_thuoc }} - {{ priceForm.ma_thuoc }}</p>
-          </div>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
-        </div>
-        <div class="modal-body">
-          <label class="form-label fw-semibold">Giá bán mới</label>
-          <input
-            :value="formatPriceInput(priceForm.gia_ban)"
-            type="text"
-            inputmode="numeric"
-            class="form-control"
-            placeholder="Nhập giá bán"
-            @input="priceForm.gia_ban = parsePriceInput($event)"
-          />
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Đóng</button>
-          <button type="button" class="btn btn-primary" @click="savePrice" :disabled="loading.savePrice">
-            <span v-if="loading.savePrice" class="spinner-border spinner-border-sm me-2"></span>
-            Lưu giá bán
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
   <div ref="promotionModalEl" class="modal fade" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered">
       <div class="modal-content border-0 shadow-lg">
@@ -584,7 +550,6 @@ import {
   getOrderDiscountCodes,
   updateKhuyenMai,
   updateOrderDiscountCode,
-  updateThuocPrice,
 } from "../../../api/pricingApi";
 import { getThuocList } from "../../../api/thuocManagementApi";
 import { formatDateTimeInputValue, parseDateTimeInputValue } from "../../../lib/dateInput";
@@ -617,13 +582,11 @@ export default {
       visibleThuocCount: THUOC_TABLE_BATCH_SIZE,
       loading: {
         sync: false,
-        savePrice: false,
         savePromotion: false,
         saveCode: false,
         deletePromotionId: null,
         deleteCodeId: null,
       },
-      priceModal: null,
       promotionModal: null,
       promotionListModal: null,
       promotionDeleteModal: null,
@@ -633,11 +596,6 @@ export default {
       codeListModal: null,
       codeDeleteModal: null,
       codeDeleteTarget: null,
-      priceForm: {
-        ma_thuoc: "",
-        ten_thuoc: "",
-        gia_ban: "",
-      },
       promotionForm: { id: null, ma_thuoc: "", ma_khuyen_mai: "", ten_khuyen_mai: "", mo_ta: "", loai_ap_dung: "phan_tram", gia_tri: "", nhan_hien_thi: "", ngay_bat_dau: nowAsInput(), ngay_ket_thuc: "", trang_thai: "active" },
       promotionThuocInput: "",
       codeForm: { id: null, ma_giam_gia: "", ten_ma: "", mo_ta: "", loai_ap_dung: "so_tien", gia_tri: "", gia_tri_don_toi_thieu: 0, gioi_han_moi_khach: "", ngay_bat_dau: nowAsInput(), ngay_ket_thuc: "", trang_thai: "active" },
@@ -690,7 +648,7 @@ export default {
       const maDangApDung = this.orderCodes.filter((item) => this.isOrderCodeActive(item)).length;
       const maCoDieuKien = this.orderCodes.filter((item) => !this.isOrderCodeExpired(item) && Number(item.gia_tri_don_toi_thieu || 0) > 0).length;
       return [
-        { label: "Thuốc có thể cập nhật giá", value: this.thuocs.length, note: "Nguồn dữ liệu từ danh mục thuốc", deltaClass: "is-positive", icon: "bi bi-capsule-pill", iconClass: "metric-card__icon--blue" },
+        { label: "Thuốc trong danh mục", value: this.thuocs.length, note: "Nguồn dữ liệu từ danh mục thuốc", deltaClass: "is-positive", icon: "bi bi-capsule-pill", iconClass: "metric-card__icon--blue" },
         { label: "Khuyến mãi thuốc đang áp dụng", value: khuyenMaiDangApDung, note: "Giảm trực tiếp trên từng thuốc", deltaClass: "is-positive", icon: "bi bi-bag-check", iconClass: "metric-card__icon--teal" },
         { label: "Mã giảm giá đơn hàng", value: maDangApDung, note: "Áp trên tổng hóa đơn", deltaClass: "is-positive", icon: "bi bi-ticket-perforated", iconClass: "metric-card__icon--orange" },
         { label: "Mã có điều kiện tối thiểu", value: maCoDieuKien, note: "Yêu cầu giá trị đơn hàng", deltaClass: "is-warning", icon: "bi bi-shield-check", iconClass: "metric-card__icon--violet" },
@@ -705,7 +663,6 @@ export default {
   mounted() {
     this.promotionForm = this.createPromotionForm();
     this.codeForm = this.createCodeForm();
-    this.priceModal = new Modal(this.$refs.priceModalEl);
     this.promotionModal = new Modal(this.$refs.promotionModalEl);
     this.promotionListModal = new Modal(this.$refs.promotionListModalEl);
     this.promotionDeleteModal = new Modal(this.$refs.promotionDeleteModalEl);
@@ -906,27 +863,6 @@ export default {
         ma_giam_gia: "mã giảm giá",
         ten_ma: "tên chương trình",
       });
-    },
-    openPriceModal(thuoc) {
-      this.priceForm = { ma_thuoc: thuoc.ma_thuoc, ten_thuoc: thuoc.ten_thuoc, gia_ban: Number(thuoc.gia_ban || 0) };
-      this.priceModal.show();
-    },
-    async savePrice() {
-      if (!this.priceForm.ma_thuoc || Number(this.priceForm.gia_ban) <= 0) {
-        showToast("Giá bán phải lớn hơn 0.", "error");
-        return;
-      }
-      this.loading.savePrice = true;
-      try {
-        await updateThuocPrice(this.priceForm.ma_thuoc, { gia_ban: Number(this.priceForm.gia_ban) });
-        this.priceModal.hide();
-        showToast("Cập nhật giá bán thành công.");
-        await this.loadData();
-      } catch (error) {
-        showToast(this.normalizeError(error, "Không thể cập nhật giá bán."), "error");
-      } finally {
-        this.loading.savePrice = false;
-      }
     },
     openPromotionModal(thuoc = null) {
       this.promotionForm = this.createPromotionForm();

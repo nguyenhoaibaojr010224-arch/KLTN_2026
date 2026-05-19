@@ -55,7 +55,15 @@
 
   <section class="row g-4 mb-4">
     <div class="col-md-6 col-xl-3" v-for="metric in metrics" :key="metric.label">
-      <article class="metric-card h-100">
+      <article
+        class="metric-card h-100"
+        :class="{ 'metric-card--clickable': metric.filterStatus, 'metric-card--active': activeStatusFilter === metric.filterStatus }"
+        :role="metric.filterStatus ? 'button' : null"
+        :tabindex="metric.filterStatus ? 0 : null"
+        @click="handleMetricClick(metric)"
+        @keydown.enter.prevent="handleMetricClick(metric)"
+        @keydown.space.prevent="handleMetricClick(metric)"
+      >
         <div class="d-flex justify-content-between gap-3">
           <div>
             <p class="metric-card__label mb-2">{{ metric.label }}</p>
@@ -76,10 +84,10 @@
         <h3 class="panel-title">Danh sách thuốc</h3>
         <p class="panel-subtitle mb-0">Bấm sửa để mở modal và cập nhật thông tin thuốc.</p>
       </div>
-      <span class="soft-badge soft-badge--teal">{{ thuocs.length }} thuốc</span>
+      <span class="soft-badge soft-badge--teal">{{ filteredThuocs.length }} thuốc</span>
     </div>
 
-    <div v-if="thuocs.length">
+    <div v-if="filteredThuocs.length">
       <div class="table-responsive">
         <table class="table table-master align-middle mb-0">
           <thead>
@@ -599,6 +607,7 @@ export default {
     return {
       keyword: "",
       thuocs: [],
+      activeStatusFilter: "",
       visibleThuocCount: THUOC_TABLE_BATCH_SIZE,
       nhaSanXuats: [],
       nhaSanXuatSuggestions: [],
@@ -672,11 +681,19 @@ export default {
     },
 
     visibleThuocs() {
-      return this.thuocs.slice(0, this.visibleThuocCount);
+      return this.filteredThuocs.slice(0, this.visibleThuocCount);
     },
 
     canLoadMoreThuocs() {
-      return this.thuocs.length > this.visibleThuocCount;
+      return this.filteredThuocs.length > this.visibleThuocCount;
+    },
+
+    filteredThuocs() {
+      if (!this.activeStatusFilter) {
+        return this.thuocs;
+      }
+
+      return this.thuocs.filter((item) => this.normalizeStatus(item.trang_thai) === this.activeStatusFilter);
     },
 
     selectedDanhMucChaLabel() {
@@ -721,6 +738,7 @@ export default {
           deltaClass: "is-warning",
           icon: "bi bi-pause-circle",
           iconClass: "metric-card__icon--orange",
+          filterStatus: "ngừng bán",
         },
         {
           label: "Có ảnh thuốc",
@@ -1263,7 +1281,7 @@ export default {
     },
 
     statusBadgeClass(status) {
-      return status === "ngừng bán" ? "soft-badge--orange" : "soft-badge--teal";
+      return this.normalizeStatus(status) === "ngừng bán" ? "soft-badge--orange" : "soft-badge--teal";
     },
 
       normalizeLookupText(value) {
@@ -1509,6 +1527,7 @@ export default {
 
     resetView() {
       this.keyword = "";
+      this.activeStatusFilter = "";
       this.message = "";
       this.error = "";
       this.$router.replace({
@@ -1516,6 +1535,23 @@ export default {
         query: {},
       });
       this.loadData();
+    },
+
+    normalizeStatus(status) {
+      return String(status || "còn bán").trim().toLowerCase();
+    },
+
+    handleMetricClick(metric) {
+      if (!metric?.filterStatus) {
+        return;
+      }
+
+      this.activeStatusFilter = this.activeStatusFilter === metric.filterStatus ? "" : metric.filterStatus;
+      this.resetThuocPagination();
+      this.selectedThuoc = null;
+      this.message = this.activeStatusFilter
+        ? `Đang lọc thuốc ${metric.label.toLowerCase()}.`
+        : "";
     },
 
     handleImageChange(event) {
@@ -1808,4 +1844,23 @@ export default {
   },
 };
 </script>
+
+<style scoped>
+.metric-card--clickable {
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.metric-card--clickable:hover,
+.metric-card--clickable:focus-visible {
+  border-color: #f59e0b;
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.12);
+  transform: translateY(-2px);
+}
+
+.metric-card--active {
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.18);
+}
+</style>
 

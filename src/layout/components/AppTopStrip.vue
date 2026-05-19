@@ -40,12 +40,15 @@
             <div v-if="notificationMenuOpen" class="master-topstrip__notification-menu shadow-lg">
               <div class="master-topstrip__notification-head">
                 <strong>Thông báo hệ thống</strong>
+                <span v-if="notificationRefreshing" class="master-topstrip__refresh">
+                  <span class="spinner-border spinner-border-sm"></span>
+                </span>
                 <button type="button" class="btn btn-link btn-sm p-0" @click="openPriorityNotifications">
                   Xem tất cả
                 </button>
               </div>
 
-              <div v-if="notificationLoading" class="master-topstrip__notification-empty">
+              <div v-if="notificationLoading && !hasCustomerNotifications" class="master-topstrip__notification-empty">
                 Đang tải thông báo...
               </div>
 
@@ -82,11 +85,28 @@
                     :key="`invoice-${item.id_hoa_don}`"
                     type="button"
                     class="master-topstrip__notification-item"
+                    :class="{
+                      'master-topstrip__notification-item--warning':
+                        item.can_canh_bao_chua_co_nhan_vien_he_thong,
+                    }"
                     @click="openInvoiceNotification(item)"
                   >
-                    <div class="master-topstrip__notification-title">{{ item.ma_hoa_don }}</div>
+                    <div class="master-topstrip__notification-title">
+                      {{
+                        item.can_canh_bao_chua_co_nhan_vien_he_thong
+                          ? "Cần admin xử lý đơn hàng"
+                          : item.ma_hoa_don
+                      }}
+                    </div>
                     <div class="master-topstrip__notification-copy">
-                      {{ item.khach_hang?.ten_khach_hang || "Khách hàng" }} - {{ item.noi_dung_thong_bao || "Đơn hàng hệ thống mới" }}
+                      <template v-if="item.can_canh_bao_chua_co_nhan_vien_he_thong">
+                        {{ item.ma_hoa_don }} - {{ item.khach_hang?.ten_khach_hang || "Khách hàng" }}:
+                        {{ item.noi_dung_thong_bao || "Chưa có nhân viên đăng nhập hệ thống." }}
+                      </template>
+                      <template v-else>
+                        {{ item.khach_hang?.ten_khach_hang || "Khách hàng" }} -
+                        {{ item.noi_dung_thong_bao || "Đơn hàng hệ thống mới" }}
+                      </template>
                     </div>
                     <div class="master-topstrip__notification-meta">
                       <span>{{ formatCurrency(item.tong_tien) }}</span>
@@ -122,12 +142,15 @@
             <div v-if="inventoryMenuOpen" class="master-topstrip__notification-menu shadow-lg">
               <div class="master-topstrip__notification-head">
                 <strong>Cảnh báo tồn kho</strong>
+                <span v-if="notificationRefreshing" class="master-topstrip__refresh">
+                  <span class="spinner-border spinner-border-sm"></span>
+                </span>
                 <button type="button" class="btn btn-link btn-sm p-0" @click="openAllInventoryNotifications">
                   Xem tất cả
                 </button>
               </div>
 
-              <div v-if="notificationLoading" class="master-topstrip__notification-empty">
+              <div v-if="notificationLoading && !inventoryAlertNotifications.length" class="master-topstrip__notification-empty">
                 Đang tải cảnh báo...
               </div>
 
@@ -174,6 +197,17 @@ import { getPendingHoaDonNotifications } from "../../api/hoaDonApi";
 import { getInventoryAlerts } from "../../api/inventoryApi";
 import { getSupportConversations } from "../../api/supportApi";
 import { authState } from "../../lib/authStorage";
+import {
+  clearBrowserNotificationTitle,
+  setBrowserNotificationTitle,
+} from "../../lib/browserTitleNotification";
+import {
+  installNotificationSoundUnlocker,
+  playInvoiceNotificationSoundForKeys,
+  playSupportNotificationSoundForKeys,
+  rememberInvoiceNotificationKeys,
+  rememberSupportNotificationKeys,
+} from "../../lib/notificationSound";
 
 const router = useRouter();
 const todayLabel = new Intl.DateTimeFormat("vi-VN", {
@@ -188,12 +222,16 @@ const inventoryMenuRef = ref(null);
 const notificationMenuOpen = ref(false);
 const inventoryMenuOpen = ref(false);
 const notificationLoading = ref(false);
+const notificationRefreshing = ref(false);
 const invoiceNotifications = ref([]);
 const supportNotifications = ref([]);
 const expiringLotNotifications = ref([]);
 const lowStockNotifications = ref([]);
 const notificationCount = ref(0);
 const inventoryNotificationCount = ref(0);
+const hasCustomerNotifications = computed(() =>
+  supportNotifications.value.length > 0 || invoiceNotifications.value.length > 0
+);
 
 const showSystemNotifications = computed(() =>
   ["admin", "staff", "nhan_vien", "nhanvien"].includes(authState.type)
@@ -204,9 +242,9 @@ const inventoryAlertNotifications = computed(() => [
   ...expiringLotNotifications.value.map((item) => ({
     id: item.id || `expiring-lot-${item.id_lo}`,
     alertType: "expiring",
-    title: `Lô ${item.so_lo} sắp hết hạn`,
+    title: item.da_het_han ? `Lo ${item.so_lo} da het han` : `Lo ${item.so_lo} sap het han`,
     copy: item.message || `${item.ten_thuoc || "Thuốc"} cần kiểm tra hạn sử dụng.`,
-    badge: `${Number(item.so_ngay_con_lai || 0)} ngày còn lại`,
+    badge: item.da_het_han ? `Qua han ${Number(item.so_ngay_qua_han || 0)} ngay` : `${Number(item.so_ngay_con_lai || 0)} ngay con lai`,
     meta: formatAlertQuantity(item.so_luong_con, item.don_vi_ton_kho),
   })),
   ...lowStockNotifications.value.map((item) => ({
@@ -220,6 +258,16 @@ const inventoryAlertNotifications = computed(() => [
 ]);
 
 let notificationTimer = null;
+let notificationRefreshPromise = null;
+let lastNotificationRefreshAt = 0;
+let invoiceNotificationsPrimed = false;
+let supportNotificationsPrimed = false;
+let previousUnreadInvoiceTotal = 0;
+let previousSupportUnreadTotal = 0;
+const orderBrowserNotificationTitle = "Bạn có đơn hàng";
+const supportBrowserNotificationTitle = "Bạn có thông báo";
+const notificationPollingIntervalMs = 5000;
+const notificationRefreshThrottleMs = 3000;
 
 function getNotificationReadStorageKey() {
   const scopeId =
@@ -243,9 +291,7 @@ function persistReadNotificationIds(ids) {
 
 function syncNotificationCount() {
   const readIds = new Set(readStoredNotificationIds());
-  const unreadInvoices = invoiceNotifications.value.filter(
-    (item) => !readIds.has(String(item.id_hoa_don))
-  ).length;
+  const unreadInvoices = getUnreadInvoiceNotifications().length;
   const unreadSupportMessages = supportNotifications.value.reduce(
     (total, item) => total + Number(item.so_tin_chua_doc || 0),
     0
@@ -255,6 +301,13 @@ function syncNotificationCount() {
   ).length;
   notificationCount.value = unreadInvoices + unreadSupportMessages;
   inventoryNotificationCount.value = unreadInventoryAlerts;
+  setBrowserNotificationTitle(
+    unreadInvoices > 0
+      ? orderBrowserNotificationTitle
+      : unreadSupportMessages > 0
+        ? supportBrowserNotificationTitle
+        : ""
+  );
 }
 
 function markInvoiceNotificationRead(item) {
@@ -297,17 +350,21 @@ function markAllInventoryNotificationsRead() {
 
 onMounted(() => {
   document.addEventListener("click", handleDocumentClick);
+  document.addEventListener("visibilitychange", handleDocumentVisibilityChange);
+  installNotificationSoundUnlocker();
 
   if (showSystemNotifications.value) {
-    loadNotifications();
+    refreshNotifications({ force: true, showLoading: true });
     notificationTimer = window.setInterval(() => {
-      loadNotifications(true);
-    }, 15000);
+      refreshNotifications();
+    }, notificationPollingIntervalMs);
   }
 });
 
 onBeforeUnmount(() => {
   document.removeEventListener("click", handleDocumentClick);
+  document.removeEventListener("visibilitychange", handleDocumentVisibilityChange);
+  clearBrowserNotificationTitle();
 
   if (notificationTimer) {
     clearInterval(notificationTimer);
@@ -317,6 +374,7 @@ onBeforeUnmount(() => {
 
 async function loadNotifications(silent = false) {
   if (!showSystemNotifications.value) {
+    clearBrowserNotificationTitle();
     return;
   }
 
@@ -331,15 +389,19 @@ async function loadNotifications(silent = false) {
       getInventoryAlerts(),
     ]);
 
-    invoiceNotifications.value =
+    const nextInvoiceNotifications =
       invoiceResponse.status === "fulfilled" && Array.isArray(invoiceResponse.value?.data)
         ? invoiceResponse.value.data
         : [];
+    handleInvoiceNotificationSound(nextInvoiceNotifications, { silent });
+    invoiceNotifications.value = nextInvoiceNotifications;
 
-    supportNotifications.value =
+    const nextSupportNotifications =
       supportResponse.status === "fulfilled" && Array.isArray(supportResponse.value?.data)
         ? supportResponse.value.data.filter((item) => Number(item.so_tin_chua_doc || 0) > 0)
         : [];
+    handleSupportNotificationSound(nextSupportNotifications, { silent });
+    supportNotifications.value = nextSupportNotifications;
 
     const inventoryData = inventoryResponse.status === "fulfilled" ? inventoryResponse.value?.data : null;
     expiringLotNotifications.value = Array.isArray(inventoryData?.lo_sap_het_han)
@@ -358,6 +420,7 @@ async function loadNotifications(silent = false) {
       lowStockNotifications.value = [];
       notificationCount.value = 0;
       inventoryNotificationCount.value = 0;
+      clearBrowserNotificationTitle();
     }
   } finally {
     if (!silent) {
@@ -366,21 +429,120 @@ async function loadNotifications(silent = false) {
   }
 }
 
-async function toggleNotificationMenu() {
+function refreshNotifications({ force = false, showLoading = false } = {}) {
+  if (!showSystemNotifications.value) {
+    clearBrowserNotificationTitle();
+    return Promise.resolve();
+  }
+
+  if (notificationRefreshPromise) {
+    return notificationRefreshPromise;
+  }
+
+  const now = Date.now();
+  if (!force && now - lastNotificationRefreshAt < notificationRefreshThrottleMs) {
+    return Promise.resolve();
+  }
+
+  lastNotificationRefreshAt = now;
+  notificationRefreshing.value = true;
+  notificationRefreshPromise = loadNotifications(!showLoading)
+    .finally(() => {
+      notificationRefreshing.value = false;
+      notificationRefreshPromise = null;
+    });
+
+  return notificationRefreshPromise;
+}
+
+function buildSupportNotificationKeys(items) {
+  return items
+    .map((item) => {
+      const conversationId = item.id_hoi_thoai || "unknown";
+      const latestMessageId =
+        item.tin_nhan_cuoi?.id_tin_nhan ||
+        item.tin_nhan_cuoi?.id ||
+        item.thoi_gian_tin_nhan_cuoi ||
+        item.tin_nhan_cuoi?.thoi_gian ||
+        "none";
+      const latestSender = item.tin_nhan_cuoi?.nguoi_gui_loai || "unknown";
+      const latestContent = item.tin_nhan_cuoi?.noi_dung || "";
+      const unreadCount = Number(item.so_tin_chua_doc || 0);
+
+      return `${conversationId}:${latestMessageId}:${latestSender}:${latestContent}:${unreadCount}`;
+    })
+    .sort();
+}
+
+function getUnreadInvoiceNotifications(items = invoiceNotifications.value) {
+  const readIds = new Set(readStoredNotificationIds());
+  return items.filter((item) => !readIds.has(String(item.id_hoa_don)));
+}
+
+function buildInvoiceNotificationKeys(items) {
+  return getUnreadInvoiceNotifications(items)
+    .map((item) => {
+      const invoiceId = item.id_hoa_don || item.id || "unknown";
+      const invoiceCode = item.ma_hoa_don || "none";
+      const createdAt = item.ngay_ban || item.ngay_tao || item.created_at || item.thoi_gian_tao || "none";
+      const status = item.trang_thai || item.trang_thai_thanh_toan || "unknown";
+      const notificationType =
+        item.loai_thong_bao ||
+        (item.can_canh_bao_chua_co_nhan_vien_he_thong ? "chua_co_nhan_vien_he_thong" : "don_hang_moi");
+
+      return `${invoiceId}:${invoiceCode}:${createdAt}:${status}:${notificationType}`;
+    })
+    .sort();
+}
+
+function handleInvoiceNotificationSound(nextInvoiceNotifications, { silent = false } = {}) {
+  const nextKeys = buildInvoiceNotificationKeys(nextInvoiceNotifications);
+  const nextUnreadInvoiceTotal = getUnreadInvoiceNotifications(nextInvoiceNotifications).length;
+  const shouldForceSound = nextUnreadInvoiceTotal > previousUnreadInvoiceTotal;
+
+  if (invoiceNotificationsPrimed && silent) {
+    playInvoiceNotificationSoundForKeys(nextKeys, { force: shouldForceSound });
+  } else {
+    rememberInvoiceNotificationKeys(nextKeys);
+  }
+
+  previousUnreadInvoiceTotal = nextUnreadInvoiceTotal;
+  invoiceNotificationsPrimed = true;
+}
+
+function handleSupportNotificationSound(nextSupportNotifications, { silent = false } = {}) {
+  const nextKeys = buildSupportNotificationKeys(nextSupportNotifications);
+  const nextUnreadTotal = nextSupportNotifications.reduce(
+    (total, item) => total + Number(item.so_tin_chua_doc || 0),
+    0
+  );
+  const shouldForceSound = nextUnreadTotal > previousSupportUnreadTotal;
+
+  if (supportNotificationsPrimed && silent) {
+    playSupportNotificationSoundForKeys(nextKeys, { force: shouldForceSound });
+  } else {
+    rememberSupportNotificationKeys(nextKeys);
+  }
+
+  previousSupportUnreadTotal = nextUnreadTotal;
+  supportNotificationsPrimed = true;
+}
+
+function toggleNotificationMenu() {
   notificationMenuOpen.value = !notificationMenuOpen.value;
   inventoryMenuOpen.value = false;
 
   if (notificationMenuOpen.value) {
-    await loadNotifications();
+    refreshNotifications();
   }
 }
 
-async function toggleInventoryAlertMenu() {
+function toggleInventoryAlertMenu() {
   inventoryMenuOpen.value = !inventoryMenuOpen.value;
   notificationMenuOpen.value = false;
 
   if (inventoryMenuOpen.value) {
-    await loadNotifications();
+    refreshNotifications();
   }
 }
 
@@ -391,6 +553,12 @@ function handleDocumentClick(event) {
 
   if (!inventoryMenuRef.value?.contains(event.target)) {
     inventoryMenuOpen.value = false;
+  }
+}
+
+function handleDocumentVisibilityChange() {
+  if (!document.hidden) {
+    refreshNotifications({ force: true });
   }
 }
 

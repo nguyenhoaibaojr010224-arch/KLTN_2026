@@ -1,221 +1,230 @@
 <template>
-  <section class="content-card hero-card">
-    <div class="row align-items-center g-4">
-      <div class="col-xl-7">
-        <div class="hero-card__badge mb-3">
-          <i class="bi bi-activity"></i>
-          Thống kê doanh thu
-        </div>
-        <h2 class="hero-card__title mb-3">Theo dõi doanh thu và hiệu suất nhân viên</h2>
-        <p class="hero-card__lead mb-4">
-          Xem nhân viên nào đã đăng nhập, doanh thu bán hàng trong ngày và bảng xếp hạng doanh thu tháng.
-        </p>
-      </div>
-
-      <div class="col-xl-5">
-        <div class="master-panel p-4 bg-white bg-opacity-10 border border-white border-opacity-10">
-          <div class="d-flex justify-content-between align-items-start gap-3 mb-4">
-            <div>
-              <p class="small text-white-50 mb-1">Tài khoản đang sử dụng</p>
-              <h3 class="display-6 fw-bold mb-0">{{ currentUserName }}</h3>
-            </div>
-            <span class="soft-badge bg-white text-primary">
-              <i class="bi bi-shield-check"></i>
-              Đã xác thực
-            </span>
-          </div>
-
-          <div class="mb-2 d-flex justify-content-between small text-white-50">
-            <span>Điều hướng hệ thống</span>
-            <span>Sẵn sàng</span>
-          </div>
-          <div class="progress bg-white bg-opacity-25" style="height: 10px">
-            <div class="progress-bar bg-info" style="width: 100%"></div>
-          </div>
-        </div>
-      </div>
+  <div v-if="!isAdmin" class="container mt-5">
+    <div class="alert alert-danger shadow-sm border-0 rounded-4 p-5 text-center bg-white">
+      <i class="bi bi-shield-lock-fill text-danger display-1 mb-4 d-block"></i>
+      <h2 class="fw-bold mb-3 text-danger">Truy cập bị từ chối</h2>
+      <p class="fs-5 text-secondary mb-0">Chỉ có tài khoản Quản trị viên (Admin) mới có quyền xem trang thống kê doanh thu.</p>
     </div>
-  </section>
+  </div>
 
-  <RevenueCharts />
-
-  <section class="row g-4">
-    <div class="col-xl-8">
-      <article class="content-card staff-performance-card h-100">
-        <div class="d-flex flex-column flex-lg-row align-items-lg-start justify-content-between gap-3 mb-4">
-          <div>
-            <h3 class="panel-title">Hiệu suất nhân viên hôm nay</h3>
-            <p class="panel-subtitle">
-              Theo dõi nhân viên đã đăng nhập, số hóa đơn và doanh thu bán hàng trong ngày đã chọn.
-            </p>
+  <template v-else>
+    <section class="content-card hero-card">
+      <div class="row align-items-center g-4">
+        <div class="col-xl-7">
+          <div class="hero-card__badge mb-3">
+            <i class="bi bi-activity"></i>
+            Thống kê doanh thu
           </div>
-          <div class="staff-performance-filters">
-            <DatePickerInput
-              v-model="performanceDate"
-              size="sm"
-              placeholder="dd/mm/yyyy"
-              aria-label="Chọn ngày xem hiệu suất"
-              @change="loadStaffPerformance"
-            />
-            <input
-              v-model="performanceMonth"
-              type="month"
-              class="form-control form-control-sm"
-              aria-label="Chọn tháng tổng hợp doanh thu"
-              @change="loadStaffPerformance"
-            />
-          </div>
+          <h2 class="hero-card__title mb-3">Theo dõi doanh thu và hiệu suất nhân viên</h2>
+          <p class="hero-card__lead mb-4">
+            Xem nhân viên nào đã đăng nhập, doanh thu bán hàng trong ngày và bảng xếp hạng doanh thu tháng.
+          </p>
         </div>
 
-        <div class="staff-performance-summary mb-4">
-          <div>
-            <span>Đăng nhập</span>
-            <strong>{{ todaySummary.so_nhan_vien_dang_nhap }}</strong>
-          </div>
-          <div>
-            <span>Hóa đơn</span>
-            <strong>{{ todaySummary.tong_hoa_don }}</strong>
-          </div>
-          <div>
-            <span>Doanh thu ngày</span>
-            <strong>{{ formatCurrency(todaySummary.tong_doanh_thu) }}</strong>
-          </div>
-        </div>
-
-        <div v-if="performanceLoading" class="staff-performance-empty">
-          Đang tải dữ liệu hiệu suất...
-        </div>
-        <div v-else-if="performanceError" class="staff-performance-empty text-danger">
-          {{ performanceError }}
-        </div>
-        <div v-else>
-          <div v-if="todayPerformanceRows.length" class="staff-chart-list">
-            <div v-for="row in todayPerformanceRows" :key="`today-${row.id_nhan_vien}`" class="staff-chart-row">
-              <div class="staff-chart-row__head">
-                <div>
-                  <strong>{{ row.ho_ten }}</strong>
-                  <span>{{ row.vai_tro || "Nhân viên" }} · {{ row.so_lan_dang_nhap }} lần đăng nhập</span>
-                </div>
-                <div class="text-end">
-                  <strong>{{ formatCurrency(row.doanh_thu) }}</strong>
-                  <span>{{ row.so_hoa_don }} hóa đơn</span>
-                </div>
+        <div class="col-xl-5">
+          <div class="master-panel p-4 bg-white bg-opacity-10 border border-white border-opacity-10">
+            <div class="d-flex justify-content-between align-items-start gap-3 mb-4">
+              <div>
+                <p class="small text-white-50 mb-1">Tài khoản đang sử dụng</p>
+                <h3 class="display-6 fw-bold mb-0">{{ currentUserName }}</h3>
               </div>
-              <div class="staff-chart-row__bar">
-                <span :style="{ width: `${revenuePercent(row.doanh_thu, todayMaxRevenue)}%` }"></span>
-              </div>
-              <div class="staff-chart-row__foot">
-                <span>Lần đăng nhập cuối: {{ formatDateTime(row.lan_dang_nhap_cuoi) }}</span>
-                <span>@{{ row.ten_dang_nhap }}</span>
+              <span class="soft-badge bg-white text-primary">
+                <i class="bi bi-shield-check"></i>
+                Đã xác thực
+              </span>
+            </div>
+
+            <div class="mb-2 d-flex justify-content-between small text-white-50">
+              <span>Điều hướng hệ thống</span>
+              <span>Sẵn sàng</span>
+            </div>
+            <div class="progress bg-white bg-opacity-25" style="height: 10px">
+              <div class="progress-bar bg-info" style="width: 100%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <RevenueCharts />
+
+    <section class="row g-4">
+      <div class="col-xl-8">
+        <article class="content-card staff-performance-card h-100">
+          <div class="d-flex flex-column flex-lg-row align-items-lg-start justify-content-between gap-3 mb-4">
+            <div>
+              <h3 class="panel-title">Hiệu suất nhân viên hôm nay</h3>
+              <p class="panel-subtitle">
+                Theo dõi nhân viên đã đăng nhập, số hóa đơn và doanh thu bán hàng trong ngày đã chọn.
+              </p>
+            </div>
+            <div class="staff-performance-filters">
+              <DatePickerInput
+                v-model="performanceDate"
+                size="sm"
+                placeholder="dd/mm/yyyy"
+                aria-label="Chọn ngày xem hiệu suất"
+                @change="loadStaffPerformance"
+              />
+              <input
+                v-model="performanceMonth"
+                type="month"
+                class="form-control form-control-sm"
+                aria-label="Chọn tháng tổng hợp doanh thu"
+                @change="loadStaffPerformance"
+              />
+            </div>
+          </div>
+
+          <div class="staff-performance-summary mb-4">
+            <div>
+              <span>Đăng nhập</span>
+              <strong>{{ todaySummary.so_nhan_vien_dang_nhap }}</strong>
+            </div>
+            <div>
+              <span>Hóa đơn</span>
+              <strong>{{ todaySummary.tong_hoa_don }}</strong>
+            </div>
+            <div>
+              <span>Doanh thu ngày</span>
+              <strong>{{ formatCurrency(todaySummary.tong_doanh_thu) }}</strong>
+            </div>
+          </div>
+
+          <div v-if="performanceLoading" class="staff-performance-empty">
+            Đang tải dữ liệu hiệu suất...
+          </div>
+          <div v-else-if="performanceError" class="staff-performance-empty text-danger">
+            {{ performanceError }}
+          </div>
+          <div v-else>
+            <div v-if="todayPerformanceRows.length" class="staff-chart-list">
+              <div v-for="row in todayPerformanceRows" :key="`today-${row.id_nhan_vien}`" class="staff-chart-row">
+                <div class="staff-chart-row__head">
+                  <div>
+                    <strong>{{ row.ho_ten }}</strong>
+                    <span>{{ row.vai_tro || "Nhân viên" }} · {{ row.so_lan_dang_nhap }} lần đăng nhập</span>
+                  </div>
+                  <div class="text-end">
+                    <strong>{{ formatCurrency(row.doanh_thu) }}</strong>
+                    <span>{{ row.so_hoa_don }} hóa đơn</span>
+                  </div>
+                </div>
+                <div class="staff-chart-row__bar">
+                  <span :style="{ width: `${revenuePercent(row.doanh_thu, todayMaxRevenue)}%` }"></span>
+                </div>
+                <div class="staff-chart-row__foot">
+                  <span>Đăng nhập: {{ formatDateTime(row.dang_nhap_he_thong) }}</span>
+                  <span>Đăng xuất: {{ formatDateTime(row.dang_xuat_he_thong) }}</span>
+                </div>
               </div>
             </div>
+            <div v-else class="staff-performance-empty">
+              Chưa có nhân viên đăng nhập hoặc bán hàng trong ngày này.
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <div class="col-xl-4">
+        <article class="content-card staff-performance-card h-100">
+          <div class="mb-4">
+            <h3 class="panel-title">Xếp hạng doanh thu tháng</h3>
+            <p class="panel-subtitle">Tổng hợp nhân viên bán được nhiều doanh thu nhất trong tháng.</p>
+          </div>
+
+          <div v-if="monthlyLeader" class="staff-leader-card mb-4">
+            <span class="soft-badge soft-badge--blue">
+              <i class="bi bi-trophy"></i>
+              Dẫn đầu tháng
+            </span>
+            <h4>{{ monthlyLeader.ho_ten }}</h4>
+            <strong>{{ formatCurrency(monthlyLeader.doanh_thu) }}</strong>
+            <p>{{ monthlyLeader.so_hoa_don }} hóa đơn · {{ monthlyLeader.so_ngay_dang_nhap }} ngày đăng nhập</p>
+          </div>
+
+          <div v-if="performanceLoading" class="staff-performance-empty">
+            Đang tải bảng xếp hạng...
+          </div>
+          <div v-else-if="monthlyPerformanceRows.length">
+            <div class="staff-ranking-list">
+              <div
+                v-for="(row, index) in visibleMonthlyPerformanceRows"
+                :key="`month-${row.id_nhan_vien}`"
+                class="staff-ranking-item"
+              >
+                <span class="staff-ranking-item__rank">{{ index + 1 }}</span>
+                <div class="staff-ranking-item__body">
+                  <div class="d-flex justify-content-between gap-2">
+                    <strong>{{ row.ho_ten }}</strong>
+                    <span>{{ formatCurrency(row.doanh_thu) }}</span>
+                  </div>
+                  <div class="staff-ranking-item__bar">
+                    <span :style="{ width: `${revenuePercent(row.doanh_thu, monthMaxRevenue)}%` }"></span>
+                  </div>
+                  <small>{{ row.so_hoa_don }} hóa đơn · {{ row.so_lan_dang_nhap }} lần đăng nhập</small>
+                </div>
+              </div>
+            </div>
+
+            <button
+              v-if="hasMoreMonthlyRows"
+              type="button"
+              class="staff-ranking-more"
+              @click="showAllMonthly = !showAllMonthly"
+            >
+              {{ showAllMonthly ? "Thu gọn" : `Xem tất cả ${monthlyPerformanceRows.length} nhân viên` }}
+            </button>
           </div>
           <div v-else class="staff-performance-empty">
-            Chưa có nhân viên đăng nhập hoặc bán hàng trong ngày này.
+            Chưa có doanh thu trong tháng này.
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="rv-card rv-card--weekly mt-4">
+      <div class="rv-card__head">
+        <div>
+          <em>Biểu đồ doanh thu</em>
+          <h4>Doanh thu theo tuần</h4>
+          <p class="rv-card__sub">{{ formatShortDate(weeklySummary.tu_ngay) }} – {{ formatShortDate(weeklySummary.den_ngay) }}</p>
+        </div>
+
+        <div class="weekly-nav">
+          <div class="weekly-nav__month">
+            <label class="weekly-nav__label" for="weekMonthPicker">Xem tháng</label>
+            <input id="weekMonthPicker" v-model="weekMonth" type="month" class="form-control form-control-sm" @change="onWeekMonthChange"/>
+          </div>
+          <div class="weekly-nav__arrows">
+            <button class="weekly-nav__btn" :disabled="weekLoading" title="Tuần trước" @click="shiftWeek(-1)"><i class="bi bi-chevron-left"></i></button>
+            <span class="weekly-nav__label">{{ weekOffset === 0 ? 'Tuần này' : weekOffset < 0 ? `${Math.abs(weekOffset)} tuần trước` : `${weekOffset} tuần sau` }}</span>
+            <button class="weekly-nav__btn" :disabled="weekLoading || weekOffset >= 0" title="Tuần sau" @click="shiftWeek(1)"><i class="bi bi-chevron-right"></i></button>
           </div>
         </div>
-      </article>
-    </div>
 
-    <div class="col-xl-4">
-      <article class="content-card staff-performance-card h-100">
-        <div class="mb-4">
-          <h3 class="panel-title">Xếp hạng doanh thu tháng</h3>
-          <p class="panel-subtitle">Tổng hợp nhân viên bán được nhiều doanh thu nhất trong tháng.</p>
-        </div>
-
-        <div v-if="monthlyLeader" class="staff-leader-card mb-4">
-          <span class="soft-badge soft-badge--blue">
-            <i class="bi bi-trophy"></i>
-            Dẫn đầu tháng
-          </span>
-          <h4>{{ monthlyLeader.ho_ten }}</h4>
-          <strong>{{ formatCurrency(monthlyLeader.doanh_thu) }}</strong>
-          <p>{{ monthlyLeader.so_hoa_don }} hóa đơn · {{ monthlyLeader.so_ngay_dang_nhap }} ngày đăng nhập</p>
-        </div>
-
-        <div v-if="performanceLoading" class="staff-performance-empty">
-          Đang tải bảng xếp hạng...
-        </div>
-        <div v-else-if="monthlyPerformanceRows.length">
-          <div class="staff-ranking-list">
-            <div
-              v-for="(row, index) in visibleMonthlyPerformanceRows"
-              :key="`month-${row.id_nhan_vien}`"
-              class="staff-ranking-item"
-            >
-              <span class="staff-ranking-item__rank">{{ index + 1 }}</span>
-              <div class="staff-ranking-item__body">
-                <div class="d-flex justify-content-between gap-2">
-                  <strong>{{ row.ho_ten }}</strong>
-                  <span>{{ formatCurrency(row.doanh_thu) }}</span>
-                </div>
-                <div class="staff-ranking-item__bar">
-                  <span :style="{ width: `${revenuePercent(row.doanh_thu, monthMaxRevenue)}%` }"></span>
-                </div>
-                <small>{{ row.so_hoa_don }} hóa đơn · {{ row.so_lan_dang_nhap }} lần đăng nhập</small>
-              </div>
-            </div>
-          </div>
-
-          <button
-            v-if="hasMoreMonthlyRows"
-            type="button"
-            class="staff-ranking-more"
-            @click="showAllMonthly = !showAllMonthly"
-          >
-            {{ showAllMonthly ? "Thu gọn" : `Xem tất cả ${monthlyPerformanceRows.length} nhân viên` }}
-          </button>
-        </div>
-        <div v-else class="staff-performance-empty">
-          Chưa có doanh thu trong tháng này.
-        </div>
-      </article>
-    </div>
-  </section>
-
-  <section class="rv-card rv-card--weekly">
-    <div class="rv-card__head">
-      <div>
-        <em>Biểu đồ doanh thu</em>
-        <h4>Doanh thu theo tuần</h4>
-        <p class="rv-card__sub">{{ formatShortDate(weeklySummary.tu_ngay) }} – {{ formatShortDate(weeklySummary.den_ngay) }}</p>
-      </div>
-
-      <div class="weekly-nav">
-        <div class="weekly-nav__month">
-          <label class="weekly-nav__label" for="weekMonthPicker">Xem tháng</label>
-          <input id="weekMonthPicker" v-model="weekMonth" type="month" class="form-control form-control-sm" @change="onWeekMonthChange"/>
-        </div>
-        <div class="weekly-nav__arrows">
-          <button class="weekly-nav__btn" :disabled="weekLoading" title="Tuần trước" @click="shiftWeek(-1)"><i class="bi bi-chevron-left"></i></button>
-          <span class="weekly-nav__label">{{ weekOffset === 0 ? 'Tuần này' : weekOffset < 0 ? `${Math.abs(weekOffset)} tuần trước` : `${weekOffset} tuần sau` }}</span>
-          <button class="weekly-nav__btn" :disabled="weekLoading || weekOffset >= 0" title="Tuần sau" @click="shiftWeek(1)"><i class="bi bi-chevron-right"></i></button>
+        <div class="rv-card__stat">
+          <span>Tổng tuần</span>
+          <strong>{{ formatCurrency(weeklySummary.tong_doanh_thu) }}</strong>
+          <small>{{ weeklySummary.tong_hoa_don }} hóa đơn</small>
         </div>
       </div>
 
-      <div class="rv-card__stat">
-        <span>Tổng tuần</span>
-        <strong>{{ formatCurrency(weeklySummary.tong_doanh_thu) }}</strong>
-        <small>{{ weeklySummary.tong_hoa_don }} hóa đơn</small>
+      <div v-if="weekLoading" class="staff-performance-empty">
+        <span class="spinner-border spinner-border-sm me-2"></span>Đang tải...
       </div>
-    </div>
-
-    <div v-if="weekLoading" class="staff-performance-empty">
-      <span class="spinner-border spinner-border-sm me-2"></span>Đang tải...
-    </div>
-    <div v-else-if="performanceError" class="staff-performance-empty text-danger">{{ performanceError }}</div>
-    <div v-else-if="weeklyRevenueRows.length" class="rv-bars">
-      <div v-for="day in weeklyRevenueRows" :key="day.ngay" class="rv-bars__col">
-        <div class="rv-bars__val">{{ formatCurrency(day.doanh_thu) }}</div>
-        <div class="rv-bars__track"><span class="rv-bars__fill rv-bars__fill--gradient" :style="{ height: `${barHeight(day.doanh_thu, weekMaxRevenue)}%` }"></span></div>
-        <strong>{{ day.thu }}</strong>
-        <small>{{ formatShortDate(day.ngay) }}</small>
+      <div v-else-if="performanceError" class="staff-performance-empty text-danger">{{ performanceError }}</div>
+      <div v-else-if="weeklyRevenueRows.length" class="rv-bars">
+        <div v-for="day in weeklyRevenueRows" :key="day.ngay" class="rv-bars__col">
+          <div class="rv-bars__val">{{ formatCurrency(day.doanh_thu) }}</div>
+          <div class="rv-bars__track"><span class="rv-bars__fill rv-bars__fill--gradient" :style="{ height: `${barHeight(day.doanh_thu, weekMaxRevenue)}%` }"></span></div>
+          <strong>{{ day.thu }}</strong>
+          <small>{{ formatShortDate(day.ngay) }}</small>
+        </div>
       </div>
-    </div>
-    <div v-else class="staff-performance-empty">Chưa có dữ liệu doanh thu trong tuần này.</div>
-  </section>
-
+      <div v-else class="staff-performance-empty">Chưa có dữ liệu doanh thu trong tuần này.</div>
+    </section>
+  </template>
 </template>
 
 <script>
@@ -275,10 +284,16 @@ export default {
   },
 
   created() {
-    this.loadStaffPerformance();
+    if (this.isAdmin) {
+      this.loadStaffPerformance();
+    }
   },
 
   computed: {
+    isAdmin() {
+      return this.authState.type === 'admin';
+    },
+
     currentUserName() {
       return this.authState.user?.ho_ten || this.authState.user?.ten_khach_hang || 'Tài khoản hệ thống';
     },

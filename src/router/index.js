@@ -5,6 +5,7 @@ import {
   isAuthenticated,
   isSystemUser,
 } from "../lib/authStorage";
+import { setBrowserBaseTitle } from "../lib/browserTitleNotification";
 
 const routes = [
   {
@@ -249,7 +250,7 @@ router.beforeEach((to) => {
 });
 
 router.afterEach((to) => {
-  document.title = `${to.meta.title || "Pharmacity FE"} | Pharmacity FE`;
+  setBrowserBaseTitle(`${to.meta.title || "Pharmacity FE"} | Pharmacity FE`);
 });
 
 export default router;

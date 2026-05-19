@@ -217,6 +217,38 @@
       </article>
     </div>
   </section>
+
+  <Teleport to="body">
+    <div v-if="deleteConfirmOpen" class="support-confirm-modal" role="presentation">
+      <div class="support-confirm-modal__backdrop" @click="closeDeleteConfirm"></div>
+      <section
+        class="support-confirm-modal__dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="delete-conversation-title"
+      >
+        <div class="support-confirm-modal__icon">
+          <i class="bi bi-trash3"></i>
+        </div>
+        <div class="support-confirm-modal__body">
+          <h3 id="delete-conversation-title">Xóa hội thoại?</h3>
+          <p>
+            Hội thoại với <strong>{{ customerName(activeConversation) }}</strong> sẽ bị xóa khỏi hệ thống
+            và nhân viên sẽ không còn thấy nội dung chat này.
+          </p>
+        </div>
+        <div class="support-confirm-modal__actions">
+          <button class="btn btn-outline-secondary" type="button" :disabled="deletingConversation" @click="closeDeleteConfirm">
+            Hủy
+          </button>
+          <button class="btn btn-danger" type="button" :disabled="deletingConversation" @click="confirmDeleteConversation">
+            <span v-if="deletingConversation" class="spinner-border spinner-border-sm me-2"></span>
+            Xóa hội thoại
+          </button>
+        </div>
+      </section>
+    </div>
+  </Teleport>
 </template>
 
 <script setup>
@@ -230,6 +262,11 @@ import {
   sendSupportMessage,
 } from "../../../api/supportApi";
 import { normalizeApiError } from "../../../lib/errorMessages";
+import {
+  installNotificationSoundUnlocker,
+  playSupportNotificationSoundForKeys,
+  rememberSupportNotificationKeys,
+} from "../../../lib/notificationSound";
 import { showToast } from "../../../lib/toast";
 
 const route = useRoute();
@@ -243,11 +280,14 @@ const loadingThread = ref(false);
 const sendingReply = ref(false);
 const closingConversation = ref(false);
 const deletingConversation = ref(false);
+const deleteConfirmOpen = ref(false);
 const replyMessage = ref("");
 const messagesRef = ref(null);
 
 let pollTimer = null;
 let activeConversationRequestId = 0;
+let supportNotificationsPrimed = false;
+let previousSupportUnreadTotal = 0;
 
 function normalizeError(error, fallback = "Không thể xử lý yêu cầu hỗ trợ.") {
   return normalizeApiError(error, fallback, {
@@ -283,6 +323,7 @@ const requestedConversationId = computed(() => {
 });
 
 onMounted(async () => {
+  installNotificationSoundUnlocker();
   await loadConversations();
   startPolling();
 });
@@ -326,6 +367,7 @@ async function loadConversations({ silent = false } = {}) {
   try {
     const response = await getSupportConversations();
     const nextConversations = Array.isArray(response?.data) ? response.data : [];
+    handleSupportNotificationSound(nextConversations, { silent });
     conversations.value = nextConversations;
 
     if (!nextConversations.length) {
@@ -363,6 +405,44 @@ async function loadConversations({ silent = false } = {}) {
       loadingList.value = false;
     }
   }
+}
+
+function buildSupportNotificationKeys(items) {
+  return items
+    .filter((item) => Number(item.so_tin_chua_doc || 0) > 0)
+    .map((item) => {
+      const conversationId = item.id_hoi_thoai || "unknown";
+      const latestMessageId =
+        item.tin_nhan_cuoi?.id_tin_nhan ||
+        item.tin_nhan_cuoi?.id ||
+        item.thoi_gian_tin_nhan_cuoi ||
+        item.tin_nhan_cuoi?.thoi_gian ||
+        "none";
+      const latestSender = item.tin_nhan_cuoi?.nguoi_gui_loai || "unknown";
+      const latestContent = item.tin_nhan_cuoi?.noi_dung || "";
+      const unreadCount = Number(item.so_tin_chua_doc || 0);
+
+      return `${conversationId}:${latestMessageId}:${latestSender}:${latestContent}:${unreadCount}`;
+    })
+    .sort();
+}
+
+function handleSupportNotificationSound(nextConversations, { silent = false } = {}) {
+  const nextKeys = buildSupportNotificationKeys(nextConversations);
+  const nextUnreadTotal = nextConversations.reduce(
+    (total, item) => total + Number(item.so_tin_chua_doc || 0),
+    0
+  );
+  const shouldForceSound = nextUnreadTotal > previousSupportUnreadTotal;
+
+  if (supportNotificationsPrimed && silent) {
+    playSupportNotificationSoundForKeys(nextKeys, { force: shouldForceSound });
+  } else {
+    rememberSupportNotificationKeys(nextKeys);
+  }
+
+  previousSupportUnreadTotal = nextUnreadTotal;
+  supportNotificationsPrimed = true;
 }
 
 async function openConversation(
@@ -456,9 +536,19 @@ async function handleDeleteConversation() {
     return;
   }
 
-  const confirmed = window.confirm("Bạn có chắc muốn xóa hội thoại này không?");
+  deleteConfirmOpen.value = true;
+}
 
-  if (!confirmed) {
+function closeDeleteConfirm() {
+  if (deletingConversation.value) {
+    return;
+  }
+
+  deleteConfirmOpen.value = false;
+}
+
+async function confirmDeleteConversation() {
+  if (!activeConversationId.value || deletingConversation.value) {
     return;
   }
 
@@ -484,6 +574,7 @@ async function handleDeleteConversation() {
     showToast(normalizeError(error, "Không thể xóa hội thoại."), "error");
   } finally {
     deletingConversation.value = false;
+    deleteConfirmOpen.value = false;
   }
 }
 
@@ -754,6 +845,71 @@ function scrollMessagesToBottom() {
 </script>
 
 <style scoped>
+.support-confirm-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1080;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.support-confirm-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(8, 18, 38, 0.56);
+  backdrop-filter: blur(2px);
+}
+
+.support-confirm-modal__dialog {
+  position: relative;
+  width: min(460px, 100%);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 16px;
+  padding: 22px;
+  border: 1px solid rgba(220, 38, 38, 0.14);
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(15, 31, 79, 0.24);
+}
+
+.support-confirm-modal__icon {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: #fee2e2;
+  color: #dc2626;
+  font-size: 1.25rem;
+}
+
+.support-confirm-modal__body {
+  min-width: 0;
+}
+
+.support-confirm-modal__body h3 {
+  margin: 0 0 8px;
+  color: #13264a;
+  font-size: 1.12rem;
+  font-weight: 850;
+}
+
+.support-confirm-modal__body p {
+  margin: 0;
+  color: #60738d;
+  line-height: 1.5;
+}
+
+.support-confirm-modal__actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 4px;
+}
+
 .support-thread-list {
   display: grid;
   gap: 10px;
@@ -1050,6 +1206,18 @@ function scrollMessagesToBottom() {
 }
 
 @media (max-width: 767.98px) {
+  .support-confirm-modal__dialog {
+    grid-template-columns: 1fr;
+  }
+
+  .support-confirm-modal__actions {
+    flex-direction: column-reverse;
+  }
+
+  .support-confirm-modal__actions .btn {
+    width: 100%;
+  }
+
   .support-thread-list__item {
     grid-template-columns: 1fr;
     align-items: start;

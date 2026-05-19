@@ -8,6 +8,7 @@ export function createCheckoutOrder(payload) {
   return apiClient("/checkout/orders", {
     method: "POST",
     body: JSON.stringify(payload),
+    timeoutMs: 30000,
   });
 }
 

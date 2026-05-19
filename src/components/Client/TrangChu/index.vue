@@ -317,7 +317,7 @@ export default {
       currentSlideIndex: 0,
       heroTimer: null,
       homeCategoryPageIndex: 0,
-      homeCategoryPageSize: 2,
+      homeCategoryPageSize: 5,
       customerStore: useCustomerStore(),
       heroSlides: [
         {
@@ -387,7 +387,7 @@ export default {
         return {
           ...card,
           total: products.length,
-          products: products.slice(0, 4),
+          products: products.slice(0, 8),
         };
       });
     },

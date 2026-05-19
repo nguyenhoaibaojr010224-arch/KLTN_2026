@@ -109,6 +109,9 @@
               <div v-if="showNotificationMenu" class="pc-notification-menu">
                 <div class="pc-notification-menu__head">
                   <strong>Thông báo</strong>
+                  <span v-if="notificationRefreshing" class="pc-notification-menu__refresh">
+                    <span class="spinner-border spinner-border-sm"></span>
+                  </span>
                   <button v-if="isCustomerLoggedIn" type="button" class="pc-notification-menu__link" @click="goToNotifications">
                     Xem tất cả
                   </button>
@@ -130,6 +133,9 @@
                   </button>
                 </div>
 
+                <p v-else-if="isCustomerLoggedIn && notificationRefreshing" class="pc-notification-menu__empty">
+                  Đang cập nhật thông báo...
+                </p>
                 <p v-else-if="isCustomerLoggedIn" class="pc-notification-menu__empty">Chưa có thông báo nào.</p>
 
                 <div v-else class="pc-notification-menu__guest">
@@ -219,6 +225,7 @@ const notificationMenuRef = ref(null);
 const searchDropdownOpen = ref(false);
 const showUserMenu = ref(false);
 const showNotificationMenu = ref(false);
+const notificationRefreshing = ref(false);
 const recentSearches = ref(getRecentSearches());
 const showMegaMenu = ref(false);
 const activeCategory = ref("thuoc");
@@ -233,9 +240,12 @@ const placeholderPhrases = [
 ];
 let placeholderTimer = null;
 let orderSyncTimer = null;
+let notificationRefreshPromise = null;
+let lastNotificationRefreshAt = 0;
 let currentPhraseIndex = 0;
 let currentCharIndex = 0;
 let isDeletingPlaceholder = false;
+const notificationRefreshThrottleMs = 4000;
 
 const loggedIn = isAuthenticatedState;
 const isSystemAccount = isSystemUserState;
@@ -280,7 +290,7 @@ watch(
 onMounted(async () => {
   document.addEventListener("click", handleDocumentClick);
   if (isCustomerLoggedIn.value) {
-    await Promise.all([syncOrdersFromApi(), syncSharedNotificationsFromApi()]);
+    refreshCustomerNotifications({ includeOrders: true, force: true });
     startOrderSyncPolling();
   }
   runPlaceholderAnimation();
@@ -299,7 +309,7 @@ watch(
     showNotificationMenu.value = false;
 
     if (isLoggedIn && nextAuthType === "customer") {
-      await Promise.all([syncOrdersFromApi(), syncSharedNotificationsFromApi()]);
+      refreshCustomerNotifications({ includeOrders: true, force: true });
       startOrderSyncPolling();
     }
   }
@@ -381,9 +391,12 @@ async function toggleNotificationMenu() {
     return;
   }
 
-  await Promise.all([syncOrdersFromApi(), syncSharedNotificationsFromApi()]);
   showNotificationMenu.value = !showNotificationMenu.value;
   showUserMenu.value = false;
+
+  if (showNotificationMenu.value) {
+    refreshCustomerNotifications({ includeOrders: false });
+  }
 }
 
 function closeNotificationMenu() {
@@ -423,14 +436,45 @@ function closeUserMenu() {
 function startOrderSyncPolling() {
   stopOrderSyncPolling();
 
-  orderSyncTimer = window.setInterval(async () => {
+  orderSyncTimer = window.setInterval(() => {
     if (!isCustomerLoggedIn.value) {
       stopOrderSyncPolling();
       return;
     }
 
-    await Promise.all([syncOrdersFromApi(), syncSharedNotificationsFromApi()]);
+    refreshCustomerNotifications({ includeOrders: true });
   }, 15000);
+}
+
+function refreshCustomerNotifications({ includeOrders = false, force = false } = {}) {
+  if (!isCustomerLoggedIn.value) {
+    return Promise.resolve();
+  }
+
+  const now = Date.now();
+  if (!force && notificationRefreshPromise) {
+    return notificationRefreshPromise;
+  }
+
+  if (!force && now - lastNotificationRefreshAt < notificationRefreshThrottleMs) {
+    return Promise.resolve();
+  }
+
+  lastNotificationRefreshAt = now;
+  notificationRefreshing.value = true;
+  const tasks = [syncSharedNotificationsFromApi()];
+
+  if (includeOrders) {
+    tasks.push(syncOrdersFromApi());
+  }
+
+  notificationRefreshPromise = Promise.allSettled(tasks)
+    .finally(() => {
+      notificationRefreshing.value = false;
+      notificationRefreshPromise = null;
+    });
+
+  return notificationRefreshPromise;
 }
 
 function stopOrderSyncPolling() {
@@ -952,6 +996,12 @@ function handleAvatarError() {
   color: #243b5d;
   font-size: 1rem;
   font-weight: 800;
+}
+
+.pc-notification-menu__refresh {
+  margin-left: auto;
+  color: #1652c5;
+  line-height: 1;
 }
 
 .pc-notification-menu__link {

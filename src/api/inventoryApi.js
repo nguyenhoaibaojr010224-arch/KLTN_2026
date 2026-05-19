@@ -57,3 +57,22 @@ export function updateLoThuoc(id, payload) {
     body: JSON.stringify(payload),
   });
 }
+
+export function deleteThuoc(id) {
+  return apiClient(`/admin/thuocs/${id}`, {
+    method: "DELETE",
+  });
+}
+
+export function disposeLoThuoc(id, payload = {}) {
+  return apiClient(`/admin/lo-thuocs/${id}/dispose`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteLoThuoc(id) {
+  return apiClient(`/admin/lo-thuocs/${id}`, {
+    method: "DELETE",
+  });
+}

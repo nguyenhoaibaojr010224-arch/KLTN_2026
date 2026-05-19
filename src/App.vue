@@ -292,6 +292,12 @@ export default {
     margin-bottom: 12px;
   }
 
+  .master-topstrip__refresh {
+    margin-left: auto;
+    color: #1652c5;
+    line-height: 1;
+  }
+
   .master-topstrip__notification-list {
     display: flex;
     flex-direction: column;

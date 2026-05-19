@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="pc-page">
     <div class="container-fluid pc-container">
       <div class="row g-4 align-items-start">
@@ -845,6 +845,7 @@ export default {
     formatNumber(value) {
       return new Intl.NumberFormat("vi-VN", {
         maximumFractionDigits: 0,
+      }).format(Number(value || 0));
     },
     formatDateTime(value) {
       if (!value) {

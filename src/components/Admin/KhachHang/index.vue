@@ -1,5 +1,13 @@
 <template>
-  <div class="vstack gap-4">
+  <div v-if="!isAdmin" class="container mt-5">
+    <div class="alert alert-danger shadow-sm border-0 rounded-4 p-5 text-center bg-white">
+      <i class="bi bi-shield-lock-fill text-danger display-1 mb-4 d-block"></i>
+      <h2 class="fw-bold mb-3 text-danger">Truy cập bị từ chối</h2>
+      <p class="fs-5 text-secondary mb-0">Chỉ có tài khoản Quản trị viên (Admin) mới có quyền xem trang quản lý khách hàng.</p>
+    </div>
+  </div>
+
+  <div v-else class="vstack gap-4">
     <section class="content-card">
       <div class="d-flex flex-column flex-xl-row justify-content-between gap-4">
         <div>
@@ -119,37 +127,54 @@
               </div>
             </div>
 
-            <div class="d-flex justify-content-between align-items-center gap-3 mt-4 mb-3">
+            <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3 mt-4 mb-3">
               <div>
                 <h3 class="panel-title mb-1">Lịch sử đơn hàng</h3>
                 <p class="panel-subtitle mb-0">Các đơn hàng khách hàng này đã mua.</p>
               </div>
-              <span v-if="loading.detail" class="spinner-border spinner-border-sm text-primary"></span>
+              <div class="d-flex align-items-center gap-3 flex-grow-1" style="max-width: 300px;">
+                <input v-if="selectedCustomer.lich_su_don_hang?.length || orderKeyword" v-model.trim="orderKeyword" type="text" class="form-control" placeholder="Tìm mã đơn hàng..." />
+                <span v-if="loading.detail" class="spinner-border spinner-border-sm text-primary"></span>
+              </div>
             </div>
 
-            <div v-if="selectedCustomer.lich_su_don_hang?.length" class="khach-hang-order-list">
-              <article v-for="order in selectedCustomer.lich_su_don_hang" :key="order.id_hoa_don" class="khach-hang-order">
-                <div class="khach-hang-order__head">
-                  <div>
-                    <strong>{{ order.ma_hoa_don }}</strong>
-                    <span>{{ formatDate(order.ngay_ban) }}</span>
-                  </div>
-                  <div class="text-end">
-                    <strong>{{ formatCurrency(order.tien_thanh_toan) }}</strong>
-                    <span>{{ order.trang_thai || "Thành công" }}</span>
-                  </div>
-                </div>
-
-                <div class="khach-hang-order__items">
-                  <div v-for="item in order.items" :key="item.id" class="khach-hang-order-item">
+            <div v-if="selectedCustomer.lich_su_don_hang?.length">
+              <div v-if="filteredCustomerOrders.length" class="khach-hang-order-list">
+                <article v-for="order in filteredCustomerOrders" :key="order.id_hoa_don" class="khach-hang-order">
+                  <div class="khach-hang-order__head" @click="toggleOrderDetails(order.id_hoa_don)" style="cursor: pointer;">
                     <div>
-                      <strong>{{ item.ten_thuoc }}</strong>
-                      <span>{{ item.so_luong }} {{ item.don_vi || "đơn vị" }} x {{ formatCurrency(item.gia_ban) }}</span>
+                      <strong class="text-dark fw-bold" style="font-size: 1.15rem;">{{ order.ma_hoa_don }}</strong>
+                      <span class="mt-1">{{ formatDate(order.ngay_ban) }}</span>
                     </div>
-                    <strong>{{ formatCurrency(item.thanh_tien) }}</strong>
+                    <div class="text-end d-flex align-items-center justify-content-end">
+                      <i class="bi" :class="expandedOrders.includes(order.id_hoa_don) ? 'bi-chevron-up' : 'bi-chevron-down'"></i>
+                    </div>
                   </div>
-                </div>
-              </article>
+
+                  <div class="khach-hang-order__items" v-if="expandedOrders.includes(order.id_hoa_don)">
+                    <div class="p-3 bg-light border-bottom d-flex justify-content-between align-items-center">
+                      <div>
+                        <span class="text-secondary small">Trạng thái:</span>
+                        <strong class="ms-1">{{ order.trang_thai || "Thành công" }}</strong>
+                      </div>
+                      <div>
+                        <span class="text-secondary small">Tổng tiền:</span>
+                        <strong class="ms-1 text-danger fs-5">{{ formatCurrency(order.tien_thanh_toan) }}</strong>
+                      </div>
+                    </div>
+                    <div v-for="item in order.items" :key="item.id" class="khach-hang-order-item">
+                      <div>
+                        <strong>{{ item.ten_thuoc }}</strong>
+                        <span>{{ item.so_luong }} {{ item.don_vi || "đơn vị" }} x {{ formatCurrency(item.gia_ban) }}</span>
+                      </div>
+                      <strong>{{ formatCurrency(item.thanh_tien) }}</strong>
+                    </div>
+                  </div>
+                </article>
+              </div>
+              <div v-else class="text-center py-4 border rounded bg-light text-secondary">
+                Không tìm thấy đơn hàng nào có mã chứa "{{ orderKeyword }}"
+              </div>
             </div>
 
             <div v-else class="master-empty">
@@ -171,16 +196,20 @@
 import { getKhachHang, getKhachHangs, searchKhachHangs } from "../../../api/khachHangApi";
 import { normalizeApiError } from "../../../lib/errorMessages";
 import { showToast } from "../../../lib/toast";
+import { authState } from "../../../lib/authStorage";
 
 export default {
   name: "KhachHangAdmin",
 
   data() {
     return {
+      authState,
       keyword: "",
       khachHangs: [],
       selectedId: null,
       selectedCustomer: null,
+      expandedOrders: [],
+      orderKeyword: "",
       loading: {
         list: false,
         search: false,
@@ -190,6 +219,9 @@ export default {
   },
 
   computed: {
+    isAdmin() {
+      return this.authState.type === 'admin';
+    },
     metrics() {
       const totalCustomers = this.khachHangs.length;
       const totalOrders = this.khachHangs.reduce((sum, item) => sum + Number(item.tong_so_don_hang || 0), 0);
@@ -203,9 +235,25 @@ export default {
         { label: "Email xác thực", value: verified, note: "Tài khoản đã xác minh", deltaClass: "is-positive", icon: "bi bi-envelope-check", iconClass: "metric-card__icon--red" },
       ];
     },
+    filteredCustomerOrders() {
+      if (!this.selectedCustomer || !this.selectedCustomer.lich_su_don_hang) {
+        return [];
+      }
+      if (!this.orderKeyword) {
+        return this.selectedCustomer.lich_su_don_hang;
+      }
+      const kw = this.orderKeyword.toLowerCase();
+      return this.selectedCustomer.lich_su_don_hang.filter((order) =>
+        order.ma_hoa_don && order.ma_hoa_don.toLowerCase().includes(kw)
+      );
+    },
   },
 
   mounted() {
+    if (!this.isAdmin) {
+      return;
+    }
+
     const routeKeyword = String(this.$route.query.q || "").trim();
     if (routeKeyword) {
       this.keyword = routeKeyword;
@@ -301,6 +349,8 @@ export default {
     async selectKhachHang(khachHang) {
       this.selectedId = khachHang.id_khach_hang;
       this.selectedCustomer = { ...khachHang, lich_su_don_hang: [] };
+      this.expandedOrders = [];
+      this.orderKeyword = "";
       this.loading.detail = true;
 
       try {
@@ -321,6 +371,14 @@ export default {
         query: {},
       });
       this.loadKhachHangs();
+    },
+    toggleOrderDetails(orderId) {
+      const index = this.expandedOrders.indexOf(orderId);
+      if (index > -1) {
+        this.expandedOrders.splice(index, 1);
+      } else {
+        this.expandedOrders.push(orderId);
+      }
     },
   },
 };
